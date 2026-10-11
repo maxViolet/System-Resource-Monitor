@@ -1,280 +1,119 @@
 # MVP implementation plan
 
-This document turns the product stages in [the product plan](plan.md) into buildable vertical slices. Architecture and stack choices are recorded in [ADR 0002](adr/0002-dotnet-wpf-clean-architecture.md).
+The [product plan](plan.md) defines scope and release order. [ADR 0003](adr/0003-appbar-first-cpu-ram-release.md) records the two-project architecture. This revision replaces PR #3's all-metrics MVP and mandatory source spikes with an AppBar-first CPU/RAM release.
 
-## MVP outcome
+## Technology and layout
 
-The MVP is a single-user Windows 11 desktop application that:
-
-- runs once per user session and owns one bar on the primary monitor;
-- reserves work area through the AppBar API at the top or above the Windows taskbar;
-- shows CPU load, RAM usage, GPU load, and every temperature supported by an accepted source;
-- refreshes system metrics every 2 seconds without blocking the UI thread;
-- can start at Windows sign-in and can be exited from a tray menu;
-- releases reserved work area on normal exit and after handled startup failures;
-- shows Codex or Claude limits only for providers that pass the product plan's source spike.
-
-A provider that fails its spike is not simulated and does not delay the system-metrics MVP. CPU temperature is unavailable when no source passes its driver, privilege, license, and antivirus checks.
-
-## Technology baseline
-
-- C# on .NET 10, `net10.0-windows`, x64.
-- WPF for the window, bindings, tray integration, and Win32 interop host.
-- `Microsoft.Extensions.Hosting` for dependency injection and coordinated start/stop.
-- `System.Text.Json` for local settings and provider payloads when JSON is available.
-- P/Invoke for AppBar, monitor, CPU, memory, and PDH GPU APIs. Keep native handles behind `SafeHandle` where ownership applies.
-- Self-contained folder publication for `win-x64`; no single-file bundling in the MVP.
-- No database, network service, browser automation, telemetry, or credential store.
-
-Pin the .NET SDK in `global.json`, enable nullable reference types and warnings as errors, and commit the generated `packages.lock.json` files.
-
-## Solution layout
+Use C#, .NET 10, `net10.0-windows`, x64, WPF, System.Text.Json, and direct Win32 interop. Pin the SDK in global.json, enable nullable and warnings as errors, and commit package lock files. Generic Host may coordinate lifecycle; native calls must never run on the UI thread.
 
 ```text
-SystemResourceMonitor.sln
 src/
-  SystemResourceMonitor.Domain/
+  SystemResourceMonitor.Core/
     Metrics/
-    Limits/
-  SystemResourceMonitor.Application/
-    Abstractions/
     Monitoring/
     Settings/
-  SystemResourceMonitor.Infrastructure/
-    Metrics/Windows/
-    Limits/Codex/
-    Limits/Claude/
-    Settings/
-    Startup/
   SystemResourceMonitor.Desktop/
     AppBar/
+    Adapters/Windows/
+    Adapters/Settings/
     ViewModels/
     Views/
     Tray/
-    App.xaml
     App.xaml.cs
 tests/
-  SystemResourceMonitor.Domain.Tests/
-  SystemResourceMonitor.Application.Tests/
-  SystemResourceMonitor.Infrastructure.Tests/
-scripts/
-  install.ps1
-  uninstall.ps1
+  SystemResourceMonitor.Core.Tests/
+  SystemResourceMonitor.Desktop.Tests/
 ```
 
 ```mermaid
 flowchart LR
-    Desktop[Desktop: WPF and AppBar] --> Application
-    Infrastructure[Infrastructure: Windows and clients] --> Application
-    Desktop --> Infrastructure
-    Application --> Domain
-    Infrastructure --> Domain
+    Desktop[Desktop: WPF, AppBar, isolated adapters] --> Core[Core: values, policy, state, ports]
 ```
 
-`Desktop` references `Infrastructure` only in `App.xaml.cs`, the composition root. Views and view models use Application and Domain contracts, never concrete infrastructure types.
+Core has no Desktop dependency. Desktop adapters implement Core ports; view models do not reference concrete adapters. Wire implementations in App.xaml.cs. Do not introduce speculative repositories, mediators, generic result wrappers, or provider/thermal interfaces before their feature is accepted.
 
-## Layer responsibilities
+## Initial model and workflows
 
-| Layer | Owns | Must not own |
-|---|---|---|
-| Domain | Metric values, limit windows and snapshots, availability and failure categories, value invariants | WPF types, timers, files, processes, registry, P/Invoke |
-| Application | Polling workflows, freshness rules, provider selection, current dashboard state, settings use cases | Windows handles, XAML, JSON layout, CLI parsing |
-| Infrastructure | Windows metric readers, provider adapters, JSON settings store, autostart implementation | Presentation state, business freshness decisions |
-| Desktop | AppBar lifecycle, WPF bindings, tray commands, tooltip rendering, composition root | Metric collection, client parsing, persistence rules |
+- MetricReading contains kind, finite percentage in 0..100, UTC MeasuredAt, and availability. RAM also carries physical used/total bytes for the GiB tooltip.
+- DashboardState is immutable CPU/RAM state with one change notification. Marshal notifications once at the Desktop boundary.
+- Source ports read CPU and RAM independently. One failure or blocked source must not stop the other source's acquisition or expiry.
+- Inject TimeProvider; use UTC for measurement records and elapsed-time scheduling for deadlines. Do not wrap it in IClock.
+- Each collector polls every 2 seconds without overlapping its own reads. CPU uses GetSystemTimes deltas; the first sample is unavailable. Counter reset/invalid delta discards the baseline. RAM uses GlobalMemoryStatusEx: (total - available) / total.
+- A separate expiry mechanism marks each reading unavailable at age >=6 seconds, even while its collector is blocked. Failed reads do not renew MeasuredAt. Tooltip explains missing updates; known-invalid readings become unavailable immediately.
+- Bound source execution and honor cancellation. A source that cannot support bounded termination is excluded until isolated appropriately; Task.Run alone does not make a native call cancellable.
+- Startup loads settings, establishes the single-instance guard, shows/registers the bar, and starts collectors. A second process never registers another AppBar.
 
-Rules:
+## Settings and lifecycle
 
-- Dependencies point inward; Domain references no other project.
-- One interface exists only when an outer-layer implementation crosses an architectural boundary. Do not add repositories, commands, mediators, mapping layers, or generic result wrappers speculatively.
-- Domain and Application use `DateTimeOffset` in UTC. Inject .NET `TimeProvider`; do not create an `IClock` wrapper.
-- Cancellation is mandatory for polling, child processes, and shutdown. No fire-and-forget tasks.
-- UI-bound state changes are marshalled once at the Desktop boundary; collectors never use the WPF dispatcher.
+First-release settings contain only Top/Bottom edge, default Top. Store at %LocalAppData%\SystemResourceMonitor\settings.json. Write a temporary file in the same directory and replace atomically. Missing settings use defaults. Preserve malformed settings as settings.invalid-<timestamp>.json when possible; inability to read, back up, or write settings does not prevent monitoring. On persistence failure, report that the current position applies only until restart.
 
-## Core model and contracts
+Create one borderless, non-activating primary-monitor window. Register ABM_NEW, negotiate ABM_QUERYPOS, then ABM_SETPOS. Handle position notifications, WM_DISPLAYCHANGE, WM_DPICHANGED, TaskbarCreated, and primary-monitor changes. Verify fullscreen foreground bounds and monitor before releasing the reservation and hiding; re-register on exit from fullscreen. Never steal focus.
 
-### Domain values
+On exit or handled fatal startup failure, stop publishing state, cancel collectors, and remove AppBar immediately in an idempotent finally path, before awaiting collectors. Wait at most 2 seconds total for collectors; safely dispose completed operations and stop the host. Do not dispose handles still in use or leave an unobserved background operation as the termination strategy. Demonstrate process exit with a blocked test source. Abrupt OS/process termination is distinct from handled cancellation and must not be claimed as covered by finally.
 
-- `MetricReading`: metric kind, numeric value, unit, `MeasuredAt`, and availability. Enforce percentages in `0..100`; temperature remains a finite Celsius value.
-- `SystemMetricsSnapshot`: CPU load, CPU temperature, RAM usage, GPU load, GPU temperature, and `CapturedAt`. Each reading can be unavailable independently.
-- `LimitWindow`: provider label, window label, remaining whole percent, reset time, and window kind (`Short` or `Weekly`). Enforce percentages in `0..100`.
-- `LimitSnapshot`: provider, non-empty windows ordered as supplied by the provider, and `CapturedAt`. It derives the short value and the binding weekly value; it does not assume exactly two windows.
-- `SourceFailure`: one of `SignedOut`, `Network`, `Unsupported`, `MalformedResponse`, or `Unexpected`, plus a safe user-facing message. Never carry credentials or raw provider output.
-- `SourceState<T>`: `Available`, `Stale`, or `Unavailable`, with the latest value only where policy permits it.
-
-### Application ports
-
-- `ISystemMetricsSource.ReadAsync(CancellationToken)` returns a full `SystemMetricsSnapshot`; one unavailable sensor does not fail the whole snapshot.
-- `ILimitSource.Provider` and `ReadAsync(CancellationToken)` return either a `LimitSnapshot` or a categorized `SourceFailure`.
-- `ISettingsStore.LoadAsync` and `SaveAsync` persist `AppSettings`.
-- `IAutostartManager.GetAsync`, `EnableAsync`, and `DisableAsync` manage sign-in startup.
-- `IDashboardState` exposes the current immutable state and one change notification for Desktop.
-
-### Application workflows
-
-- `SystemMetricsMonitor` owns one `PeriodicTimer` at 2 seconds. It prevents overlapping reads, publishes one snapshot per completed poll, converts unexpected source exceptions into unavailable readings, and continues unless cancellation was requested.
-- `SubscriptionLimitsMonitor` owns one 1-minute timer and polls enabled providers independently. A sign-in error becomes unavailable immediately. A network error retains the last success as stale only until `CapturedAt + 3 minutes`; all other failures become unavailable immediately.
-- `DashboardState` performs atomic snapshot replacement. The WPF view model reads one coherent state per notification instead of subscribing to individual collectors.
-- Startup loads settings, starts the two monitors, then shows the bar. Shutdown cancels monitors, waits for them, removes the AppBar, disposes native resources, and stops the host.
-
-## Infrastructure design
-
-### Windows system metrics
-
-- CPU load: sample `GetSystemTimes`; retain the previous idle/kernel/user counters and calculate utilization from deltas. The first sample is unavailable because no delta exists.
-- RAM usage: call `GlobalMemoryStatusEx` and calculate `(total - available) / total × 100`.
-- GPU load: enumerate adapters through DXGI, select the hardware adapter with the greatest dedicated video memory, then read PDH `GPU Engine` utilization and take the maximum among 3D, Compute, Copy, and Video engines for that adapter. If adapter-to-counter correlation cannot be made reliably, report GPU load unavailable rather than combining adapters.
-- Temperatures: implement `IHardwareTemperatureSource` only after the stage 3 spike selects a source. The adapter maps package CPU and selected-GPU sensors to the domain snapshot. Keep a no-temperature implementation so the rest of the MVP is buildable.
-- Native queries execute off the UI thread. Reuse PDH queries and counter buffers between polls; do not recreate them every 2 seconds.
-
-Every native wrapper checks return codes, uses explicit structure sizes and architecture-safe pointer types, and has an integration smoke on Windows 11. Native handles have deterministic disposal.
-
-### Subscription limits
-
-Each provider adapter is independent and is included only after its stage 1 spike passes.
-
-- Execute the official client directly, never through `cmd.exe` or PowerShell.
-- Use an absolute executable path resolved at startup, redirected standard streams, no shell window, a bounded timeout, and process-tree termination on timeout or shutdown.
-- Parse a documented machine-readable format when available. Keep parsing separate from process execution and cover it with sanitized fixtures.
-- Convert used percentages to remaining percentages using the provider's verified rounding rule.
-- Never read tokens, browser cookies, or credential files; never log raw output that may contain account data.
-- A provider version or shape that is not recognized returns `Unsupported` or `MalformedResponse`, not guessed data.
-
-### Settings and startup
-
-`AppSettings` contains only:
-
-- bar edge (`Top` or `Bottom`);
-- enabled limit providers;
-- start-at-sign-in preference.
-
-Store it at `%LocalAppData%\SystemResourceMonitor\settings.json`. Write a temporary file in the same directory and atomically replace the previous file. Missing settings use defaults; malformed settings are preserved as `settings.invalid-<timestamp>.json` and replaced with defaults.
-
-Use `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` for autostart when the selected temperature source does not require elevation. If an accepted source requires elevation, use a per-user Task Scheduler task with highest privileges as required by the product plan. Do not implement both paths before the temperature-source decision.
-
-### Installation
-
-Publish with:
-
-```powershell
-dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true
-```
-
-`install.ps1` copies the published folder to `%LocalAppData%\Programs\SystemResourceMonitor`, preserves settings, and optionally enables autostart. `uninstall.ps1` disables autostart before deleting binaries and leaves settings only when explicitly requested. Public signing and installer packaging are post-MVP.
-
-## Desktop and AppBar lifecycle
-
-- Enforce one process per user with a named mutex. A second process exits with a clear message and never registers another AppBar.
-- Create one borderless, non-activating WPF window on the primary monitor. It is topmost only as required by AppBar behaviour and must not steal focus.
-- On source initialization, register with `ABM_NEW`, negotiate the rectangle through `ABM_QUERYPOS`, then apply it with `ABM_SETPOS`.
-- Handle AppBar position notifications, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, Explorer's `TaskbarCreated` message, and a primary-monitor change by renegotiating the rectangle.
-- On fullscreen entry on the primary monitor, remove the AppBar reservation and hide the window. Re-register and show it on exit. A shell notification is a trigger; verify the foreground window's monitor and bounds before changing state so fullscreen on another monitor does not hide the bar.
-- On shutdown and handled fatal startup errors, call `ABM_REMOVE` in a `finally` path. Removal is idempotent.
-- The tray menu contains position, start-at-sign-in, and exit actions. Position and autostart changes apply immediately and persist only after the operation succeeds.
-- The bar presents `—` for an unavailable system reading and `--/--` for unavailable limits. Tooltips show all provider windows and reset times, or the safe failure message.
+Native wrappers check return codes, structure sizes, pointer widths, and handle ownership; use SafeHandle where appropriate. Tray provides position and exit only in the first release.
 
 ## Delivery slices
 
-Each slice leaves the application runnable. Do not begin a conditional slice until its spike passes.
+### Slice 0: runnable skeleton and empty AppBar
 
-### Slice 0 — technical spikes and solution skeleton
+Create Core/Desktop, tests, single-instance guard, blank AppBar, tray, edge persistence, and shutdown. Do not gate this work on provider or temperature research.
 
-1. Run the Codex and Claude limit-source spikes from product-plan stage 1; record each result in a dated document under `docs/spikes/`.
-2. Run the temperature-source spike from product-plan stage 3; record source, license, driver, privilege, and Defender results in `docs/spikes/` and capture a resulting ADR if a library or driver is selected.
-3. Create the solution and four production projects with dependency checks.
-4. Add the Generic Host, single-instance guard, blank bar window, and graceful cancellation.
+Pass build/tests and verify second launch leaves one process/window, exit leaves no background process, and handled startup failure restores work area. Run every placement scenario in product-plan stage 1. Perform ten top/bottom switches and verify no stale reservations. Record focus behaviour and work area before/during/after each scenario.
 
-Acceptance:
+Time-box placement investigation to two working days. Remaining blocking failures stop dependent work pending an explicit placement/suspension decision and, if needed, ADR 0001 revision.
 
-- `dotnet build` and `dotnet test` pass on Windows 11.
-- A dependency test rejects Domain or Application references to Desktop or Infrastructure.
-- Starting a second process leaves one process and one window.
-- Closing the blank app exits without a background process.
+### Slice 1: first personal CPU/RAM release
 
-### Slice 1 — AppBar shell
+Implement independent collectors and expiry, fixed-width CPU/RAM text, RAM GiB tooltip, and unavailable tooltip. A slow collector never overlaps itself, blocks the other collector, or delays UI exit. No empty placeholders for deferred features are required.
 
-1. Add the native AppBar wrapper and lifecycle controller.
-2. Add top/bottom settings and tray exit.
-3. Handle Explorer restart, display/DPI changes, primary-monitor change, taskbar auto-hide, and fullscreen transitions.
-4. Add settings persistence for the edge.
+Publish a self-contained folder; document extraction, launch, position, exit, settings errors, and unavailable readings. No install scripts or autostart yet. Every gate below must pass on the exact published artifact.
 
-Acceptance:
+### Later slices
 
-- The real Windows 11 checks in product-plan stage 2 pass.
-- The work area is smaller while the bar is active and restored after exit, startup failure, and forced cancellation handled by the application.
-- Repeated top/bottom changes do not leave stale reservations.
+1. GPU: implement adapter selection/correlation and reused PDH queries only now; use product-plan stage 3 acceptance, with unavailable rather than guessed correlation.
+2. Installation/autostart: per-user Run entry and scripts, without elevation; verify product-plan stage 4. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
+3. Providers: independently researched, conditionally implemented after their spike passes. Keep parsing separate from process execution, use sanitized fixtures, absolute executable paths, redirected streams, timeout and process-tree termination. Never log raw account output or secrets. Implement independent provider polls and independent three-minute expiry; unknown format/version is unavailable. Local non-credential file sources remain allowed by the product plan.
+4. Temperatures: last, after source/license/driver/Defender checks; no elevation of the bar. No acceptable source means no temperatures.
 
-### Slice 2 — system metrics
+Later feature acceptance reruns affected first-release gates, including resource budgets with the enabled feature configuration. These slices do not retroactively block the CPU/RAM release.
 
-1. Implement CPU and RAM readers and the 2-second monitor.
-2. Implement adapter selection and GPU load.
-3. Add the accepted temperature source, or the no-temperature implementation if the spike failed.
-4. Bind snapshots to fixed-width bar sections without layout movement when values change.
+## First-release acceptance gates
 
-Acceptance:
+All thresholds below are release-blocking, not record-only. They are agreed initial budgets for the target PC, not measured results. Record PC/CPU, Windows build, logical processor count, display/DPI/taskbar configuration, artifact commit and SHA-256, instrumentation, timestamps, raw observations, and pass/fail. Untested scenarios remain open; tests and screenshots from another build do not close them.
 
-- The bar stays responsive while collecting for 30 minutes.
-- CPU, RAM, and GPU follow the independent tools and tolerances recorded by product-plan stage 3 at idle and under load.
-- Disconnecting or disabling one supported sensor makes only that reading unavailable.
-- Poll work does not overlap when a read exceeds 2 seconds.
+| Gate | Method and pass condition |
+|---|---|
+| CPU accuracy | Idle and sustained CPU load separately: 30 paired observations at 2-second intervals, compared with Task Manager using the same 60-second observation window. Difference between window means <=5 percentage points in each regime. Record transition spikes separately. |
+| RAM accuracy | Idle and sustained load separately: 30 paired observations per regime against Task Manager physical memory usage. Absolute difference <=2 percentage points in at least 29/30 observations in each regime. Record used/total values and timestamps. |
+| App CPU cost | Published Release build, 30 minutes at idle; process CPU time delta / elapsed wall time / logical processor count *100 <=0.5%. Report this whole-machine-normalized definition explicitly. |
+| App memory ceiling | Sample process private bytes every 2 seconds during the 30-minute idle run and eight-hour run; every sample <=150 MiB. |
+| Memory growth | Warm up 30 minutes, then observe for 8 hours with 2-second private-byte samples. Last 30-minute mean minus first 30-minute mean <=10 MiB. This gate does not prove absence of all leaks. |
+| Freshness and independence | Block one collector; its reading expires at 6 seconds while the other keeps updating. Test exact boundary with fake time; observe actual UI transition within 0.5 seconds of deadline under the desktop smoke. |
+| Shutdown | Normal exit, handled startup failure, and blocked-source cancellation restore prior work area before collector wait; total collector wait <=2 seconds and process exits without leftovers. |
+| Desktop behaviour | All product-plan stage 1 scenarios pass on actual Windows 11; no focus stealing or stale reservations. |
+| Artifact | Folder runs without separately installed .NET, no elevation, no provider authorization, and no fixtures/secrets/development configuration. |
 
-### Slice 3 — subscription limits, per passing provider
+For the eight-hour run keep normal monitoring active; record workload changes and interruptions. Missing samples or interrupted runs cannot be counted as a passing complete run. Keep automated, Windows integration, and manual desktop evidence separate under docs/acceptance/ in dated reports.
 
-For each provider independently:
+## Automated verification and handoff
 
-1. Add direct process execution, parser fixtures, version detection, and failure categorization.
-2. Add the 1-minute monitor and 3-minute network staleness policy.
-3. Add compact `short%/weekly%` text and the all-windows tooltip.
-4. Repeat the non-consuming poll check with the built adapter.
+Permanent tests cover percentage/RAM invariants, CPU delta arithmetic and reset, independent failures, no overlap, six-second expiry during a blocked read, exact deadline, bounded shutdown, and settings recovery/write failure. Core must not reference Desktop or platform APIs. Test actual settings files with temporary directories; avoid mock echoes, DI registration tests, and XAML/property-forwarding tests.
 
-Acceptance:
+Windows integration exercises native wrappers, mutex and AppBar where practical. Actual published-app checks remain mandatory; CI success alone cannot close desktop or resource gates.
 
-- The real account checks in product-plan stages 1 and 4 pass.
-- Sign-out becomes unavailable on the first failed poll.
-- A simulated network failure shows stale data only through the 3-minute boundary, then `--/--`.
-- One provider's timeout does not delay system metrics or the other provider.
-
-### Slice 4 — startup, install, and release candidate
-
-1. Implement the autostart path chosen after the temperature spike.
-2. Add install/uninstall scripts and self-contained publication.
-3. Add user documentation for installation, position, autostart, exit, unavailable sensors, and unavailable providers.
-4. Run the clean-profile check from product-plan stage 5.
-
-Acceptance:
-
-- Install, sign out/in, disable autostart, exit, and uninstall all leave the expected process, registry/task, files, and work area state.
-- The app starts without Codex or Claude authorization; metrics remain usable and provider sections are unavailable.
-- Defender reports no warning for the published folder.
-- The release artifact contains no test fixtures, credentials, raw provider output, or development-only configuration.
-
-## Verification strategy
-
-Permanent tests cover behaviour and boundaries:
-
-- Domain: percentage and finite-value invariants; binding weekly-window selection; no-weekly-window behaviour.
-- Application: initial state; successful replacement; immediate sign-in failure; network stale-to-unavailable transition at exactly 3 minutes; independent providers; cancellation while polling; no overlapping reads.
-- Infrastructure: CPU delta arithmetic including counter wrap/restart; RAM arithmetic; sanitized provider response fixtures; unknown versions and malformed values; atomic settings recovery.
-- Desktop/Windows integration: AppBar register, renegotiate, remove, Explorer restart recovery, and mutex behaviour on a Windows 11 runner where practical.
-
-Do not unit-test XAML bindings, DI registrations, property forwarding, or mock echoes. Prove UI and Win32 behaviour by launching the actual application on Windows 11 and observing the bar, work area, tray, tooltips, fullscreen transitions, and cleanup.
-
-Before an MVP handoff, run:
+Once application projects exist, run on Windows 11:
 
 ```powershell
 dotnet restore -r win-x64 --locked-mode
-dotnet build -c Release --no-restore
-dotnet test -c Release --no-build
+dotnet build -c Release -r win-x64 --no-restore
+dotnet test -c Release -r win-x64 --no-build --no-restore
 dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true --no-restore
 git diff --check
 ```
 
-Then install the published output on the target Windows 11 PC and run every real-machine acceptance check named in the delivery slices.
+Copy the published folder to the target PC and execute all first-release gates. Build/test/publish commands are future implementation checks; this documentation change does not establish that any have passed.
 
-## Explicitly out of scope
+## Out of scope
 
-- Multiple bars or choosing a non-primary monitor.
-- Historical graphs, persistence of metric history, alerts, or remote monitoring.
-- Editing refresh intervals, colours, fonts, or bar size.
-- API billing balances, browser-cookie access, direct calls to undocumented provider endpoints, or interactive provider sign-in.
-- Automatic updates, MSIX/MSI packaging, code signing, localization, or public telemetry.
-- Supporting x86, ARM64, Windows 10, Linux, or macOS.
+Multiple bars/non-primary placement, graphs/history/alerts, customizable refresh/fonts/size, browser automation/cookies, undocumented provider endpoints, credential storage, billing balances, interactive sign-in, automatic updates, MSIX/MSI, signing, localization, telemetry, privileged helpers, and platforms other than Windows 11 x64.

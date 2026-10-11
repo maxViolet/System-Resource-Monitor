@@ -1,58 +1,51 @@
 # Plan: System Resource Monitor
 
-Terms are defined in [CONTEXT.md](../CONTEXT.md); the placement decision is in [ADR 0001](adr/0001-separate-windows-appbar.md). The buildable clean-architecture slices are in the [MVP implementation plan](implementation-plan.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0003](adr/0003-appbar-first-cpu-ram-release.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md).
 
-## Requirements
+## Product and first release
 
-- Windows 11; personal use first, possible public release later.
-- A thin dark bar across the full width of the primary monitor, following the provided mockup.
-- Top position or bottom position above the Windows taskbar; the bar reserves space and hides while a fullscreen application runs on the primary monitor.
-- On the bar: CPU/GPU load and temperature, RAM usage; for Codex and Claude, `short%/weekly%`, where weekly is the remaining limit of the binding weekly window.
-- On hover over a subscription: all limit windows with remaining limits and reset times; on error, an explanation in the same tooltip. An unavailable sensor shows a dash; an unavailable limit snapshot shows `--/--`.
-- System metrics refresh every 2 seconds, limits every minute.
-- Start at Windows sign-in, which can be disabled.
+The system bar is useful independently of subscription limits. The first personal release targets Windows 11 x64 and runs without elevation from a self-contained published folder.
 
-## 1. Verify limit sources — blocking spike for the subscription sections
+- A thin dark bar spans the primary monitor, at the top or above the Windows taskbar, reserving work area through AppBar.
+- Fullscreen on the primary monitor hides the bar and releases its reservation; fullscreen on another monitor does not.
+- Show only `CPU 12%` and `RAM 64%` initially, with fixed-width sections and a RAM used/total GiB tooltip.
+- Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings.
+- Tray actions switch top/bottom and exit. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart.
+- Exit releases AppBar before waiting for collectors. Waiting for collectors is bounded to 2 seconds.
+- No GPU, temperatures, provider sections, installer, or autostart are required for this release.
 
-- On already authorized Codex CLI and Claude Code, find a reproducible local way to obtain, for each limit window, the remaining or used share and the reset time.
-- Record each provider's set of windows with their names in the client; whether the client reports remaining or used share and how it rounds it; the client version, invocation method, response format, constraints, and behaviour after signing out.
-- Allowed sources: commands and output of the official client, and files the client itself writes locally, excluding credentials. Do not read client tokens or call undocumented endpoints with them, do not store secrets, do not read browser cookies. Relaxing this rule requires a separate ADR.
-- Success for each provider:
-  - two consecutive non-interactive polls return all windows and reset times;
-  - sign-in and network errors are distinguishable and never turn into a stale value;
-  - polling does not consume the limit: a series of 10 polls with no other work leaves remaining limits unchanged and creates no new sessions in the client's history.
-- If verification fails, keep the corresponding section unavailable. This does not block the release of the system bar.
+## 1. Validate placement first
 
-## 2. Build the bar shell — blocking stage for the first release
+Build the two-project skeleton and empty AppBar before metrics or optional source research. Check start/exit, handled startup failure, repeated edge changes, Explorer restart, resolution/DPI changes, primary-monitor change, auto-hidden taskbar, and fullscreen video, exclusive game, and borderless game on real Windows 11. Verify restored work area and no focus stealing.
 
-- A window across the full width of the primary monitor registers as an AppBar and occupies a strip negotiated with Windows.
-- A setting switches between the top position and the bottom position above the Windows taskbar.
-- On real Windows 11, verify start, exit, Explorer restart, position change, resolution change and scaling change. After the application exits, the work area is restored.
-- Verify the bottom position with an auto-hidden taskbar.
-- When the primary monitor changes, the bar moves to the new primary monitor and the previous monitor's work area is restored.
-- While a fullscreen application runs on the primary monitor, the bar hides and returns after it exits; a fullscreen application on another monitor does not hide the bar. Verify manually with video, a game in exclusive fullscreen, and a game in a borderless fullscreen window.
+Time-box AppBar investigation to two working days. If blocking failures remain, stop dependent implementation and record a decision to use a non-reserving panel or suspend work. Neither fallback is automatic; a placement change requires revisiting ADR 0001.
 
-## 3. Add system metrics — blocking stage for the first release
+## 2. Deliver CPU/RAM
 
-- First choose the CPU/GPU temperature source and record: whether it needs a kernel driver and administrator rights, Microsoft Defender's reaction on a clean system, and its license. A source that triggers an antivirus warning (for example, the WinRing0 driver, which Defender flags as HackTool) is not chosen.
-- If no suitable CPU temperature source exists, CPU temperature is shown as unavailable and the limitation is documented; this does not block the release.
-- If the chosen source needs administrator rights, the stage 5 autostart uses a Task Scheduler task with highest privileges instead of a `Run` key.
-- Every 2 seconds, refresh CPU/GPU load and temperature and RAM usage.
-- For a missing sensor, show a dash and keep the remaining working metrics.
-- On the target PC, compare values with an independent system tool at idle and under load; compare GPU load with Task Manager. Record the CPU/GPU models and unavailable sensors. Define exact comparison tolerances after choosing the metrics source.
+Implement CPU and physical RAM measurements and independent freshness handling. Run every first-release gate in the implementation plan, including accuracy, CPU/memory budgets, eight-hour memory observation, and actual desktop behaviour. Exceeding a budget blocks release.
 
-## 4. Add limit display — conditional stage
+## 3. Add GPU after the first release
 
-- For each service, show `short%/weekly%` on the bar using the binding weekly window; on hover, all windows with remaining limits and reset times, and on error, an explanation in the same tooltip.
-- Poll every minute. A sign-in error makes the limit snapshot unavailable immediately. On a network error, the last snapshot is shown for at most 3 minutes after it was obtained, then `--/--`.
-- Acceptance on a subscription: remaining limits match the official client's remaining value or `100 − used` from it, and reset times match the client within the same verification window; after access is lost, the error state appears. This is a manual check, separate from unit tests of data parsing.
+Select the discrete adapter, or integrated adapter when no discrete one exists. Correlate its counters reliably; otherwise show unavailable. Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance. GPU is not a prerequisite for CPU/RAM release.
 
-## 5. Prepare personal use and public release
+## 4. Add installation and autostart
 
-- Add an on/off start at Windows sign-in using the method chosen in stage 3, and an exit that releases the AppBar.
-- Document installation, sensor and limit constraints, and how to disable autostart.
-- Before public release, verify startup on a clean Windows 11 profile without Codex/Claude sign-in: the system bar works, subscription sections are explicitly unavailable, the antivirus shows no warnings, and a UAC prompt appears only if stage 3 chose a source that needs administrator rights.
+After GPU work, add install/uninstall scripts and an optional per-user `HKCU` Run entry. Do not elevate the bar. Verify install, sign out/in, disable autostart, exit, and uninstall, including process, files, registry, and work-area state. A blocked GPU investigation does not reopen the already accepted first-release gate.
+
+## Independent research: subscription limits
+
+Research is separate from the first-release critical path. Record dated results for Codex and Claude independently: client version, invocation/local file, response format, window names, reset times, used/remaining rounding, constraints, and sign-out behaviour.
+
+Allowed sources are official client output or locally written non-credential files. Do not read tokens, cookies, credential files, or call undocumented endpoints. Changing this boundary requires a separate ADR.
+
+Each provider passes only when two consecutive non-interactive polls return all windows and reset times, sign-in/network failures are distinguishable, and ten polls without other work leave limits unchanged and create no new sessions. Failed sources are not simulated or included as trusted data.
+
+After a provider passes, show `short%/weekly%`, using the binding weekly window; show all windows and reset times in a tooltip. Poll every minute. Sign-in failure is unavailable on the first failed poll. Network failure may retain explicitly stale data only before three minutes since last success, then `--/--`; expiry must not depend on a subsequent successful poll. Repeat account and non-consuming-poll checks with the built adapter.
+
+## Last extension: temperatures
+
+Research only after the preceding delivery work. Record source, license, driver requirements, privileges, and Defender results. Reject a source requiring elevation of the bar or triggering antivirus warnings; absence of temperatures is acceptable. A privileged helper would require a separate future decision and is not authorized by this plan.
 
 ## Release rule
 
-The first release requires stages 2, 3 and 5 to pass. Stage 1 gates only the corresponding subscription section of stage 4. Unverified limits are never displayed as trustworthy.
+The first personal release requires stages 1 and 2 and all first-release gates in the implementation plan. GPU, installation/autostart, providers, and temperatures cannot block it. Tests alone never prove desktop acceptance. Public distribution is separate: verify a clean Windows 11 profile, no client authorization, no UAC requirement, Defender results, and artifact hygiene before publishing publicly.
