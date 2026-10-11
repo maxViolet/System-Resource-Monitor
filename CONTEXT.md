@@ -29,7 +29,7 @@ A personal Codex or Claude plan used through its authorized client; distinct fro
 _Avoid_: API account, credit balance
 
 **Limit window**:
-The period over which the service accounts subscription usage. The short window lasts several hours; Claude Code calls it "Current session". A subscription may have several weekly windows, for example one for all models and one for a specific model. The actual set of windows for each provider is recorded in stage 1 of the plan.
+The period over which the service accounts subscription usage. The short window lasts several hours; Claude Code calls it "Current session". A subscription may have several weekly windows, for example one for all models and one for a specific model. The actual set of windows for each provider is recorded in its independent source spike.
 _Avoid_: session, when meaning the accounting period
 
 **Remaining limit**:
@@ -45,5 +45,5 @@ The remaining limits and reset times of all limit windows of one subscription, o
 _Avoid_: subscription balance
 
 **Unavailable**:
-The state of a metric when the application has no trustworthy current value. A limit snapshot becomes unavailable immediately after a sign-in error, and after network errors once more than 3 minutes have passed since the last successful poll.
+The state of a metric or limit snapshot when there is no trustworthy current value; distinct from a valid zero reading. Freshness deadlines and failure handling are specified in the product plan.
 _Avoid_: zero
