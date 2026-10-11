@@ -1,49 +1,49 @@
 # System Resource Monitor
 
-Словарь приложения, показывающего состояние компьютера и остатки лимитов личных подписок на отдельной панели Windows.
+Glossary for an application that shows the computer's state and the remaining limits of personal subscriptions on a separate Windows bar.
 
 ## Language
 
-**Панель**:
-Постоянная полоса приложения на основном мониторе, отдельно от системной панели задач Windows.
-_Avoid_: виджет в панели задач, системная панель задач
+**Bar**:
+The application's persistent strip on the primary monitor, separate from the Windows taskbar.
+_Avoid_: taskbar widget, taskbar
 
-**Системный показатель**:
-Измеренное значение состояния CPU, RAM или GPU вместе со временем измерения.
-_Avoid_: ресурс
+**System metric**:
+A measured value of CPU, RAM or GPU state together with its measurement time.
+_Avoid_: resource
 
-**Загрузка**:
-Доля текущего использования CPU или GPU, выраженная в процентах. Для GPU — максимум по движкам (3D, Compute, Copy, Video), как в диспетчере задач; учитывается дискретный GPU, а при его отсутствии встроенный.
-_Avoid_: мощность
+**Load**:
+Current CPU or GPU utilization as a percentage. For the GPU, the maximum across engines (3D, Compute, Copy, Video), as in Task Manager; the discrete GPU is used, or the integrated one if there is no discrete GPU.
+_Avoid_: power
 
-**Занятость RAM**:
-Доля оперативной памяти, которая сейчас используется, выраженная в процентах.
-_Avoid_: загрузка RAM
+**RAM usage**:
+The share of physical memory currently in use, as a percentage.
+_Avoid_: RAM load
 
-**Температура**:
-Показание аппаратного датчика CPU или GPU в градусах Цельсия. Для CPU — датчик всего процессора (package), а не отдельного ядра.
-_Avoid_: расчётная температура
+**Temperature**:
+A hardware sensor reading for the CPU or GPU in degrees Celsius. For the CPU, the whole-processor (package) sensor, not a single core.
+_Avoid_: estimated temperature
 
-**Подписка**:
-Личный план Codex или Claude, используемый через соответствующий авторизованный клиент; он отличается от платного API-баланса.
-_Avoid_: API-аккаунт, кредитный баланс
+**Subscription**:
+A personal Codex or Claude plan used through its authorized client; distinct from a paid API balance.
+_Avoid_: API account, credit balance
 
-**Окно лимита**:
-Период, в пределах которого сервис учитывает использование подписки. Короткое окно длится несколько часов; Claude Code называет его «Current session». Недельных окон у подписки может быть несколько, например для всех моделей и для отдельной модели. Фактический набор окон каждого провайдера фиксируется на этапе 1 плана.
-_Avoid_: сессия, когда речь идёт о периоде учёта
+**Limit window**:
+The period over which the service accounts subscription usage. The short window lasts several hours; Claude Code calls it "Current session". A subscription may have several weekly windows, for example one for all models and one for a specific model. The actual set of windows for each provider is recorded in stage 1 of the plan.
+_Avoid_: session, when meaning the accounting period
 
-**Остаток лимита**:
-Доступная доля использования подписки в одном окне лимита, выраженная в процентах. Если клиент сообщает израсходованную долю, остаток равен `100 − израсходовано`, где израсходованная доля округляется до целого так же, как в официальном клиенте.
-_Avoid_: потраченный процент
+**Remaining limit**:
+The available share of subscription usage in one limit window, as a percentage. If the client reports the used share, remaining equals `100 − used`, where the used share is rounded to an integer the same way the official client rounds it.
+_Avoid_: used percentage
 
-**Определяющее недельное окно**:
-Недельное окно подписки с наименьшим остатком лимита; его остаток показывается на панели как недельный.
-_Avoid_: главное окно
+**Binding weekly window**:
+The subscription's weekly window with the lowest remaining limit; its remaining limit is shown on the bar as the weekly value.
+_Avoid_: main window
 
-**Снимок лимитов**:
-Остатки и времена сброса всех окон лимита одной подписки, полученные при одном опросе.
-_Avoid_: баланс подписки
+**Limit snapshot**:
+The remaining limits and reset times of all limit windows of one subscription, obtained in a single poll.
+_Avoid_: subscription balance
 
-**Недоступно**:
-Состояние показателя, когда приложение не имеет достоверного текущего значения. Снимок лимитов недоступен сразу после ошибки входа, а после сетевых ошибок — когда с последнего успешного опроса прошло больше 3 минут.
-_Avoid_: ноль
+**Unavailable**:
+The state of a metric when the application has no trustworthy current value. A limit snapshot becomes unavailable immediately after a sign-in error, and after network errors once more than 3 minutes have passed since the last successful poll.
+_Avoid_: zero

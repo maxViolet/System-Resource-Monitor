@@ -1,58 +1,58 @@
-# План: System Resource Monitor
+# Plan: System Resource Monitor
 
-Термины записаны в [CONTEXT.md](../CONTEXT.md); решение о размещении — в [ADR 0001](adr/0001-separate-windows-appbar.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md); the placement decision is in [ADR 0001](adr/0001-separate-windows-appbar.md).
 
-## Требования
+## Requirements
 
-- Windows 11; сначала личное использование, позднее возможна публикация.
-- Тонкая тёмная панель на всю ширину основного монитора по предоставленному образцу.
-- Верхнее положение либо нижнее над системной панелью задач; панель резервирует место и скрывается на время полноэкранного приложения на основном мониторе.
-- На панели: загрузка и температура CPU/GPU, занятость RAM; для Codex и Claude — `короткий%/недельный%`, где недельный — остаток определяющего недельного окна.
-- При наведении на подписку: все окна лимита с остатками и временами сброса; при ошибке в той же подсказке — объяснение. Недоступный датчик показывает прочерк; недоступный снимок лимитов показывает `--/--`.
-- Системные показатели обновляются раз в 2 секунды, лимиты — раз в минуту.
-- Автозапуск при входе в Windows можно отключить.
+- Windows 11; personal use first, possible public release later.
+- A thin dark bar across the full width of the primary monitor, following the provided mockup.
+- Top position or bottom position above the Windows taskbar; the bar reserves space and hides while a fullscreen application runs on the primary monitor.
+- On the bar: CPU/GPU load and temperature, RAM usage; for Codex and Claude, `short%/weekly%`, where weekly is the remaining limit of the binding weekly window.
+- On hover over a subscription: all limit windows with remaining limits and reset times; on error, an explanation in the same tooltip. An unavailable sensor shows a dash; an unavailable limit snapshot shows `--/--`.
+- System metrics refresh every 2 seconds, limits every minute.
+- Start at Windows sign-in, which can be disabled.
 
-## 1. Проверить источники лимитов — блокирующий технический опыт для секций подписок
+## 1. Verify limit sources — blocking spike for the subscription sections
 
-- На уже авторизованных Codex CLI и Claude Code найти воспроизводимый локальный способ получить для каждого окна лимита остаток или израсходованную долю и время сброса.
-- Зафиксировать набор окон каждого провайдера с их названиями в клиенте; сообщает ли клиент остаток или израсходованную долю и как её округляет; версию клиента, способ вызова, формат ответа, ограничения и поведение при выходе из учётной записи.
-- Допустимые источники: команды и вывод официального клиента, а также файлы, которые клиент сам пишет локально, кроме учётных данных. Не читать токены клиента и не вызывать с ними недокументированные эндпоинты, не сохранять секреты, не читать браузерные cookies. Расширение этого правила требует отдельного ADR.
-- Успех для каждого провайдера:
-  - два последовательных опроса без интерактивного ввода дают все окна и времена сброса;
-  - ошибка входа или сети различима и не превращается в старое значение;
-  - опрос не расходует лимит: серия из 10 опросов без другой работы не меняет остатки и не создаёт новых сессий в истории клиента.
-- Если проверка не проходит, оставить соответствующую секцию недоступной. Это не блокирует выпуск системной панели.
+- On already authorized Codex CLI and Claude Code, find a reproducible local way to obtain, for each limit window, the remaining or used share and the reset time.
+- Record each provider's set of windows with their names in the client; whether the client reports remaining or used share and how it rounds it; the client version, invocation method, response format, constraints, and behaviour after signing out.
+- Allowed sources: commands and output of the official client, and files the client itself writes locally, excluding credentials. Do not read client tokens or call undocumented endpoints with them, do not store secrets, do not read browser cookies. Relaxing this rule requires a separate ADR.
+- Success for each provider:
+  - two consecutive non-interactive polls return all windows and reset times;
+  - sign-in and network errors are distinguishable and never turn into a stale value;
+  - polling does not consume the limit: a series of 10 polls with no other work leaves remaining limits unchanged and creates no new sessions in the client's history.
+- If verification fails, keep the corresponding section unavailable. This does not block the release of the system bar.
 
-## 2. Сделать оболочку панели — блокирующий этап первого выпуска
+## 2. Build the bar shell — blocking stage for the first release
 
-- Окно на всю ширину основного монитора регистрируется как AppBar и занимает согласованную с Windows полосу.
-- Настройка переключает верхнее положение и нижнее положение над системной панелью задач.
-- На реальном Windows 11 проверить запуск, закрытие, перезапуск Explorer, смену положения, смену разрешения и масштаба. После закрытия приложения рабочая область восстанавливается.
-- Проверить нижнее положение при автоскрытии системной панели задач.
-- При смене основного монитора панель переезжает на новый основной монитор, а рабочая область прежнего восстанавливается.
-- При полноэкранном приложении на основном мониторе панель скрывается и возвращается после выхода; полноэкранное приложение на другом мониторе панель не скрывает. Проверить вручную с видео, игрой в эксклюзивном полноэкранном режиме и игрой в окне без рамки на весь экран.
+- A window across the full width of the primary monitor registers as an AppBar and occupies a strip negotiated with Windows.
+- A setting switches between the top position and the bottom position above the Windows taskbar.
+- On real Windows 11, verify start, exit, Explorer restart, position change, resolution change and scaling change. After the application exits, the work area is restored.
+- Verify the bottom position with an auto-hidden taskbar.
+- When the primary monitor changes, the bar moves to the new primary monitor and the previous monitor's work area is restored.
+- While a fullscreen application runs on the primary monitor, the bar hides and returns after it exits; a fullscreen application on another monitor does not hide the bar. Verify manually with video, a game in exclusive fullscreen, and a game in a borderless fullscreen window.
 
-## 3. Добавить системные показатели — блокирующий этап первого выпуска
+## 3. Add system metrics — blocking stage for the first release
 
-- Сначала выбрать источник температуры CPU/GPU и зафиксировать: нужен ли драйвер ядра и права администратора, реакцию Microsoft Defender на чистой системе, лицензию. Источник, вызывающий предупреждение антивируса (например, драйвер WinRing0, который Defender помечает как HackTool), не выбирается.
-- Если подходящего источника температуры CPU нет, она показывается недоступной, а ограничение документируется; выпуск это не блокирует.
-- Если выбранный источник требует прав администратора, автозапуск этапа 5 делается задачей планировщика с наивысшими правами, а не ключом `Run`.
-- Каждые 2 секунды обновлять загрузку и температуру CPU/GPU, занятость RAM.
-- Для отсутствующего датчика показывать прочерк и сохранять остальные работающие показатели.
-- На целевом ПК сверить значения с независимым системным инструментом при простое и под нагрузкой; загрузку GPU — с диспетчером задач. Зафиксировать модель CPU/GPU и недоступные датчики. Точные допуски сравнения определить после выбора источника показаний.
+- First choose the CPU/GPU temperature source and record: whether it needs a kernel driver and administrator rights, Microsoft Defender's reaction on a clean system, and its license. A source that triggers an antivirus warning (for example, the WinRing0 driver, which Defender flags as HackTool) is not chosen.
+- If no suitable CPU temperature source exists, CPU temperature is shown as unavailable and the limitation is documented; this does not block the release.
+- If the chosen source needs administrator rights, the stage 5 autostart uses a Task Scheduler task with highest privileges instead of a `Run` key.
+- Every 2 seconds, refresh CPU/GPU load and temperature and RAM usage.
+- For a missing sensor, show a dash and keep the remaining working metrics.
+- On the target PC, compare values with an independent system tool at idle and under load; compare GPU load with Task Manager. Record the CPU/GPU models and unavailable sensors. Define exact comparison tolerances after choosing the metrics source.
 
-## 4. Добавить отображение лимитов — условный этап
+## 4. Add limit display — conditional stage
 
-- Для каждого сервиса на полосе показывать `короткий%/недельный%` по определяющему недельному окну; при наведении — все окна с остатками и временами сброса, при ошибке — объяснение в той же подсказке.
-- Опрос раз в минуту. Ошибка входа сразу делает снимок лимитов недоступным. При сетевой ошибке последний снимок показывается не дольше 3 минут с момента получения, затем `--/--`.
-- Приёмка на подписке: остатки совпадают с остатком официального клиента или с `100 − израсходовано` по нему, времена сброса — с клиентом в одном временном окне проверки; после потери доступа появляется состояние ошибки. Это ручная проверка, отдельная от модульных тестов разбора данных.
+- For each service, show `short%/weekly%` on the bar using the binding weekly window; on hover, all windows with remaining limits and reset times, and on error, an explanation in the same tooltip.
+- Poll every minute. A sign-in error makes the limit snapshot unavailable immediately. On a network error, the last snapshot is shown for at most 3 minutes after it was obtained, then `--/--`.
+- Acceptance on a subscription: remaining limits match the official client's remaining value or `100 − used` from it, and reset times match the client within the same verification window; after access is lost, the error state appears. This is a manual check, separate from unit tests of data parsing.
 
-## 5. Подготовить личное использование и публикацию
+## 5. Prepare personal use and public release
 
-- Добавить включаемый/отключаемый запуск при входе в Windows способом, выбранным на этапе 3, и выход из приложения с освобождением AppBar.
-- Документировать установку, ограничения датчиков и лимитов, а также сценарий отключения автозапуска.
-- Перед публикацией проверить запуск на чистом профиле Windows 11 без авторизации в Codex/Claude: системная панель работает, секции подписок явно недоступны, антивирус не выдаёт предупреждений, запрос UAC появляется только если этап 3 выбрал источник с правами администратора.
+- Add an on/off start at Windows sign-in using the method chosen in stage 3, and an exit that releases the AppBar.
+- Document installation, sensor and limit constraints, and how to disable autostart.
+- Before public release, verify startup on a clean Windows 11 profile without Codex/Claude sign-in: the system bar works, subscription sections are explicitly unavailable, the antivirus shows no warnings, and a UAC prompt appears only if stage 3 chose a source that needs administrator rights.
 
-## Правило выпуска
+## Release rule
 
-Первый выпуск требует пройденных этапов 2, 3 и 5. Этап 1 является воротами только для соответствующей подписочной секции этапа 4. Непроверенные лимиты не отображаются как достоверные.
+The first release requires stages 2, 3 and 5 to pass. Stage 1 gates only the corresponding subscription section of stage 4. Unverified limits are never displayed as trustworthy.

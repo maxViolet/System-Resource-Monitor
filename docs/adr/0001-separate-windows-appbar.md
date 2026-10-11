@@ -1,7 +1,7 @@
-# Отдельная AppBar панель вместо встраивания в панель задач Windows
+# Separate AppBar instead of embedding into the Windows taskbar
 
-Статус: принято, 2026-10-11.
+Status: accepted, 2026-10-11.
 
-Пользователю нужна постоянно видимая полоса на всю ширину основного монитора, которая резервирует место сверху экрана или снизу над системной панелью задач. Произвольный блок внутри панели задач Windows 11 не является подходящим поддерживаемым расширением, а сторонние Windows Widgets отображаются на отдельной доске. Поэтому приложение создаёт собственную полосу через документированный [Windows AppBar API](https://learn.microsoft.com/en-us/windows/win32/shell/application-desktop-toolbars). Этот выбор определяет модель окна и взаимодействие с рабочей областью: приложение должно согласовывать позицию с Windows и освобождать место при закрытии.
+The user needs an always-visible strip across the full width of the primary monitor that reserves space at the top of the screen or at the bottom above the Windows taskbar. An arbitrary block inside the Windows 11 taskbar is not a suitable supported extension point, and third-party Windows Widgets are shown on a separate board. The application therefore creates its own bar through the documented [Windows AppBar API](https://learn.microsoft.com/en-us/windows/win32/shell/application-desktop-toolbars). This choice determines the window model and the interaction with the work area: the application must negotiate its position with Windows and release the space on exit.
 
-Отклонено: deskband в панели задач (Windows 11 его не поддерживает), Windows Widgets (доска открывается по запросу и не видна постоянно), окно поверх всех без резервирования места (перекрывает развёрнутые окна).
+Rejected: taskbar deskband (not supported on Windows 11), Windows Widgets (the board opens on demand and is not always visible), an always-on-top window without reserved space (covers maximized windows).
