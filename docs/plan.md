@@ -1,6 +1,6 @@
 # Plan: System Resource Monitor
 
-Terms are defined in [CONTEXT.md](../CONTEXT.md); the placement decision is in [ADR 0001](adr/0001-separate-windows-appbar.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md); the placement decision is in [ADR 0001](adr/0001-separate-windows-appbar.md). The buildable clean-architecture slices are in the [MVP implementation plan](implementation-plan.md).
 
 ## Requirements
 
