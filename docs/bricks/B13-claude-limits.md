@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Area** | Core + Desktop |
-| **Depends on** | B11 accepted |
-| **Unblocks** | B14; optionally B16 |
-| **Sources** | [Product plan — Subscription limits](../plan.md#subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [B11 qualification brick and dated report](B11-claude-source.md) |
+| **Depends on** | B06; B11 accepted |
+| **Unblocks** | B07 |
+| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [B11 qualification brick and dated report](B11-claude-source.md) |
 
 ## Why
 
@@ -30,7 +30,6 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 - [ ] Manual same-window checks compare every displayed value and reset time with the official client, verify the safe tooltip explanation on access loss, and record client version, account state, observation times, sanitized comparisons without credentials or raw account output, and pass/fail
 - [ ] The ten-poll non-consumption check is repeated with the built adapter
 - [ ] Raw account output, credentials, and sanitized fixtures are absent from logs and the published payload as applicable
-- [ ] Affected B07 resource, shutdown, desktop, and artifact-hygiene gates pass with Claude enabled
 
 ## Out of scope
 

@@ -4,8 +4,8 @@
 |---|---|
 | **Area** | Core + Desktop |
 | **Depends on** | B05 |
-| **Unblocks** | B07 |
-| **Sources** | [Product plan — Deliver CPU/RAM](../plan.md#2-deliver-cpuram), [Implementation plan — Slice 1](../implementation-plan.md#slice-1-first-personal-cpuram-release), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates) |
+| **Unblocks** | B07, B12, B13 |
+| **Sources** | [Product plan — Deliver CPU/RAM](../plan.md#2-deliver-cpuram), [Implementation plan — Slice 1](../implementation-plan.md#slice-1-cpuram), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates) |
 
 ## Why
 

@@ -1,6 +1,6 @@
 # MVP implementation plan
 
-The [product plan](plan.md) defines scope and release order. [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md) records the two-project architecture and AppBar feasibility gate; [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md) records fullscreen behaviour.
+The [product plan](plan.md) defines scope and release order. [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md) records the two-project architecture and AppBar feasibility gate; [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md) records fullscreen behaviour; [ADR 0004](adr/0004-subscription-limits-in-first-release.md) puts qualified subscription limits in the first release.
 
 ## Technology and layout
 
@@ -46,13 +46,13 @@ Enforce the Core boundary at build time. Core targets `net10.0`, does not set `U
 - `MetricReading` is an explicit union:
   - `AvailableMetric` contains kind, finite percentage in `0..100`, UTC `MeasuredAt`, a monotonic timestamp from `TimeProvider.GetTimestamp()`, and optional RAM used/total bytes;
   - `UnavailableMetric` contains kind and one reason: `NotYetSampled`, `Expired`, `Invalid`, or `ReadFailed`.
-- `DashboardState` is immutable CPU/RAM state with one change notification. Marshal notifications once at the Desktop boundary.
+- `DashboardState` is immutable CPU/RAM and provider-limit state with one change notification. Marshal notifications once at the Desktop boundary.
 - Source ports read CPU and RAM independently. One failure cannot stop the other source's acquisition or expiry.
 - Inject `TimeProvider`; use UTC only for display and evidence, and monotonic timestamps for age and deadlines. Do not wrap it in `IClock`.
 - Each collector polls every 2 seconds without overlapping its own reads. CPU uses `GetSystemTimes` deltas; the first sample is `NotYetSampled`. Counter reset or an invalid delta discards the baseline and produces `Invalid`. RAM uses `GlobalMemoryStatusEx`: `(total - available) / total`. These two synchronous native calls are accepted as short, in-process first-release reads, not as cancellable calls; run them on background thread-pool workers and measure their duration on the target PC. Neither reader owns a long-lived native handle.
 - A separate timer marks each reading `Expired` at age `>= 6 seconds`, even while its collector is running. Failed reads do not renew either timestamp. Tooltips map the unavailability reason to a safe explanation.
 - Cancellation stops scheduling new polls and prevents late results from publishing; it does not interrupt an in-flight GetSystemTimes or GlobalMemoryStatusEx call. Never start a second read for that source while one is pending. If an accepted first-release native call exceeds the 2-second poll interval, record the overrun and retain the no-overlap and 6-second freshness rules. Two consecutive overruns from either reader fail the first-release responsiveness gate. `Task.Run` keeps these short reads off the UI thread but does not make them cancellable.
-- A future provider or thermal source that can genuinely block must run in a separate child process with a request timeout. On timeout or shutdown, terminate the child process tree, wait for exit within the remaining shutdown deadline, and release its owned resources only after exit. If termination cannot be confirmed, fail that source's acceptance and do not enable it. Do not run potentially blocking, non-terminable adapters in-process.
+- A provider or future thermal source that can genuinely block must run in a separate child process with a request timeout. On timeout or shutdown, terminate the child process tree, wait for exit within the remaining shutdown deadline, and release its owned resources only after exit. If termination cannot be confirmed, fail that source's acceptance and do not enable it. Do not run potentially blocking, non-terminable adapters in-process.
 - Startup acquires the single-instance guard first. A second process exits before reading or writing settings and never registers another AppBar. The owner then loads settings, creates and registers the bar, and starts collectors.
 
 ## Settings and lifecycle
@@ -67,7 +67,7 @@ On exit or handled fatal startup failure:
 4. if the deadline expires, record which operation remains pending, reject any late result, and do not dispose resources still in use;
 5. exit the process without awaiting that operation again.
 
-Observe completion/fault of any pending managed task while the process remains alive; process termination ends its background workers. The first-release CPU/RAM readers own no long-lived native handles, so an in-flight read cannot race their disposal. Future child-process adapters must be terminated and their exit confirmed inside the deadline; a failure to do so fails feature acceptance. Demonstrate the deadline path with a never-completing, handle-free fake source in the separate test host. Abrupt OS/process termination is distinct from handled cancellation and is not claimed as covered by `finally`.
+Observe completion/fault of any pending managed task while the process remains alive; process termination ends its background workers. The first-release CPU/RAM readers own no long-lived native handles, so an in-flight read cannot race their disposal. Child-process adapters, including provider adapters, must be terminated and their exit confirmed inside the deadline; a failure to do so fails feature acceptance. Demonstrate the deadline path with a never-completing, handle-free fake source in the separate test host. Abrupt OS/process termination is distinct from handled cancellation and is not claimed as covered by `finally`.
 
 ## AppBar and shell behaviour
 
@@ -93,26 +93,31 @@ Pass build/tests and verify second launch leaves one process/window and exit lea
 
 Time-box placement investigation to two working days. Remaining blocking failures stop dependent work pending an explicit placement/suspension decision and, if needed, ADR 0001 revision.
 
-### Slice 1: first personal CPU/RAM release
+### Slice 1: CPU/RAM
 
 Implement independent collectors and expiry, fixed-width CPU/RAM text, RAM GiB tooltip, and unavailable tooltips. A slow collector never overlaps itself, blocks the other collector, or delays UI exit. Measure native-read duration in the test host on the target PC for 30 minutes of normal polling; two consecutive GetSystemTimes or GlobalMemoryStatusEx calls longer than the 2-second poll interval fail the responsiveness gate. No empty placeholders for deferred features are required.
 
-Publish a self-contained folder; document extraction, launch, position, exit, settings errors, and unavailable readings. No install scripts or autostart yet.
+### Slice 2: subscription limits
 
-Run accuracy, resource, artifact, and real-desktop gates on the exact published production artifact. Run blocked-collector, exact-expiry, and handled-startup-failure gates on a separate test-host build from the same commit with fault-injecting adapters. Record both artifact SHA-256 values and never distribute the test host.
+Start after the slice 0 placement gate passes; run in parallel with slice 1. Qualify Codex and Claude sources independently against product-plan stage 3. Implement each accepted provider with the [provider adapter](#provider-adapters) requirements: fixed-width `short%/weekly%` section, all-windows tooltip, one-minute polling, independent three-minute expiry. A rejected provider gets no section and no placeholder. A provider failure never delays CPU/RAM acquisition, expiry, or the other provider.
+
+### Slice 3: first personal release
+
+Start when slice 1 is complete, both provider qualifications are closed, and every accepted provider is implemented. Publish a self-contained folder; document extraction, launch, position, exit, settings errors, unavailable readings, and provider sections. No install scripts or autostart yet.
+
+Run accuracy, resource, artifact, provider, and real-desktop gates on the exact published production artifact with every accepted provider enabled. Run blocked-collector, exact-expiry, provider-freshness, and handled-startup-failure gates on a separate test-host build from the same commit with fault-injecting adapters. Record both artifact SHA-256 values and never distribute the test host.
 
 ### Independent later slices
 
 These slices may proceed in any order after the first release and do not retroactively block it.
 
-- **GPU:** implement adapter selection/correlation and reused PDH queries; use product-plan stage 3 acceptance, with unavailable rather than guessed correlation.
-- **Installation/autostart:** implement the product-plan stage 4 controls independently of GPU. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
-- **Providers:** research and implement each provider independently after its spike passes. Apply all provider execution and acceptance requirements below.
+- **GPU:** implement adapter selection/correlation and reused PDH queries; use the product-plan GPU acceptance, with unavailable rather than guessed correlation.
+- **Installation/autostart:** implement the product-plan installation and autostart controls independently of GPU. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
 - **Temperatures:** research source/license/driver/Defender behaviour last; never elevate the bar. No acceptable source means no temperatures.
 
 Later feature acceptance reruns affected first-release gates, including resource budgets with the enabled feature configuration.
 
-## Deferred-feature requirements
+## Provider and installation requirements
 
 ### Provider adapters
 
@@ -144,11 +149,13 @@ All thresholds below are release-blocking, not record-only. They are agreed init
 | Memory growth | Published app | Warm up 30 minutes, then observe for 8 hours with 2-second private-byte samples. Last 30-minute mean minus first 30-minute mean `<= 10 MiB`. This does not prove absence of all leaks. |
 | Native-read responsiveness | Test host | Use the production CPU/RAM wrappers for 30 minutes on the target PC; timestamp every call. Neither reader has two consecutive calls longer than 2 seconds. The published app also remains responsive throughout its desktop and resource runs. |
 | Freshness and independence | Test host | Block one collector; its reading expires at 6 seconds while the other keeps updating. Test the exact boundary with fake time; observe actual UI transition within 0.5 seconds of the deadline. |
+| Provider freshness and independence | Test host | For each accepted provider with fake time: sign-in failure is unavailable on the first failed poll; after a network failure, stale data shows `--/--` at three minutes since the last success without another poll; a blocked or timed-out provider never delays CPU/RAM or the other provider, and its child process tree is terminated within the shutdown deadline. |
+| Provider limits | Published app | For each accepted provider, the product-plan stage 3 manual account check passes: displayed remaining values and reset times match the official client in the same window, access loss shows `--/--` with a safe explanation, and the ten-poll non-consumption check passes with the built adapter. |
 | Normal shutdown | Published app | Normal exit restores prior work area before collector wait; process exits without leftovers. |
 | Fault shutdown | Test host | Inject a handled startup failure and a never-completing, handle-free source. Both restore prior work area before collector wait. At the 2-second total deadline, pending work is recorded, late results cannot publish, no in-use resource is disposed, and the process exits without leftovers. |
 | Desktop behaviour | Published app | All product-plan stage 1 scenarios pass on actual Windows 11. Ten enter/leave cycles each for video, exclusive fullscreen, and borderless fullscreen, including Alt+Tab to a normal window and back: lower only for active fullscreen on the primary monitor; restore within 1 second after departure, without focus stealing. Keep registration and reservation unchanged through transitions. Separately verify Explorer restart during fullscreen, fullscreen on a second monitor, and ordinary maximized windows. After Explorer recovery the strip is reserved, correct z-order returns, and the restored tray icon's position and Exit actions work. Primary-monitor changes move and reserve the bar on the new primary while restoring the old work area; no stale reservations remain. |
-| DPI and rendering | Published app | At 100%, 150%, and 200% scaling, the reserved strip matches the rendered bar; CPU/RAM sections remain fixed, unclipped, and stable for 0%, 100%, and unavailable; the RAM tooltip shows used/total GiB. |
-| Artifact hygiene | Published app | Folder runs without separately installed .NET, no elevation, no provider authorization, and no test host, fixtures, secrets, development configuration, or production diagnostic hook. |
+| DPI and rendering | Published app | At 100%, 150%, and 200% scaling, the reserved strip matches the rendered bar; CPU/RAM and provider sections remain fixed, unclipped, and stable for 0%, 100%, and unavailable; the RAM tooltip shows used/total GiB. |
+| Artifact hygiene | Published app | Folder runs without separately installed .NET, no elevation, and no provider authorization (provider sections then show unavailable), and contains no test host, fixtures, secrets, development configuration, or production diagnostic hook. |
 
 For the eight-hour run, keep normal monitoring active and record workload changes and interruptions. Missing samples or interrupted runs cannot count as a passing complete run.
 

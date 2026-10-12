@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Area** | Research |
-| **Depends on** | B08 done/rejected; B09 done; B10/B11 accepted/rejected; B12/B13 done/not applicable |
+| **Depends on** | B08 done/rejected; B09 done |
 | **Unblocks** | B15 when accepted |
 | **Sources** | [Product plan — Temperatures](../plan.md#temperatures), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
 

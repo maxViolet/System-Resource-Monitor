@@ -1,18 +1,18 @@
 # Plan: System Resource Monitor
 
-Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), and fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md), and first-release scope in [ADR 0004](adr/0004-subscription-limits-in-first-release.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
 
 ## Product and first release
 
-The system bar is useful independently of subscription limits. The first personal release targets Windows 11 x64 and runs without elevation from a self-contained published folder.
+The first personal release (v1) shows CPU load, RAM usage, and the remaining subscription limits of each provider whose source qualifies. It targets Windows 11 x64 and runs without elevation from a self-contained published folder.
 
 - A thin dark bar follows the provided mockup and spans the primary monitor, at the top or above the Windows taskbar, reserving work area through AppBar.
 - While fullscreen is active on the primary monitor, lower the bar to the bottom of the z-order without unregistering it or releasing its reserved strip. Restore its normal z-order without stealing focus when fullscreen ends or Alt+Tab activates a normal window, even if the game remains running. Fullscreen on another monitor does not change the bar state.
-- Show only `CPU 12%` and `RAM 64%` initially, with fixed-width sections and a RAM used/total GiB tooltip.
+- Show `CPU 12%` and `RAM 64%` with fixed-width sections and a RAM used/total GiB tooltip, followed by a `short%/weekly%` section for each qualified provider (Codex, Claude).
 - Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings; its tooltip explains why.
 - Tray actions switch top/bottom and exit. Explorer restart restores the tray icon and both actions. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart.
 - Exit releases AppBar before waiting for collectors. Waiting for collectors is bounded to 2 seconds.
-- No GPU, temperatures, provider sections, installer, or autostart are required for this release.
+- No GPU, temperatures, installer, or autostart are required for this release. A provider whose qualification is rejected has no section.
 
 ## 1. Validate placement first
 
@@ -24,23 +24,13 @@ Time-box AppBar investigation to two working days. If blocking failures remain, 
 
 ## 2. Deliver CPU/RAM
 
-Implement CPU and physical RAM measurements and independent freshness handling. Run every first-release gate in the implementation plan, including accuracy, CPU/memory budgets, eight-hour memory observation, DPI/rendering, and actual desktop behaviour. Exceeding a budget blocks release.
+Implement CPU and physical RAM measurements and independent freshness handling. Run every first-release gate in the implementation plan, including accuracy, CPU/memory budgets, eight-hour memory observation, DPI/rendering, and actual desktop behaviour, with every accepted provider enabled.
 
-## Independent later slices
+## 3. Deliver subscription limits
 
-The following work may proceed in any order after the first release. None can retroactively block the accepted CPU/RAM release.
+Start after stage 1 passes; this work runs in parallel with stage 2.
 
-### GPU
-
-Select the discrete adapter, or integrated adapter when no discrete one exists. Correlate its counters reliably; otherwise show unavailable. Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance.
-
-### Installation and autostart
-
-Add install/uninstall scripts and an optional per-user `HKCU` Run entry independently of GPU work. Do not elevate the bar. Use the canonical path, ACL, reparse-point, quoting, and ownership controls in the implementation plan. Verify install, sign out/in, disable autostart, exit, upgrade, and uninstall, including process, files, registry, settings, and work-area state.
-
-### Subscription limits
-
-Research Codex and Claude independently. Record dated results: client version, invocation/local file, response format, window names, reset times, used/remaining rounding, constraints, and sign-out behaviour.
+Research Codex and Claude independently. Record dated results: client version, invocation/local file, response format, window names, reset times, used/remaining rounding, constraints, and sign-out behaviour. A provider is rejected only after every allowed candidate source fails; a rejected provider gets no section and does not block the release.
 
 Allowed sources are official client output or locally written non-credential files. Do not read tokens, cookies, credential files, or call undocumented endpoints. Changing this boundary requires a separate ADR.
 
@@ -50,10 +40,24 @@ After a provider passes, show `short%/weekly%`, using the binding weekly window;
 
 Accept each built provider adapter only after a manual check on an authorized account: compare every displayed remaining value with the official client's remaining value, or with `100 − used` after applying the client's verified integer-rounding rule; compare every reset time with the client within the same verification window. Confirm sign-out/loss of access produces the unavailable display and safe error explanation. Repeat the ten-poll non-consuming check with the built adapter. Record client version, account state, observation times, sanitized comparisons without credentials or raw account output, and pass/fail. Parser fixtures and unit tests cannot close this manual gate.
 
+## Independent later slices
+
+The following work may proceed in any order after the first release. None can retroactively block the accepted first release.
+
+### GPU
+
+Select the discrete adapter, or integrated adapter when no discrete one exists. Correlate its counters reliably; otherwise show unavailable. Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance.
+
+### Installation and autostart
+
+Add install/uninstall scripts and an optional per-user `HKCU` Run entry independently of GPU work. Do not elevate the bar. Use the canonical path, ACL, reparse-point, quoting, and ownership controls in the implementation plan. Verify install, sign out/in, disable autostart, exit, upgrade, and uninstall, including process, files, registry, settings, and work-area state.
+
 ### Temperatures
 
 Research temperature sources after the preceding delivery work. Record source, license, driver requirements, privileges, and Defender results. Reject a source requiring elevation of the bar or triggering antivirus warnings; absence of temperatures is acceptable. A privileged helper requires a separate future decision and is not authorized by this plan.
 
 ## Release rule
 
-The first personal release requires stages 1 and 2 and all first-release gates in the implementation plan. GPU, installation/autostart, providers, and temperatures cannot block it. Tests alone never prove desktop acceptance. Public distribution is prohibited until the clean Windows 11 profile, no-client-authorization, no-UAC, Defender, and artifact-hygiene checks pass and the distribution has authenticated provenance. Publish a signed manifest listing SHA-256 for every payload file and the source commit; publish the verification key or its fingerprint through an independently authenticated channel and verify the signature and every payload hash before release. A checksum posted beside the download without a trusted signature does not meet this gate. Signing is not required for the personal release.
+The first personal release requires stages 1–3 and all first-release gates in the implementation plan. Both provider qualifications must close as accepted or rejected; each accepted provider must pass its stage 3 acceptance, and its adapter is enabled during every first-release gate. A rejected provider does not block the release. Exceeding a budget blocks release. GPU, installation/autostart, and temperatures cannot block it. Tests alone never prove desktop acceptance.
+
+Public distribution is prohibited until the clean Windows 11 profile, no-client-authorization, no-UAC, Defender, and artifact-hygiene checks pass and the distribution has authenticated provenance. Publish a signed manifest listing SHA-256 for every payload file and the source commit; publish the verification key or its fingerprint through an independently authenticated channel and verify the signature and every payload hash before release. A checksum posted beside the download without a trusted signature does not meet this gate. Signing is not required for the personal release.

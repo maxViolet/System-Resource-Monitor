@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Area** | Research |
-| **Depends on** | B07 |
-| **Unblocks** | B13 when accepted; B14 |
-| **Sources** | [Product plan — Subscription limits](../plan.md#subscription-limits), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Depends on** | B04 |
+| **Unblocks** | B13 when accepted; B07 when closed |
+| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [ADR 0004](../adr/0004-subscription-limits-in-first-release.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 

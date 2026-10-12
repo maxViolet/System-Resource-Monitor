@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Desktop + acceptance |
 | **Depends on** | B03 |
-| **Unblocks** | B05 |
+| **Unblocks** | B05, B10, B11 |
 | **Sources** | [Product plan — Validate placement first](../plan.md#1-validate-placement-first), [First-release gate — Desktop behavior](../implementation-plan.md#first-release-acceptance-gates), [ADR 0003](../adr/0003-keep-appbar-registered-during-fullscreen.md) |
 
 ## Why

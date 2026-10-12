@@ -16,20 +16,19 @@ A brick can complete with a documented rejection only when its acceptance criter
 
 ## Stages
 
-Every stage ends in an observable result. Stages 3–5 are independent tracks after the first personal release and may proceed in any order. Stage 6 starts only after B08 and B09 finish, both provider qualifications close, and each accepted provider's implementation finishes.
+Every stage ends in an observable result. Stages 3–4 are independent tracks after the first personal release and may proceed in any order. Stage 5 starts only after B08 and B09 finish.
 
 | Stage | Observable result |
 |---|---|
 | 0. Runnable foundation | The solution builds, the architecture boundary is enforced, and the test host is ready to host lifecycle components introduced by later bricks. |
 | 1. Placement feasibility | An empty bar reliably reserves the primary monitor's edge, survives shell/display/fullscreen scenarios, and restores work area on exit. |
-| 2. First personal release | A self-contained Windows 11 x64 folder shows trustworthy CPU load and RAM usage and passes every first-release gate. |
+| 2. First personal release (v1) | A self-contained Windows 11 x64 folder shows trustworthy CPU load, RAM usage, and remaining limits and reset times for each qualified Codex or Claude source, and passes every first-release gate. |
 | 3. GPU track | The selected adapter's GPU load is shown only when adapter/counter correlation is proven. |
 | 4. Installation track | Per-user install, optional autostart, upgrade, and uninstall work without elevating the bar. |
-| 5. Subscription tracks | Each qualified Codex or Claude source independently shows remaining limits and reset times without reading credentials or consuming usage. |
-| 6. Temperature track | A safe source is either accepted and exposed as temperature readings, or rejected with evidence; the bar remains unelevated. |
-| 7. Public distribution | A clean-profile package passes the public-release checks and has authenticated payload provenance. |
+| 5. Temperature track | A safe source is either accepted and exposed as temperature readings, or rejected with evidence; the bar remains unelevated. |
+| 6. Public distribution | A clean-profile package passes the public-release checks and has authenticated payload provenance. |
 
-B01–B07 produce the first personal release: roadmap stages 0–1 implement product-plan stage 1, and roadmap stage 2 implements product-plan stage 2. Failure of B04 blocks B05–B07 pending an explicit placement decision. B08–B15 never retroactively block an accepted B07 release.
+B01–B07 and B10–B13 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B10, B11) starts after B04 and runs in parallel with B05–B06. B07 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B07. Failure of B04 blocks B05–B07 and B10–B13 pending an explicit placement decision. B08, B09, B14, and B15 never retroactively block an accepted B07 release.
 
 ## Brick table
 
@@ -41,23 +40,22 @@ B01–B07 produce the first personal release: roadmap stages 0–1 implement pro
 | B02 | [Empty AppBar lifecycle](B02-empty-appbar-lifecycle.md) | Desktop | B01 |
 | B03 | [Tray, edge settings, and shell/display recovery](B03-shell-position-recovery.md) | Desktop | B02 |
 | B04 | [Fullscreen reconciliation and placement gate](B04-placement-gate.md) | Desktop + acceptance | B03 |
-| **Stage 2 — First personal release** ||||
+| **Stage 2 — First personal release (v1)** ||||
 | B05 | [Independent metric monitoring](B05-metric-monitoring.md) | Core | B04 |
 | B06 | [CPU/RAM sources and bar presentation](B06-cpu-ram-presentation.md) | Core + Desktop | B05 |
-| B07 | [First-release evidence and self-contained publication](B07-first-release.md) | Release | B06 |
+| B10 | [Qualify a Codex limit source](B10-codex-source.md) | Research | B04 |
+| B11 | [Qualify a Claude limit source](B11-claude-source.md) | Research | B04 |
+| B12 | [Codex remaining limits](B12-codex-limits.md) | Core + Desktop | B06; B10 accepted |
+| B13 | [Claude remaining limits](B13-claude-limits.md) | Core + Desktop | B06; B11 accepted |
+| B07 | [First-release evidence and self-contained publication](B07-first-release.md) | Release | B06; B10/B11 accepted/rejected; B12/B13 done/not applicable |
 | **Stage 3 — GPU track** ||||
 | B08 | [GPU adapter selection, correlation, and display](B08-gpu.md) | Core + Desktop | B07 |
 | **Stage 4 — Installation track** ||||
 | B09 | [Per-user installation and autostart](B09-install-autostart.md) | Release | B07 |
-| **Stage 5 — Subscription tracks** ||||
-| B10 | [Qualify a Codex limit source](B10-codex-source.md) | Research | B07 |
-| B11 | [Qualify a Claude limit source](B11-claude-source.md) | Research | B07 |
-| B12 | [Codex remaining limits](B12-codex-limits.md) | Core + Desktop | B10 accepted |
-| B13 | [Claude remaining limits](B13-claude-limits.md) | Core + Desktop | B11 accepted |
-| **Stage 6 — Temperature track** ||||
-| B14 | [Qualify temperature sources](B14-temperature-source.md) | Research | B08 done/rejected; B09 done; B10/B11 accepted/rejected; B12/B13 done/not applicable |
+| **Stage 5 — Temperature track** ||||
+| B14 | [Qualify temperature sources](B14-temperature-source.md) | Research | B08 done/rejected; B09 done |
 | B15 | [Temperature readings](B15-temperatures.md) | Core + Desktop | B14 accepted |
-| **Stage 7 — Public distribution** ||||
+| **Stage 6 — Public distribution** ||||
 | B16 | [Authenticated public package](B16-public-distribution.md) | Release | B07; every feature included in the package |
 
 `Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B10, B11, or B14 closes that track; B12, B13, or B15 respectively becomes `not applicable`.
@@ -71,28 +69,27 @@ graph LR
   B03 --> B04[B04 placement gate]
   B04 --> B05[B05 monitoring]
   B05 --> B06[B06 CPU and RAM]
+  B04 --> B10[B10 Codex source]
+  B04 --> B11[B11 Claude source]
+  B10 -->|accepted| B12[B12 Codex limits]
+  B11 -->|accepted| B13[B13 Claude limits]
+  B06 --> B12
+  B06 --> B13
   B06 --> B07[B07 first release]
+  B10 -->|closed| B07
+  B11 -->|closed| B07
+  B12 -. if built .-> B07
+  B13 -. if built .-> B07
 
   B07 --> B08[B08 GPU]
   B07 --> B09[B09 install]
-  B07 --> B10[B10 Codex source]
-  B07 --> B11[B11 Claude source]
-  B10 -->|accepted| B12[B12 Codex limits]
-  B11 -->|accepted| B13[B13 Claude limits]
-
   B08 --> B14[B14 temperature source]
   B09 --> B14
-  B10 --> B14
-  B11 --> B14
-  B12 -. if built .-> B14
-  B13 -. if built .-> B14
   B14 -->|accepted| B15[B15 temperatures]
 
   B07 --> B16[B16 public package]
   B08 -. if included .-> B16
   B09 -. if included .-> B16
-  B12 -. if included .-> B16
-  B13 -. if included .-> B16
   B15 -. if included .-> B16
 ```
 
