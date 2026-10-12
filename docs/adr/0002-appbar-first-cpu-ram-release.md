@@ -1,12 +1,12 @@
 # .NET WPF desktop application with Core and Desktop boundaries
 
-Status: accepted, 2026-10-11. Supersedes [ADR 0002](0002-dotnet-wpf-clean-architecture.md). Qualifies [ADR 0001](0001-separate-windows-appbar.md) with the feasibility gate below.
+Status: accepted, 2026-10-11. Qualifies [ADR 0001](0001-separate-windows-appbar.md) with the feasibility gate below.
 
 ## Decision and context
 
 Build a Windows 11 x64 WPF application on .NET 10, published as a self-contained folder. Use two production projects: `Core` owns metric values, polling and freshness policy, immutable state, and source/settings ports; `Desktop` owns WPF, AppBar, isolated Windows and settings adapters, and composition. Desktop references Core; Core has no WPF, Win32, file, registry, or process dependencies.
 
-This revises the four-project Domain/Application/Infrastructure/Desktop proposal in PR #3. The first release needs CPU/RAM and reliable placement, not speculative provider contracts. A separately testable Core preserves the important seam with fewer project boundaries. Concrete adapters stay in feature folders and are wired only at startup; view models consume Core contracts. Further extraction requires a concrete reuse, dependency, or maintenance problem.
+The first release needs CPU/RAM and reliable placement, not speculative provider contracts. A separately testable Core preserves the important seam with fewer project boundaries. Concrete adapters stay in feature folders and are wired only at startup; view models consume Core contracts. Further extraction requires a concrete reuse, dependency, or maintenance problem.
 
 ## Trade-offs
 

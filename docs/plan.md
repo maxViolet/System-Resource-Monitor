@@ -1,22 +1,22 @@
 # Plan: System Resource Monitor
 
-Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0003](adr/0003-appbar-first-cpu-ram-release.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), and fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
 
 ## Product and first release
 
 The system bar is useful independently of subscription limits. The first personal release targets Windows 11 x64 and runs without elevation from a self-contained published folder.
 
 - A thin dark bar spans the primary monitor, at the top or above the Windows taskbar, reserving work area through AppBar.
-- Fullscreen on the primary monitor hides the bar and releases its reservation; fullscreen on another monitor does not.
+- While fullscreen is active on the primary monitor, lower the bar to the bottom of the z-order without unregistering it or releasing its reserved strip. Restore its normal z-order without stealing focus when fullscreen ends or Alt+Tab activates a normal window, even if the game remains running. Fullscreen on another monitor does not change the bar state.
 - Show only `CPU 12%` and `RAM 64%` initially, with fixed-width sections and a RAM used/total GiB tooltip.
 - Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings.
-- Tray actions switch top/bottom and exit. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart.
+- Tray actions switch top/bottom and exit. Explorer restart restores the tray icon and both actions. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart.
 - Exit releases AppBar before waiting for collectors. Waiting for collectors is bounded to 2 seconds.
 - No GPU, temperatures, provider sections, installer, or autostart are required for this release.
 
 ## 1. Validate placement first
 
-Build the two-project skeleton and empty AppBar before metrics or optional source research. Check start/exit, handled startup failure, repeated edge changes, Explorer restart, resolution/DPI changes, primary-monitor change, auto-hidden taskbar, and fullscreen video, exclusive game, and borderless game on real Windows 11. Verify restored work area and no focus stealing.
+Build the two-project skeleton and empty AppBar before metrics or optional source research. Check start/exit, handled startup failure, repeated edge changes, Explorer restart, resolution/DPI changes, primary-monitor change, auto-hidden taskbar, and fullscreen video, exclusive game, and borderless game on real Windows 11. After Explorer restart, verify the AppBar reserves its strip again and the recreated tray icon can change position and exit. Verify restored work area after application exit and no focus stealing. For video, exclusive fullscreen, and borderless fullscreen, run ten enter/leave cycles per mode including Alt+Tab to a normal window and back. After each fullscreen departure, the bar must reappear with its strip still reserved; reservation remains unchanged throughout each cycle. Separately check Explorer restart during fullscreen and fullscreen on a second monitor.
 
 Time-box AppBar investigation to two working days. If blocking failures remain, stop dependent implementation and record a decision to use a non-reserving panel or suspend work. Neither fallback is automatic; a placement change requires revisiting ADR 0001.
 
@@ -30,7 +30,7 @@ Select the discrete adapter, or integrated adapter when no discrete one exists. 
 
 ## 4. Add installation and autostart
 
-After GPU work, add install/uninstall scripts and an optional per-user `HKCU` Run entry. Do not elevate the bar. Verify install, sign out/in, disable autostart, exit, and uninstall, including process, files, registry, and work-area state. A blocked GPU investigation does not reopen the already accepted first-release gate.
+Independently of GPU work, add install/uninstall scripts and an optional per-user `HKCU` Run entry. Do not elevate the bar. Verify install, sign out/in, disable autostart, exit, upgrade, and uninstall, including process, files, registry, settings, and work-area state. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
 
 ## Independent research: subscription limits
 
@@ -40,7 +40,9 @@ Allowed sources are official client output or locally written non-credential fil
 
 Each provider passes only when two consecutive non-interactive polls return all windows and reset times, sign-in/network failures are distinguishable, and ten polls without other work leave limits unchanged and create no new sessions. Failed sources are not simulated or included as trusted data.
 
-After a provider passes, show `short%/weekly%`, using the binding weekly window; show all windows and reset times in a tooltip. Poll every minute. Sign-in failure is unavailable on the first failed poll. Network failure may retain explicitly stale data only before three minutes since last success, then `--/--`; expiry must not depend on a subsequent successful poll. Repeat account and non-consuming-poll checks with the built adapter.
+After a provider passes, show `short%/weekly%`, using the binding weekly window; show all windows and reset times in a tooltip. On failure, show a safe explanation in that same tooltip; an unavailable snapshot displays `--/--`. Poll every minute. Sign-in failure is unavailable on the first failed poll. Network failure may retain explicitly stale data only before three minutes since last success, then `--/--`; expiry must not depend on a subsequent successful poll.
+
+Accept each built provider adapter only after a manual check on an authorized account: compare every displayed remaining value with the official client's remaining value, or with `100 - used` after applying the client's verified integer-rounding rule; compare every reset time with the client within the same verification window. Confirm sign-out/loss of access produces the unavailable display and safe error explanation. Repeat the ten-poll non-consuming check with the built adapter. Record client version, account state, observation times, raw comparisons without credentials, and pass/fail. Parser fixtures and unit tests cannot close this manual gate.
 
 ## Last extension: temperatures
 
@@ -48,4 +50,4 @@ Research only after the preceding delivery work. Record source, license, driver 
 
 ## Release rule
 
-The first personal release requires stages 1 and 2 and all first-release gates in the implementation plan. GPU, installation/autostart, providers, and temperatures cannot block it. Tests alone never prove desktop acceptance. Public distribution is separate: verify a clean Windows 11 profile, no client authorization, no UAC requirement, Defender results, and artifact hygiene before publishing publicly.
+The first personal release requires stages 1 and 2 and all first-release gates in the implementation plan. GPU, installation/autostart, providers, and temperatures cannot block it. Tests alone never prove desktop acceptance. Public distribution is prohibited until the clean Windows 11 profile, no-client-authorization, no-UAC, Defender, and artifact-hygiene checks pass and the distribution has authenticated provenance. Publish a signed manifest listing SHA-256 for every payload file and the source commit; publish the verification key or its fingerprint through an independently authenticated channel and verify the signature and every payload hash before release. A checksum posted beside the download without a trusted signature does not meet this gate. Signing is not required for the personal release.
