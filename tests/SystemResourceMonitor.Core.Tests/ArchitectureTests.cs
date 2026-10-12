@@ -1,10 +1,14 @@
+using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace SystemResourceMonitor.Core.Tests;
 
 /// <summary>
-/// Enforces the Core/Desktop boundary from ADR 0002 by reading the solution and project files.
+/// Enforces the Core/Desktop boundary from ADR 0002 against the MSBuild evaluation of every solution project,
+/// so settings inherited from imported props and targets are checked as well as the project files themselves.
 /// </summary>
 public sealed class ArchitectureTests
 {
@@ -22,11 +26,18 @@ public sealed class ArchitectureTests
         "T:System.Runtime.InteropServices.LibraryImportAttribute",
     ];
 
-    private static readonly Lazy<IReadOnlyDictionary<string, ProjectFile>> Projects = new(LoadProjects);
+    private static readonly string[] EvaluatedProperties =
+        ["TargetFramework", "TargetFrameworks", "UseWPF", "UseWindowsForms", "WarningsAsErrors"];
+
+    private static readonly string[] EvaluatedItems = ["ProjectReference", "PackageReference", "AdditionalFiles"];
+
+    private static readonly Lazy<Task<SolutionModel>> Solution = new(SolutionModel.LoadAsync);
 
     [Fact]
-    public void Solution_contains_exactly_the_planned_projects()
+    public async Task Solution_contains_exactly_the_planned_projects()
     {
+        var solution = await Solution.Value;
+
         Assert.Equal(
             [
                 CoreProject,
@@ -35,44 +46,49 @@ public sealed class ArchitectureTests
                 "SystemResourceMonitor.Desktop.TestHost",
                 "SystemResourceMonitor.Desktop.Tests",
             ],
-            Projects.Value.Keys.Order(StringComparer.Ordinal));
+            solution.Projects.Values.Select(project => project.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]
-    public void Every_project_reference_points_to_a_solution_project()
+    public async Task Every_project_reference_resolves_to_a_solution_project()
     {
+        var solution = await Solution.Value;
+
         Assert.All(
-            Projects.Value.Values.SelectMany(project => project.References),
-            reference => Assert.Contains(reference, Projects.Value.Keys));
+            solution.Projects.Values.SelectMany(project => project.References),
+            reference => Assert.Contains(reference, solution.Projects.Keys));
     }
 
     [Fact]
-    public void Core_does_not_reference_Desktop_directly_or_transitively()
+    public async Task Core_does_not_reference_Desktop_directly_or_transitively()
     {
-        Assert.DoesNotContain(DesktopProject, ReachableFrom(CoreProject));
+        var solution = await Solution.Value;
+
+        Assert.DoesNotContain(solution.PathOf(DesktopProject), solution.ReachableFrom(solution.PathOf(CoreProject)));
     }
 
     [Fact]
-    public void Desktop_references_Core()
+    public async Task Desktop_references_Core()
     {
-        Assert.Contains(CoreProject, Projects.Value[DesktopProject].References);
+        var solution = await Solution.Value;
+
+        Assert.Contains(solution.PathOf(CoreProject), solution.Projects[solution.PathOf(DesktopProject)].References);
     }
 
     [Fact]
-    public void Core_targets_plain_net10_without_Windows_UI_frameworks()
+    public async Task Core_targets_plain_net10_without_Windows_UI_frameworks()
     {
-        var core = Projects.Value[CoreProject];
+        var core = (await Solution.Value).Project(CoreProject);
 
         Assert.Equal("net10.0", core.Property("TargetFramework"));
-        Assert.Null(core.Property("TargetFrameworks"));
-        Assert.NotEqual("true", core.Property("UseWPF")?.ToLowerInvariant());
-        Assert.NotEqual("true", core.Property("UseWindowsForms")?.ToLowerInvariant());
+        Assert.Empty(core.Property("TargetFrameworks"));
+        Assert.NotEqual("true", core.Property("UseWPF"), StringComparer.OrdinalIgnoreCase);
+        Assert.NotEqual("true", core.Property("UseWindowsForms"), StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
     public void Built_Core_assembly_references_no_Desktop_or_Windows_UI_assembly()
     {
-        // Checks the evaluated build output, so settings inherited from imported props are covered too.
         string[] forbidden = [DesktopProject, "PresentationFramework", "PresentationCore", "WindowsBase", "System.Windows.Forms"];
 
         var referenced = Assembly.Load(CoreProject).GetReferencedAssemblies().Select(name => name.Name);
@@ -81,81 +97,140 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
-    public void Core_enforces_banned_apis_as_errors()
+    public async Task Core_enforces_banned_apis_as_errors()
     {
-        var core = Projects.Value[CoreProject];
+        var core = (await Solution.Value).Project(CoreProject);
+        var bannedSymbolsPath = Path.Combine(Path.GetDirectoryName(core.Path)!, "BannedSymbols.txt");
 
-        Assert.Contains("Microsoft.CodeAnalysis.BannedApiAnalyzers", core.Items("PackageReference"));
-        Assert.Contains("BannedSymbols.txt", core.Items("AdditionalFiles"));
-        Assert.Contains("RS0030", (core.Property("WarningsAsErrors") ?? string.Empty).Split(';', StringSplitOptions.TrimEntries));
+        Assert.Contains("Microsoft.CodeAnalysis.BannedApiAnalyzers", core.Items("PackageReference").Select(item => item.Identity));
+        Assert.Contains(bannedSymbolsPath, core.Items("AdditionalFiles").Select(item => item.FullPath), StringComparer.OrdinalIgnoreCase);
+        Assert.Contains("RS0030", core.Property("WarningsAsErrors").Split(';', StringSplitOptions.TrimEntries));
 
-        var declaredIds = File.ReadLines(Path.Combine(core.Directory, "BannedSymbols.txt"))
+        var declaredIds = File.ReadLines(bannedSymbolsPath)
             .Select(line => line.Split(';')[0].Trim())
             .ToHashSet(StringComparer.Ordinal);
         Assert.All(BannedSymbolIds, id => Assert.Contains(id, declaredIds));
     }
 
-    private sealed record ProjectFile(string Directory, XDocument Document, IReadOnlyList<string> References)
-    {
-        public string? Property(string name) =>
-            Document.Descendants("PropertyGroup").Elements(name).LastOrDefault()?.Value.Trim();
+    private sealed record EvaluatedItem(string Identity, string FullPath);
 
-        public IReadOnlyList<string> Items(string itemType) =>
-            Document.Descendants(itemType).Select(item => item.Attribute("Include")?.Value).OfType<string>().ToList();
+    private sealed record EvaluatedProject(
+        string Path,
+        IReadOnlyDictionary<string, string> Properties,
+        IReadOnlyDictionary<string, IReadOnlyList<EvaluatedItem>> ItemsByType)
+    {
+        public string Name => System.IO.Path.GetFileNameWithoutExtension(Path);
+
+        public IReadOnlyList<string> References =>
+            Items("ProjectReference").Select(item => item.FullPath).ToList();
+
+        public string Property(string name) => Properties.GetValueOrDefault(name, string.Empty);
+
+        public IReadOnlyList<EvaluatedItem> Items(string itemType) => ItemsByType.GetValueOrDefault(itemType, []);
     }
 
-    private static IReadOnlySet<string> ReachableFrom(string projectName)
+    private sealed record SolutionModel(IReadOnlyDictionary<string, EvaluatedProject> Projects)
     {
-        var reachable = new HashSet<string>(StringComparer.Ordinal);
-        var pending = new Stack<string>(Projects.Value[projectName].References);
-        while (pending.TryPop(out var name))
+        public string PathOf(string name) => Projects.Values.Single(project => project.Name == name).Path;
+
+        public EvaluatedProject Project(string name) => Projects[PathOf(name)];
+
+        public IReadOnlySet<string> ReachableFrom(string projectPath)
         {
-            if (reachable.Add(name) && Projects.Value.TryGetValue(name, out var project))
+            var reachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var pending = new Stack<string>(Projects[projectPath].References);
+            while (pending.TryPop(out var path))
             {
-                foreach (var reference in project.References)
+                if (reachable.Add(path) && Projects.TryGetValue(path, out var project))
                 {
-                    pending.Push(reference);
+                    foreach (var reference in project.References)
+                    {
+                        pending.Push(reference);
+                    }
                 }
             }
+
+            return reachable;
         }
 
-        return reachable;
-    }
-
-    private static IReadOnlyDictionary<string, ProjectFile> LoadProjects()
-    {
-        var root = FindRepositoryRoot();
-
-        return XDocument.Load(Path.Combine(root, "SystemResourceMonitor.slnx"))
-            .Descendants("Project")
-            .Select(element => element.Attribute("Path")?.Value
-                ?? throw new InvalidDataException("Solution project without Path."))
-            .Select(path => Path.GetFullPath(Path.Combine(root, path)))
-            .ToDictionary(path => Path.GetFileNameWithoutExtension(path), LoadProject, StringComparer.Ordinal);
-    }
-
-    private static ProjectFile LoadProject(string projectPath)
-    {
-        var document = XDocument.Load(projectPath);
-        var references = document.Descendants("ProjectReference")
-            .Select(reference => reference.Attribute("Include")?.Value)
-            .OfType<string>()
-            .Select(include => Path.GetFileNameWithoutExtension(include))
-            .ToList();
-
-        return new ProjectFile(Path.GetDirectoryName(projectPath)!, document, references);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        public static async Task<SolutionModel> LoadAsync()
         {
-            if (File.Exists(Path.Combine(directory.FullName, "SystemResourceMonitor.slnx")))
-            {
-                return directory.FullName;
-            }
+            var root = FindRepositoryRoot();
+            var paths = XDocument.Load(Path.Combine(root, "SystemResourceMonitor.slnx"))
+                .Descendants("Project")
+                .Select(element => element.Attribute("Path")?.Value
+                    ?? throw new InvalidDataException("Solution project without Path."))
+                .Select(path => Path.GetFullPath(Path.Combine(root, path)));
+
+            var projects = await Task.WhenAll(paths.Select(path => EvaluateAsync(root, path)));
+
+            return new SolutionModel(projects.ToDictionary(project => project.Path, StringComparer.OrdinalIgnoreCase));
         }
 
-        throw new InvalidOperationException("SystemResourceMonitor.slnx was not found above the test output directory.");
+        private static async Task<EvaluatedProject> EvaluateAsync(string root, string projectPath)
+        {
+            var startInfo = new ProcessStartInfo(FindDotnet())
+            {
+                WorkingDirectory = root,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            startInfo.ArgumentList.Add("msbuild");
+            startInfo.ArgumentList.Add(projectPath);
+            startInfo.ArgumentList.Add("-nologo");
+            foreach (var property in EvaluatedProperties)
+            {
+                startInfo.ArgumentList.Add($"-getProperty:{property}");
+            }
+
+            foreach (var item in EvaluatedItems)
+            {
+                startInfo.ArgumentList.Add($"-getItem:{item}");
+            }
+
+            using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("dotnet msbuild did not start.");
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            if (process.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"dotnet msbuild failed for {projectPath} with {process.ExitCode}: {await output}{await error}");
+            }
+
+            using var json = JsonDocument.Parse(await output);
+            var properties = json.RootElement.GetProperty("Properties").EnumerateObject()
+                .ToDictionary(property => property.Name, property => property.Value.GetString() ?? string.Empty);
+            var items = json.RootElement.GetProperty("Items").EnumerateObject()
+                .ToDictionary(
+                    itemType => itemType.Name,
+                    itemType => (IReadOnlyList<EvaluatedItem>)itemType.Value.EnumerateArray()
+                        .Select(item => new EvaluatedItem(
+                            item.GetProperty("Identity").GetString()!,
+                            item.GetProperty("FullPath").GetString()!))
+                        .ToList());
+
+            return new EvaluatedProject(projectPath, properties, items);
+        }
+
+        // The test process runs on the same dotnet installation that hosts the SDK: <root>/shared/Microsoft.NETCore.App/<version>/.
+        private static string FindDotnet() =>
+            Path.GetFullPath(Path.Combine(
+                RuntimeEnvironment.GetRuntimeDirectory(), "..", "..", "..", OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"));
+
+        private static string FindRepositoryRoot()
+        {
+            for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            {
+                if (File.Exists(Path.Combine(directory.FullName, "SystemResourceMonitor.slnx")))
+                {
+                    return directory.FullName;
+                }
+            }
+
+            throw new InvalidOperationException("SystemResourceMonitor.slnx was not found above the test output directory.");
+        }
     }
 }
