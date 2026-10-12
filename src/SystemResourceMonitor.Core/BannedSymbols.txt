@@ -1,0 +1,6 @@
+T:System.IO.File;Core performs no file I/O; settings and file access belong to Desktop adapters
+T:System.IO.Directory;Core performs no file I/O; settings and file access belong to Desktop adapters
+T:System.Diagnostics.Process;Core starts no processes; process execution belongs to Desktop adapters
+T:Microsoft.Win32.Registry;Core does not access the registry; registry access belongs to Desktop adapters
+T:System.Runtime.InteropServices.DllImportAttribute;Core has no native interop; Win32 calls belong to Desktop
+T:System.Runtime.InteropServices.LibraryImportAttribute;Core has no native interop; Win32 calls belong to Desktop

@@ -99,7 +99,8 @@ Update this table when evidence changes a brick's state. Valid states are `plann
 
 | Brick | Status |
 |---|---|
-| B01–B16 | planned |
+| B01 | in progress |
+| B02–B16 | planned |
 
 ## Brick template
 

@@ -167,12 +167,12 @@ Permanent tests cover metric invariants and unavailable reasons, CPU delta arith
 
 Windows integration exercises native wrappers, mutex, AppBar, DPI conversion, fullscreen recovery, and Explorer restart where practical. Actual published-app checks remain mandatory; CI success alone cannot close desktop or resource gates.
 
-Once application projects exist, run on Windows 11:
+Once application projects exist, run on Windows 11. [ADR 0005](adr/0005-project-level-runtime-and-testing-platform.md) explains why the build and test commands omit `-r`:
 
 ```powershell
 dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode
-dotnet build SystemResourceMonitor.slnx -c Release -r win-x64 --no-restore
-dotnet test SystemResourceMonitor.slnx -c Release -r win-x64 --no-build --no-restore
+dotnet build SystemResourceMonitor.slnx -c Release --no-restore
+dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build
 dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true
 git diff --check
 ```
