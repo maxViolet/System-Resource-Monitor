@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SystemResourceMonitor.Core/SystemResourceMonitor.Core.csproj" />
+    <Project Path="src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SystemResourceMonitor.Core.Tests/SystemResourceMonitor.Core.Tests.csproj" />
+    <Project Path="tests/SystemResourceMonitor.Desktop.TestHost/SystemResourceMonitor.Desktop.TestHost.csproj" />
+    <Project Path="tests/SystemResourceMonitor.Desktop.Tests/SystemResourceMonitor.Desktop.Tests.csproj" />
+  </Folder>
+</Solution>
