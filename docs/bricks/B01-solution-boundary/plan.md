@@ -1,6 +1,6 @@
 # B01 implementation plan for coding agents
 
-Status: planned. This package implements [B01 — Solution and enforced Core boundary](../B01-solution-boundary.md). The [product plan](../../plan.md), [implementation plan](../../implementation-plan.md#technology-and-layout), and [ADR 0002](../../adr/0002-appbar-first-cpu-ram-release.md) govern any ambiguity.
+Status: in progress; evidence in [the 2026-10-12 report](../../acceptance/2026-10-12-B01-solution-boundary.md). This package implements [B01 — Solution and enforced Core boundary](../B01-solution-boundary.md). The [product plan](../../plan.md), [implementation plan](../../implementation-plan.md#technology-and-layout), and [ADR 0002](../../adr/0002-appbar-first-cpu-ram-release.md) govern any ambiguity.
 
 ## Outcome and handoff
 
@@ -47,12 +47,12 @@ Complete these steps in order. After each step, leave the solution buildable; ad
 
 ### 5. Run final verification and report
 
-Run on Windows 11 x64 from the repository root:
+Run on Windows 11 x64 from the repository root. [ADR 0005](../../adr/0005-project-level-runtime-and-testing-platform.md) explains why the build and test commands omit `-r`:
 
 ```powershell
 dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode
-dotnet build SystemResourceMonitor.slnx -c Release -r win-x64 --no-restore
-dotnet test SystemResourceMonitor.slnx -c Release -r win-x64 --no-build --no-restore
+dotnet build SystemResourceMonitor.slnx -c Release --no-restore
+dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build
 dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true
 git diff --check
 ```
