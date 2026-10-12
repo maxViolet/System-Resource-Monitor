@@ -7,7 +7,7 @@ The product plan, implementation plan, and accepted ADRs remain authoritative. I
 ## How to pick up work
 
 1. Choose a brick whose dependencies are complete.
-2. Read the brick, every linked plan section, and every linked ADR.
+2. Open the brick's package. Read its brief, every linked plan section, every linked ADR, and its package plan when present.
 3. Create the branch required by [`AGENTS.md`](../../AGENTS.md); brick IDs are roadmap identifiers, not branch names.
 4. Satisfy every acceptance criterion. Automated tests do not replace the named Windows 11 desktop checks.
 5. Put automated, Windows integration, and manual desktop evidence in separate dated reports under `docs/acceptance/`.
@@ -35,28 +35,28 @@ B01–B07 and B10–B13 produce the first personal release ([ADR 0004](../adr/00
 | # | Brick | Area | Depends on |
 |---|---|---|---|
 | **Stage 0 — Runnable foundation** ||||
-| B01 | [Solution and enforced Core boundary](B01-solution-boundary.md) | Core + Desktop | — |
+| B01 | [Solution and enforced Core boundary](B01-solution-boundary/README.md) | Core + Desktop | — |
 | **Stage 1 — Placement feasibility** ||||
-| B02 | [Empty AppBar lifecycle](B02-empty-appbar-lifecycle.md) | Desktop | B01 |
-| B03 | [Tray, edge settings, and shell/display recovery](B03-shell-position-recovery.md) | Desktop | B02 |
-| B04 | [Fullscreen reconciliation and placement gate](B04-placement-gate.md) | Desktop + acceptance | B03 |
+| B02 | [Empty AppBar lifecycle](B02-empty-appbar-lifecycle/README.md) | Desktop | B01 |
+| B03 | [Tray, edge settings, and shell/display recovery](B03-shell-position-recovery/README.md) | Desktop | B02 |
+| B04 | [Fullscreen reconciliation and placement gate](B04-placement-gate/README.md) | Desktop + acceptance | B03 |
 | **Stage 2 — First personal release (v1)** ||||
-| B05 | [Independent metric monitoring](B05-metric-monitoring.md) | Core | B04 |
-| B06 | [CPU/RAM sources and bar presentation](B06-cpu-ram-presentation.md) | Core + Desktop | B05 |
-| B10 | [Qualify a Codex limit source](B10-codex-source.md) | Research | B04 |
-| B11 | [Qualify a Claude limit source](B11-claude-source.md) | Research | B04 |
-| B12 | [Codex remaining limits](B12-codex-limits.md) | Core + Desktop | B06; B10 accepted |
-| B13 | [Claude remaining limits](B13-claude-limits.md) | Core + Desktop | B06; B11 accepted |
-| B07 | [First-release evidence and self-contained publication](B07-first-release.md) | Release | B06; B10/B11 accepted/rejected; B12/B13 done/not applicable |
+| B05 | [Independent metric monitoring](B05-metric-monitoring/README.md) | Core | B04 |
+| B06 | [CPU/RAM sources and bar presentation](B06-cpu-ram-presentation/README.md) | Core + Desktop | B05 |
+| B10 | [Qualify a Codex limit source](B10-codex-source/README.md) | Research | B04 |
+| B11 | [Qualify a Claude limit source](B11-claude-source/README.md) | Research | B04 |
+| B12 | [Codex remaining limits](B12-codex-limits/README.md) | Core + Desktop | B06; B10 accepted |
+| B13 | [Claude remaining limits](B13-claude-limits/README.md) | Core + Desktop | B06; B11 accepted |
+| B07 | [First-release evidence and self-contained publication](B07-first-release/README.md) | Release | B06; B10/B11 accepted/rejected; B12/B13 done/not applicable |
 | **Stage 3 — GPU track** ||||
-| B08 | [GPU adapter selection, correlation, and display](B08-gpu.md) | Core + Desktop | B07 |
+| B08 | [GPU adapter selection, correlation, and display](B08-gpu/README.md) | Core + Desktop | B07 |
 | **Stage 4 — Installation track** ||||
-| B09 | [Per-user installation and autostart](B09-install-autostart.md) | Release | B07 |
+| B09 | [Per-user installation and autostart](B09-install-autostart/README.md) | Release | B07 |
 | **Stage 5 — Temperature track** ||||
-| B14 | [Qualify temperature sources](B14-temperature-source.md) | Research | B08 done/rejected; B09 done |
-| B15 | [Temperature readings](B15-temperatures.md) | Core + Desktop | B14 accepted |
+| B14 | [Qualify temperature sources](B14-temperature-source/README.md) | Research | B08 done/rejected; B09 done |
+| B15 | [Temperature readings](B15-temperatures/README.md) | Core + Desktop | B14 accepted |
 | **Stage 6 — Public distribution** ||||
-| B16 | [Authenticated public package](B16-public-distribution.md) | Release | B07; every feature included in the package |
+| B16 | [Authenticated public package](B16-public-distribution/README.md) | Release | B07; every feature included in the package |
 
 `Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B10, B11, or B14 closes that track; B12, B13, or B15 respectively becomes `not applicable`.
 
