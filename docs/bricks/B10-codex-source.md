@@ -5,7 +5,7 @@
 | **Area** | Research |
 | **Depends on** | B07 |
 | **Unblocks** | B12 when accepted; B14 |
-| **Sources** | [Product plan — Independent research: subscription limits](../plan.md#independent-research-subscription-limits), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Sources** | [Product plan — Subscription limits](../plan.md#subscription-limits), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 

@@ -5,7 +5,7 @@
 | **Area** | Release |
 | **Depends on** | B07 |
 | **Unblocks** | B14; optionally B16 |
-| **Sources** | [Product plan — Add installation and autostart](../plan.md#4-add-installation-and-autostart), [Implementation plan — Later slices](../implementation-plan.md#later-slices) |
+| **Sources** | [Product plan — Installation and autostart](../plan.md#installation-and-autostart), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices) |
 
 ## Why
 
@@ -17,13 +17,13 @@ Install and uninstall scripts place and remove the self-contained app safely for
 
 ## Context
 
-The source plan requires a canonical destination and ACL, ownership, reparse-point, and quoting controls, but the current implementation plan does not define them. Before script implementation, amend the implementation plan or add an accepted ADR naming the exact per-user destination, trust boundary, ownership/ACL checks, and reparse-point handling. Then use that contract, quote command lines correctly, and avoid an executable path controlled by another user. Scripts may perform per-user setup; the bar itself never elevates.
+Apply the [Installation and autostart](../implementation-plan.md#installation-and-autostart) controls in the implementation plan: owner-only ACLs, reparse-point rejection, one owned quoted `REG_SZ` Run value, and manifest-scoped uninstall. That section does not yet name the exact per-user destination; record it there before script implementation, then avoid any executable path controlled by another user. Scripts may perform per-user setup; the bar itself never elevates.
 
 Verification covers process state, payload files, registry values, settings, and work-area restoration. Exit the running bar safely before replacement or removal.
 
 ## Acceptance criteria
 
-- [ ] The canonical destination and its path-security contract are accepted in the implementation plan or a new ADR before scripts are implemented
+- [ ] The exact canonical per-user destination is recorded in the implementation plan before scripts are implemented
 - [ ] Install from a clean profile produces only the documented per-user files and registry values without UAC
 - [ ] The Run value contains the canonical, correctly quoted executable path and starts exactly one bar after sign-out/sign-in
 - [ ] Autostart can be disabled without uninstalling the app

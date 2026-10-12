@@ -5,7 +5,7 @@
 | **Area** | Core + Desktop |
 | **Depends on** | B11 accepted |
 | **Unblocks** | B14; optionally B16 |
-| **Sources** | [Product plan — Independent research: subscription limits](../plan.md#independent-research-subscription-limits), [Implementation plan — Later slices](../implementation-plan.md#later-slices), [B11 qualification brick and dated report](B11-claude-source.md) |
+| **Sources** | [Product plan — Subscription limits](../plan.md#subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [B11 qualification brick and dated report](B11-claude-source.md) |
 
 ## Why
 
@@ -17,7 +17,7 @@ The Claude section shows `short%/weekly%`, where weekly is the binding weekly wi
 
 ## Context
 
-Build only against B11's accepted client version and contract. Keep parsing separate from source acquisition and use sanitized fixtures. For an executable source, resolve an absolute executable path, redirect streams, and enforce a request timeout. For an accepted local-file source, use the qualified canonical path and non-credential format without process execution. Never log raw account output. Unknown versions or formats are unavailable.
+Build only against B11's accepted client version and contract. Keep parsing separate from source acquisition and use sanitized fixtures. For an executable source, apply the [provider adapter](../implementation-plan.md#provider-adapters) controls: trusted resolution (never the current directory or an untrusted `PATH` hit), canonical-path, reparse, and publisher checks, `UseShellExecute=false` with fixed arguments, concurrent stdout/stderr reads with byte limits, bounded parsing, and a request timeout. For an accepted local-file source, use the qualified canonical path and non-credential format without process execution. Never log raw account output. Unknown versions or formats are unavailable.
 
 If the source can genuinely block, run it in a child process. On timeout or shutdown, terminate the process tree and confirm exit inside the remaining deadline before releasing owned resources. A source that cannot satisfy this rule is not enabled.
 
@@ -27,7 +27,7 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 - [ ] Polls do not overlap; Claude failure never delays CPU, RAM, GPU, or Codex acquisition/expiry
 - [ ] Fake-time tests prove first-poll sign-in unavailability and independent three-minute network expiry without a later poll
 - [ ] For an executable source, timeout and shutdown tests prove process-tree termination and no late publication; for a local-file source, read/path failures produce unavailable without blocking other work
-- [ ] Manual same-window checks compare every displayed value and reset time with the official client, verify the safe tooltip explanation on access loss, and record client version, account state, observation times, credential-free raw comparisons, and pass/fail
+- [ ] Manual same-window checks compare every displayed value and reset time with the official client, verify the safe tooltip explanation on access loss, and record client version, account state, observation times, sanitized comparisons without credentials or raw account output, and pass/fail
 - [ ] The ten-poll non-consumption check is repeated with the built adapter
 - [ ] Raw account output, credentials, and sanitized fixtures are absent from logs and the published payload as applicable
 - [ ] Affected B07 resource, shutdown, desktop, and artifact-hygiene gates pass with Claude enabled

@@ -5,7 +5,7 @@
 | **Area** | Core + Desktop |
 | **Depends on** | B14 accepted |
 | **Unblocks** | optionally B16 |
-| **Sources** | [Product plan — Last extension: temperatures](../plan.md#last-extension-temperatures), [B14 qualification](B14-temperature-source.md), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Sources** | [Product plan — Temperatures](../plan.md#temperatures), [B14 qualification](B14-temperature-source.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 

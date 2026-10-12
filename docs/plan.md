@@ -6,10 +6,10 @@ Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 
 
 The system bar is useful independently of subscription limits. The first personal release targets Windows 11 x64 and runs without elevation from a self-contained published folder.
 
-- A thin dark bar spans the primary monitor, at the top or above the Windows taskbar, reserving work area through AppBar.
+- A thin dark bar follows the provided mockup and spans the primary monitor, at the top or above the Windows taskbar, reserving work area through AppBar.
 - While fullscreen is active on the primary monitor, lower the bar to the bottom of the z-order without unregistering it or releasing its reserved strip. Restore its normal z-order without stealing focus when fullscreen ends or Alt+Tab activates a normal window, even if the game remains running. Fullscreen on another monitor does not change the bar state.
 - Show only `CPU 12%` and `RAM 64%` initially, with fixed-width sections and a RAM used/total GiB tooltip.
-- Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings.
+- Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings; its tooltip explains why.
 - Tray actions switch top/bottom and exit. Explorer restart restores the tray icon and both actions. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart.
 - Exit releases AppBar before waiting for collectors. Waiting for collectors is bounded to 2 seconds.
 - No GPU, temperatures, provider sections, installer, or autostart are required for this release.
@@ -18,23 +18,29 @@ The system bar is useful independently of subscription limits. The first persona
 
 Build the two-project skeleton and empty AppBar before metrics or optional source research. Check start/exit, handled startup failure, repeated edge changes, Explorer restart, resolution/DPI changes, primary-monitor change, auto-hidden taskbar, and fullscreen video, exclusive game, and borderless game on real Windows 11. After Explorer restart, verify the AppBar reserves its strip again and the recreated tray icon can change position and exit. Verify restored work area after application exit and no focus stealing. For video, exclusive fullscreen, and borderless fullscreen, run ten enter/leave cycles per mode including Alt+Tab to a normal window and back. After each fullscreen departure, the bar must reappear with its strip still reserved; reservation remains unchanged throughout each cycle. Separately check Explorer restart during fullscreen and fullscreen on a second monitor.
 
+Passing also requires no stale reservations, and changing the primary monitor moves and reserves the bar on the new primary while restoring the previous work area.
+
 Time-box AppBar investigation to two working days. If blocking failures remain, stop dependent implementation and record a decision to use a non-reserving panel or suspend work. Neither fallback is automatic; a placement change requires revisiting ADR 0001.
 
 ## 2. Deliver CPU/RAM
 
-Implement CPU and physical RAM measurements and independent freshness handling. Run every first-release gate in the implementation plan, including accuracy, CPU/memory budgets, eight-hour memory observation, and actual desktop behaviour. Exceeding a budget blocks release.
+Implement CPU and physical RAM measurements and independent freshness handling. Run every first-release gate in the implementation plan, including accuracy, CPU/memory budgets, eight-hour memory observation, DPI/rendering, and actual desktop behaviour. Exceeding a budget blocks release.
 
-## 3. Add GPU after the first release
+## Independent later slices
 
-Select the discrete adapter, or integrated adapter when no discrete one exists. Correlate its counters reliably; otherwise show unavailable. Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance. GPU is not a prerequisite for CPU/RAM release.
+The following work may proceed in any order after the first release. None can retroactively block the accepted CPU/RAM release.
 
-## 4. Add installation and autostart
+### GPU
 
-Independently of GPU work, add install/uninstall scripts and an optional per-user `HKCU` Run entry. Do not elevate the bar. Verify install, sign out/in, disable autostart, exit, upgrade, and uninstall, including process, files, registry, settings, and work-area state. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
+Select the discrete adapter, or integrated adapter when no discrete one exists. Correlate its counters reliably; otherwise show unavailable. Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance.
 
-## Independent research: subscription limits
+### Installation and autostart
 
-Research is separate from the first-release critical path. Record dated results for Codex and Claude independently: client version, invocation/local file, response format, window names, reset times, used/remaining rounding, constraints, and sign-out behaviour.
+Add install/uninstall scripts and an optional per-user `HKCU` Run entry independently of GPU work. Do not elevate the bar. Use the canonical path, ACL, reparse-point, quoting, and ownership controls in the implementation plan. Verify install, sign out/in, disable autostart, exit, upgrade, and uninstall, including process, files, registry, settings, and work-area state.
+
+### Subscription limits
+
+Research Codex and Claude independently. Record dated results: client version, invocation/local file, response format, window names, reset times, used/remaining rounding, constraints, and sign-out behaviour.
 
 Allowed sources are official client output or locally written non-credential files. Do not read tokens, cookies, credential files, or call undocumented endpoints. Changing this boundary requires a separate ADR.
 
@@ -42,11 +48,11 @@ Each provider passes only when two consecutive non-interactive polls return all 
 
 After a provider passes, show `short%/weekly%`, using the binding weekly window; show all windows and reset times in a tooltip. On failure, show a safe explanation in that same tooltip; an unavailable snapshot displays `--/--`. Poll every minute. Sign-in failure is unavailable on the first failed poll. Network failure may retain explicitly stale data only before three minutes since last success, then `--/--`; expiry must not depend on a subsequent successful poll.
 
-Accept each built provider adapter only after a manual check on an authorized account: compare every displayed remaining value with the official client's remaining value, or with `100 - used` after applying the client's verified integer-rounding rule; compare every reset time with the client within the same verification window. Confirm sign-out/loss of access produces the unavailable display and safe error explanation. Repeat the ten-poll non-consuming check with the built adapter. Record client version, account state, observation times, raw comparisons without credentials, and pass/fail. Parser fixtures and unit tests cannot close this manual gate.
+Accept each built provider adapter only after a manual check on an authorized account: compare every displayed remaining value with the official client's remaining value, or with `100 − used` after applying the client's verified integer-rounding rule; compare every reset time with the client within the same verification window. Confirm sign-out/loss of access produces the unavailable display and safe error explanation. Repeat the ten-poll non-consuming check with the built adapter. Record client version, account state, observation times, sanitized comparisons without credentials or raw account output, and pass/fail. Parser fixtures and unit tests cannot close this manual gate.
 
-## Last extension: temperatures
+### Temperatures
 
-Research only after the preceding delivery work. Record source, license, driver requirements, privileges, and Defender results. Reject a source requiring elevation of the bar or triggering antivirus warnings; absence of temperatures is acceptable. A privileged helper would require a separate future decision and is not authorized by this plan.
+Research temperature sources after the preceding delivery work. Record source, license, driver requirements, privileges, and Defender results. Reject a source requiring elevation of the bar or triggering antivirus warnings; absence of temperatures is acceptable. A privileged helper requires a separate future decision and is not authorized by this plan.
 
 ## Release rule
 

@@ -5,7 +5,7 @@
 | **Area** | Research |
 | **Depends on** | B08 done/rejected; B09 done; B10/B11 accepted/rejected; B12/B13 done/not applicable |
 | **Unblocks** | B15 when accepted |
-| **Sources** | [Product plan — Last extension: temperatures](../plan.md#last-extension-temperatures), [Implementation plan — Later slices](../implementation-plan.md#later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Sources** | [Product plan — Temperatures](../plan.md#temperatures), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 

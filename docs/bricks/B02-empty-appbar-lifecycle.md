@@ -17,14 +17,14 @@ Launching the Desktop app creates one thin, borderless, non-activating bar on th
 
 ## Context
 
-On the owning WPF thread, register with `ABM_NEW`, negotiate with `ABM_QUERYPOS`, and commit with `ABM_SETPOS`. Keep HWND, `SetWindowPos`, message handling, monitor/DPI work, and AppBar calls on that thread. Check native return values and structure sizes.
+Declare `PerMonitorV2` DPI awareness in `app.manifest`. On the owning WPF thread, register with `ABM_NEW` and a `RegisterWindowMessage` callback, negotiate with `ABM_QUERYPOS`, and commit with `ABM_SETPOS`. Treat AppBar rectangles as physical pixels and apply them with `SetWindowPos(..., SWP_NOACTIVATE)`. Keep HWND, `SetWindowPos`, message handling, monitor/DPI work, and AppBar calls on that thread. Check native return values and structure sizes.
 
-Startup establishes the single-instance guard before registering the bar. Cleanup is idempotent: stop state publication, cancel work, and call `ABM_REMOVE` immediately in a `finally` path, then wait no more than two seconds total. Late results cannot publish. The first-release native readers introduced later will own no long-lived handles. The placement investigation's two-working-day clock starts when work on this brick starts and runs across B02–B04.
+Startup acquires the single-instance guard before any settings access or bar registration; a second process exits without reading or writing settings. `App.xaml.cs` owns cancellation and shutdown; no Generic Host. Cleanup is idempotent: stop state publication, cancel work, and call `ABM_REMOVE` immediately in a `finally` path, then wait no more than two seconds total. Late results cannot publish. The first-release native readers introduced later will own no long-lived handles. The placement investigation's two-working-day clock starts when work on this brick starts and runs across B02–B04.
 
 ## Acceptance criteria
 
 - [ ] The empty published app reserves exactly one strip on the primary monitor without requesting elevation
-- [ ] Opening a second process leaves one process, one bar, and one reservation
+- [ ] Opening a second process leaves one process, one bar, and one reservation, and does not touch settings files
 - [ ] The bar never takes keyboard focus during launch or interaction with another application
 - [ ] Normal exit restores the prior work area and leaves no background process
 - [ ] A test-host injected handled startup failure restores the prior work area

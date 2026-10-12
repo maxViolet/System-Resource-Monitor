@@ -5,7 +5,7 @@
 | **Area** | Core + Desktop |
 | **Depends on** | B07 |
 | **Unblocks** | B14; optionally B16 |
-| **Sources** | [Product plan — Add GPU after the first release](../plan.md#3-add-gpu-after-the-first-release), [Implementation plan — Later slices](../implementation-plan.md#later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Sources** | [Product plan — GPU](../plan.md#gpu), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 
