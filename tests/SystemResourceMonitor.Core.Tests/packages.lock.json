@@ -129,6 +129,9 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "systemresourcemonitor.airesources.core": {
+        "type": "Project"
+      },
       "systemresourcemonitor.core": {
         "type": "Project"
       }

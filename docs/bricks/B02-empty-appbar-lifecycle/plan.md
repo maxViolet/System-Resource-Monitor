@@ -59,7 +59,7 @@ Run from the repository root on Windows 11 x64. [ADR 0005](../../adr/0005-projec
 dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode
 dotnet build SystemResourceMonitor.slnx -c Release --no-restore
 dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build
-dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true
+dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true
 git diff --check
 ```
 

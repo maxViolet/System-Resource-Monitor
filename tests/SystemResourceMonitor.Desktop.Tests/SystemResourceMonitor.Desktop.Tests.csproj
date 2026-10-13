@@ -12,7 +12,7 @@
 
   <!-- Referenced so both executables are copied to the test output and launched as separate processes. -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SystemResourceMonitor.Desktop\SystemResourceMonitor.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\system-resources\SystemResourceMonitor.Desktop\SystemResourceMonitor.Desktop.csproj" />
     <ProjectReference Include="..\SystemResourceMonitor.Desktop.TestHost\SystemResourceMonitor.Desktop.TestHost.csproj" />
   </ItemGroup>
 

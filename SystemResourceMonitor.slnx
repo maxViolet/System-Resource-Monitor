@@ -1,7 +1,10 @@
 <Solution>
-  <Folder Name="/src/">
-    <Project Path="src/SystemResourceMonitor.Core/SystemResourceMonitor.Core.csproj" />
-    <Project Path="src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj" />
+  <Folder Name="/src/ai-resources/">
+    <Project Path="src/ai-resources/SystemResourceMonitor.AIResources.Core/SystemResourceMonitor.AIResources.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/system-resources/">
+    <Project Path="src/system-resources/SystemResourceMonitor.Core/SystemResourceMonitor.Core.csproj" />
+    <Project Path="src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SystemResourceMonitor.Core.Tests/SystemResourceMonitor.Core.Tests.csproj" />
