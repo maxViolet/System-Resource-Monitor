@@ -15,6 +15,7 @@ public sealed class ArchitectureTests
     private const string CoreProject = "SystemResourceMonitor.Core";
     private const string AiCoreProject = "SystemResourceMonitor.AIResources.Core";
     private const string DesktopProject = "SystemResourceMonitor.Desktop";
+    private static readonly string[] CoreProjects = [CoreProject, AiCoreProject];
 
     // Guards against bans being dropped from BannedSymbols.txt; the analyzer itself enforces the file.
     private static readonly string[] BannedSymbolIds =
@@ -66,7 +67,7 @@ public sealed class ArchitectureTests
     {
         var solution = await Solution.Value;
 
-        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        foreach (var coreName in CoreProjects)
         {
             Assert.DoesNotContain(solution.PathOf(DesktopProject), solution.ReachableFrom(solution.PathOf(coreName)));
         }
@@ -101,7 +102,7 @@ public sealed class ArchitectureTests
     public async Task Core_targets_plain_net10_without_Windows_UI_frameworks()
     {
         var solution = await Solution.Value;
-        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        foreach (var coreName in CoreProjects)
         {
             var core = solution.Project(coreName);
             Assert.Equal("net10.0", core.Property("TargetFramework"));
@@ -116,7 +117,7 @@ public sealed class ArchitectureTests
     {
         string[] forbidden = [DesktopProject, "PresentationFramework", "PresentationCore", "WindowsBase", "System.Windows.Forms"];
 
-        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        foreach (var coreName in CoreProjects)
         {
             var referenced = Assembly.Load(coreName).GetReferencedAssemblies().Select(name => name.Name);
             Assert.Empty(referenced.Intersect(forbidden, StringComparer.Ordinal));
@@ -127,7 +128,7 @@ public sealed class ArchitectureTests
     public async Task Core_enforces_banned_apis_as_errors()
     {
         var solution = await Solution.Value;
-        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        foreach (var coreName in CoreProjects)
         {
             var core = solution.Project(coreName);
             var bannedSymbolsPath = Path.Combine(Path.GetDirectoryName(core.Path)!, "BannedSymbols.txt");
