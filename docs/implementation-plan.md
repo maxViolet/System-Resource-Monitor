@@ -12,15 +12,14 @@ Blocking or potentially slow metric-source, file, and process operations run off
 SystemResourceMonitor.slnx
 src/
   SystemResourceMonitor.Core/
-    Metrics/
-    Monitoring/
+    ai-resources/
+    system-resources/
     Settings/
   SystemResourceMonitor.Desktop/
     AppBar/
-    Adapters/Windows/
+    ai-resources/
+    system-resources/
     Adapters/Settings/
-    ViewModels/
-    Views/
     Tray/
     app.manifest
     App.xaml.cs
@@ -35,7 +34,7 @@ flowchart LR
     Desktop[Desktop: WPF, AppBar, isolated adapters] --> Core[Core: values, policy, state, ports]
 ```
 
-Core has no Desktop dependency. Desktop adapters implement Core ports; view models do not reference concrete adapters. Wire implementations in `App.xaml.cs`. Do not introduce speculative repositories, mediators, generic result wrappers, or provider/thermal interfaces before their feature is accepted.
+Core has no Desktop dependency. Within both projects, `ai-resources/` groups subscription-limit behavior and `system-resources/` groups system metric behavior; [ADR 0006](adr/0006-resource-packages-within-projects.md) records this directory layout. Desktop adapters implement Core ports; view models do not reference concrete adapters. Wire implementations in `App.xaml.cs`. Keep shared AppBar, tray, settings, and composition outside the feature directories. Do not introduce speculative repositories, mediators, generic result wrappers, or provider/thermal interfaces before their feature is accepted.
 
 Enforce the Core boundary at build time. Core targets `net10.0`, does not set `UseWPF` or `UseWindowsForms`, and cannot reference Desktop. Add `Microsoft.CodeAnalysis.BannedApiAnalyzers` to Core only, include a Core `BannedSymbols.txt` as an `AdditionalFiles` item, and treat `RS0030` as an error. Ban `System.IO.File`, `System.IO.Directory`, `System.Diagnostics.Process`, `Microsoft.Win32.Registry`, `DllImportAttribute`, and `LibraryImportAttribute` by documentation-comment symbol IDs. An architecture test checks project references and the banned-symbol configuration. At slice 0, verify the check with temporary negative probes for each banned family: each must fail Core compilation with `RS0030`; remove the probes before committing. Review new I/O or interop entry points when dependencies change, since the list is a boundary check rather than a proof against every platform API.
 
