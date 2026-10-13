@@ -11,7 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SystemResourceMonitor.Core\SystemResourceMonitor.Core.csproj" />
+    <ProjectReference Include="..\..\src\system-resources\SystemResourceMonitor.Core\SystemResourceMonitor.Core.csproj" />
+    <ProjectReference Include="..\..\src\ai-resources\SystemResourceMonitor.AIResources.Core\SystemResourceMonitor.AIResources.Core.csproj" />
   </ItemGroup>
 
 </Project>

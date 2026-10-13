@@ -1,28 +1,26 @@
 # MVP implementation plan
 
-The [product plan](plan.md) defines scope and release order. [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md) records the two-project architecture and AppBar feasibility gate; [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md) records fullscreen behaviour; [ADR 0004](adr/0004-subscription-limits-in-first-release.md) puts qualified subscription limits in the first release.
+The [product plan](plan.md) defines scope and release order. [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md) records the Core/Desktop dependency and AppBar feasibility gate; [ADR 0007](adr/0007-resource-projects-by-package.md) records the current project layout; [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md) records fullscreen behaviour; [ADR 0004](adr/0004-subscription-limits-in-first-release.md) puts qualified subscription limits in the first release.
 
 ## Technology and layout
 
-Use C# and .NET 10. `Core` targets plain `net10.0`; `Desktop` targets `net10.0-windows` x64 and uses WPF, System.Text.Json, and direct Win32 interop. Pin the SDK in `global.json`, enable nullable and warnings as errors, and commit package lock files generated for `win-x64`.
+Use C# and .NET 10. Both Core projects target plain `net10.0`; `Desktop` targets `net10.0-windows` x64 and uses WPF, System.Text.Json, and direct Win32 interop. Pin the SDK in `global.json`, enable nullable and warnings as errors, and commit package lock files generated for `win-x64`.
 
 Blocking or potentially slow metric-source, file, and process operations run off the UI thread. HWND/AppBar operations, SetWindowPos, HwndSource message handling, tray icon actions, and monitor/DPI work tied to the window run on its owning WPF thread. Keep those handlers short; marshal collector results to the WPF dispatcher before updating UI-bound state.
 
 ```text
 SystemResourceMonitor.slnx
 src/
-  SystemResourceMonitor.Core/
-    ai-resources/
-    system-resources/
-    Settings/
-  SystemResourceMonitor.Desktop/
-    AppBar/
-    ai-resources/
-    system-resources/
-    Adapters/Settings/
-    Tray/
-    app.manifest
-    App.xaml.cs
+  ai-resources/
+    SystemResourceMonitor.AIResources.Core/
+  system-resources/
+    SystemResourceMonitor.Core/
+    SystemResourceMonitor.Desktop/
+      AppBar/
+      Adapters/Settings/
+      Tray/
+      app.manifest
+      App.xaml.cs
 tests/
   SystemResourceMonitor.Core.Tests/
   SystemResourceMonitor.Desktop.Tests/
@@ -31,12 +29,13 @@ tests/
 
 ```mermaid
 flowchart LR
-    Desktop[Desktop: WPF, AppBar, isolated adapters] --> Core[Core: values, policy, state, ports]
+    Desktop[Desktop: WPF, AppBar, composition] --> SystemCore[System Core: metrics and policy]
+    Desktop -. accepted AI source .-> AICore[AI Core: limit policy and contracts]
 ```
 
-Core has no Desktop dependency. Within both projects, `ai-resources/` groups subscription-limit behavior and `system-resources/` groups system metric behavior; [ADR 0006](adr/0006-resource-packages-within-projects.md) records this directory layout. Desktop adapters implement Core ports; view models do not reference concrete adapters. Wire implementations in `App.xaml.cs`. Keep shared AppBar, tray, settings, and composition outside the feature directories. Do not introduce speculative repositories, mediators, generic result wrappers, or provider/thermal interfaces before their feature is accepted.
+Neither Core project depends on Desktop. `system-resources/` owns the existing system Core and WPF Desktop projects; `ai-resources/` owns the AI Core project and later qualified source adapters. [ADR 0007](adr/0007-resource-projects-by-package.md) supersedes ADR 0006's nested directory layout. Desktop adapters implement Core ports; view models do not reference concrete adapters. Wire accepted implementations in `App.xaml.cs`. Do not introduce speculative repositories, mediators, generic result wrappers, or provider/thermal interfaces before their feature is accepted.
 
-Enforce the Core boundary at build time. Core targets `net10.0`, does not set `UseWPF` or `UseWindowsForms`, and cannot reference Desktop. Add `Microsoft.CodeAnalysis.BannedApiAnalyzers` to Core only, include a Core `BannedSymbols.txt` as an `AdditionalFiles` item, and treat `RS0030` as an error. Ban `System.IO.File`, `System.IO.Directory`, `System.Diagnostics.Process`, `Microsoft.Win32.Registry`, `DllImportAttribute`, and `LibraryImportAttribute` by documentation-comment symbol IDs. An architecture test checks project references and the banned-symbol configuration. At slice 0, verify the check with temporary negative probes for each banned family: each must fail Core compilation with `RS0030`; remove the probes before committing. Review new I/O or interop entry points when dependencies change, since the list is a boundary check rather than a proof against every platform API.
+Enforce both Core boundaries at build time. Each Core project targets `net10.0`, does not set `UseWPF` or `UseWindowsForms`, and cannot reference Desktop. Add `Microsoft.CodeAnalysis.BannedApiAnalyzers` to both Core projects, include `BannedSymbols.txt` as an `AdditionalFiles` item, and treat `RS0030` as an error. Ban `System.IO.File`, `System.IO.Directory`, `System.Diagnostics.Process`, `Microsoft.Win32.Registry`, `DllImportAttribute`, and `LibraryImportAttribute` by documentation-comment symbol IDs. An architecture test checks project references and the banned-symbol configuration. At slice 0, verify the check with temporary negative probes for each banned family: each must fail Core compilation with `RS0030`; remove the probes before committing. Review new I/O or interop entry points when dependencies change, since the list is a boundary check rather than a proof against every platform API.
 
 `App.xaml.cs` owns the process-lifetime cancellation source, collector tasks, and deterministic shutdown sequence. Do not add Generic Host to the first release; reconsider it only when a concrete hosted-service requirement appears.
 
@@ -45,7 +44,7 @@ Enforce the Core boundary at build time. Core targets `net10.0`, does not set `U
 - `MetricReading` is an explicit union:
   - `AvailableMetric` contains kind, finite percentage in `0..100`, UTC `MeasuredAt`, a monotonic timestamp from `TimeProvider.GetTimestamp()`, and optional RAM used/total bytes;
   - `UnavailableMetric` contains kind and one reason: `NotYetSampled`, `Expired`, `Invalid`, or `ReadFailed`.
-- `DashboardState` is immutable CPU/RAM and provider-limit state with one change notification. Marshal notifications once at the Desktop boundary.
+- System metric state belongs to the system Core; subscription limit snapshots and their policy belong to the AI Core. Desktop composes the displayed dashboard state and marshals one UI change notification for updates.
 - Source ports read CPU and RAM independently. One failure cannot stop the other source's acquisition or expiry.
 - Inject `TimeProvider`; use UTC only for display and evidence, and monotonic timestamps for age and deadlines. Do not wrap it in `IClock`.
 - Each collector polls every 2 seconds without overlapping its own reads. CPU uses `GetSystemTimes` deltas; the first sample is `NotYetSampled`. Counter reset or an invalid delta discards the baseline and produces `Invalid`. RAM uses `GlobalMemoryStatusEx`: `(total - available) / total`. These two synchronous native calls are accepted as short, in-process first-release reads, not as cancellable calls; run them on background thread-pool workers and measure their duration on the target PC. Neither reader owns a long-lived native handle.
@@ -172,7 +171,7 @@ Once application projects exist, run on Windows 11. [ADR 0005](adr/0005-project-
 dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode
 dotnet build SystemResourceMonitor.slnx -c Release --no-restore
 dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build
-dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true
+dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true
 git diff --check
 ```
 

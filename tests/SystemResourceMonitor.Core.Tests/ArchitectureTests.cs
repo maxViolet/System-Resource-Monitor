@@ -7,12 +7,13 @@ using System.Xml.Linq;
 namespace SystemResourceMonitor.Core.Tests;
 
 /// <summary>
-/// Enforces the Core/Desktop boundary from ADR 0002 against the MSBuild evaluation of every solution project,
+/// Enforces the Core/Desktop boundary and resource package layout against the MSBuild evaluation of every solution project,
 /// so settings inherited from imported props and targets are checked as well as the project files themselves.
 /// </summary>
 public sealed class ArchitectureTests
 {
     private const string CoreProject = "SystemResourceMonitor.Core";
+    private const string AiCoreProject = "SystemResourceMonitor.AIResources.Core";
     private const string DesktopProject = "SystemResourceMonitor.Desktop";
 
     // Guards against bans being dropped from BannedSymbols.txt; the analyzer itself enforces the file.
@@ -40,6 +41,7 @@ public sealed class ArchitectureTests
 
         Assert.Equal(
             [
+                AiCoreProject,
                 CoreProject,
                 "SystemResourceMonitor.Core.Tests",
                 DesktopProject,
@@ -64,7 +66,27 @@ public sealed class ArchitectureTests
     {
         var solution = await Solution.Value;
 
-        Assert.DoesNotContain(solution.PathOf(DesktopProject), solution.ReachableFrom(solution.PathOf(CoreProject)));
+        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        {
+            Assert.DoesNotContain(solution.PathOf(DesktopProject), solution.ReachableFrom(solution.PathOf(coreName)));
+        }
+    }
+
+    [Fact]
+    public async Task Resource_projects_live_in_their_packages()
+    {
+        var solution = await Solution.Value;
+        var root = SolutionModel.FindRepositoryRoot();
+
+        Assert.Equal(
+            Path.Combine(root, "src", "system-resources", CoreProject, $"{CoreProject}.csproj"),
+            solution.PathOf(CoreProject), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(
+            Path.Combine(root, "src", "system-resources", DesktopProject, $"{DesktopProject}.csproj"),
+            solution.PathOf(DesktopProject), StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(
+            Path.Combine(root, "src", "ai-resources", AiCoreProject, $"{AiCoreProject}.csproj"),
+            solution.PathOf(AiCoreProject), StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -78,12 +100,15 @@ public sealed class ArchitectureTests
     [Fact]
     public async Task Core_targets_plain_net10_without_Windows_UI_frameworks()
     {
-        var core = (await Solution.Value).Project(CoreProject);
-
-        Assert.Equal("net10.0", core.Property("TargetFramework"));
-        Assert.Empty(core.Property("TargetFrameworks"));
-        Assert.NotEqual("true", core.Property("UseWPF"), StringComparer.OrdinalIgnoreCase);
-        Assert.NotEqual("true", core.Property("UseWindowsForms"), StringComparer.OrdinalIgnoreCase);
+        var solution = await Solution.Value;
+        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        {
+            var core = solution.Project(coreName);
+            Assert.Equal("net10.0", core.Property("TargetFramework"));
+            Assert.Empty(core.Property("TargetFrameworks"));
+            Assert.NotEqual("true", core.Property("UseWPF"), StringComparer.OrdinalIgnoreCase);
+            Assert.NotEqual("true", core.Property("UseWindowsForms"), StringComparer.OrdinalIgnoreCase);
+        }
     }
 
     [Fact]
@@ -91,25 +116,31 @@ public sealed class ArchitectureTests
     {
         string[] forbidden = [DesktopProject, "PresentationFramework", "PresentationCore", "WindowsBase", "System.Windows.Forms"];
 
-        var referenced = Assembly.Load(CoreProject).GetReferencedAssemblies().Select(name => name.Name);
-
-        Assert.Empty(referenced.Intersect(forbidden, StringComparer.Ordinal));
+        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        {
+            var referenced = Assembly.Load(coreName).GetReferencedAssemblies().Select(name => name.Name);
+            Assert.Empty(referenced.Intersect(forbidden, StringComparer.Ordinal));
+        }
     }
 
     [Fact]
     public async Task Core_enforces_banned_apis_as_errors()
     {
-        var core = (await Solution.Value).Project(CoreProject);
-        var bannedSymbolsPath = Path.Combine(Path.GetDirectoryName(core.Path)!, "BannedSymbols.txt");
+        var solution = await Solution.Value;
+        foreach (var coreName in new[] { CoreProject, AiCoreProject })
+        {
+            var core = solution.Project(coreName);
+            var bannedSymbolsPath = Path.Combine(Path.GetDirectoryName(core.Path)!, "BannedSymbols.txt");
 
-        Assert.Contains("Microsoft.CodeAnalysis.BannedApiAnalyzers", core.Items("PackageReference").Select(item => item.Identity));
-        Assert.Contains(bannedSymbolsPath, core.Items("AdditionalFiles").Select(item => item.FullPath), StringComparer.OrdinalIgnoreCase);
-        Assert.Contains("RS0030", core.Property("WarningsAsErrors").Split(';', StringSplitOptions.TrimEntries));
+            Assert.Contains("Microsoft.CodeAnalysis.BannedApiAnalyzers", core.Items("PackageReference").Select(item => item.Identity));
+            Assert.Contains(bannedSymbolsPath, core.Items("AdditionalFiles").Select(item => item.FullPath), StringComparer.OrdinalIgnoreCase);
+            Assert.Contains("RS0030", core.Property("WarningsAsErrors").Split(';', StringSplitOptions.TrimEntries));
 
-        var declaredIds = File.ReadLines(bannedSymbolsPath)
-            .Select(line => line.Split(';')[0].Trim())
-            .ToHashSet(StringComparer.Ordinal);
-        Assert.All(BannedSymbolIds, id => Assert.Contains(id, declaredIds));
+            var declaredIds = File.ReadLines(bannedSymbolsPath)
+                .Select(line => line.Split(';')[0].Trim())
+                .ToHashSet(StringComparer.Ordinal);
+            Assert.All(BannedSymbolIds, id => Assert.Contains(id, declaredIds));
+        }
     }
 
     private sealed record EvaluatedItem(string Identity, string FullPath);
@@ -220,7 +251,7 @@ public sealed class ArchitectureTests
             Path.GetFullPath(Path.Combine(
                 RuntimeEnvironment.GetRuntimeDirectory(), "..", "..", "..", OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet"));
 
-        private static string FindRepositoryRoot()
+        public static string FindRepositoryRoot()
         {
             for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
             {
