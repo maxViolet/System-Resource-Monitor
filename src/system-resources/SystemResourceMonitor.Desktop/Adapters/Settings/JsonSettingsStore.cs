@@ -53,15 +53,18 @@ public sealed class JsonSettingsStore : ISettingsStore
 
     private SettingsLoadResult LoadCore()
     {
-        if (!_files.FileExists(_path))
-        {
-            return new SettingsLoadResult(BarSettings.Default);
-        }
-
         byte[] content;
         try
         {
             content = _files.ReadAllBytes(_path);
+        }
+        catch (FileNotFoundException)
+        {
+            return new SettingsLoadResult(BarSettings.Default);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return new SettingsLoadResult(BarSettings.Default);
         }
         catch (Exception)
         {
