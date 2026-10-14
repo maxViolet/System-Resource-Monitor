@@ -11,6 +11,9 @@ public interface IShutdownBar
     /// </summary>
     void RemoveAppBar();
 
+    /// <summary>Removes the tray icon idempotently after AppBar removal.</summary>
+    void RemoveTrayIcon();
+
     /// <summary>Closes the window without requesting shutdown again.</summary>
     void CloseFinal();
 }
@@ -104,6 +107,18 @@ public sealed class ShutdownCoordinator(
                     catch (InvalidOperationException exception)
                     {
                         exitCode = Failed(exception);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            _bar.RemoveTrayIcon();
+                            record?.Invoke("tray-remove");
+                        }
+                        catch (InvalidOperationException exception)
+                        {
+                            exitCode = Failed(exception);
+                        }
                     }
                 }
             }

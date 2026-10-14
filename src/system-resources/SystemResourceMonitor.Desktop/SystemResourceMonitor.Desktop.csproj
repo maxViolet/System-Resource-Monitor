@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="SystemResourceMonitor.Desktop.Tests" />
+    <InternalsVisibleTo Include="SystemResourceMonitor.Desktop.TestHost" />
   </ItemGroup>
 
 </Project>

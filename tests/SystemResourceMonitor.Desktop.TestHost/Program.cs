@@ -1,4 +1,8 @@
+using System.IO;
+
+using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Lifecycle;
+using SystemResourceMonitor.Desktop.Settings;
 
 namespace SystemResourceMonitor.Desktop.TestHost;
 
@@ -12,7 +16,7 @@ public static class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load";
 
     [STAThread]
     public static int Main(string[] args)
@@ -28,6 +32,16 @@ public static class Program
                 return BoundedShutdown();
             case ["--hold-bar"]:
                 return HoldBar();
+            case ["--edge-switches"]:
+                return EdgeSwitches();
+            case ["--settings-read-failure"]:
+                return SettingsFailure(SettingsFault.Read);
+            case ["--settings-backup-failure"]:
+                return SettingsFailure(SettingsFault.Backup);
+            case ["--settings-write-failure"]:
+                return SettingsFailure(SettingsFault.Write);
+            case ["--shutdown-during-settings-load"]:
+                return ShutdownDuringSettingsLoad();
             default:
                 Console.Error.WriteLine(Usage);
                 return InvalidInvocation;
@@ -100,6 +114,149 @@ public static class Program
             "pending:late-source",
             "exit");
         return run.Finish();
+    }
+    private static int EdgeSwitches()
+    {
+        ObservedSettingsStore? observed = null;
+        var run = new LifecycleRun(directory =>
+            observed = new ObservedSettingsStore(new JsonSettingsStore(directory), expectedSaves: 10));
+        run.Run((bar, _) =>
+        {
+            for (var index = 0; index < 10; index++)
+            {
+                var edge = index % 2 == 0 ? BarEdge.Bottom : BarEdge.Top;
+                run.Check(bar.SelectEdge(edge), $"edge switch {index + 1} to {edge} failed");
+            }
+
+            new Thread(() =>
+            {
+                var save = observed!.SaveCompleted.GetAwaiter().GetResult();
+                bar.Dispatcher.BeginInvoke(() =>
+                {
+                    run.Check(save.Succeeded, $"final edge save failed with {save.Issue}");
+                    run.Check(bar.AppliedEdge == BarEdge.Top, $"final live edge {bar.AppliedEdge}, expected Top");
+                    run.Check(File.ReadAllText(Path.Combine(run.SettingsDirectory, "settings.json")) == "{\"edge\":\"Top\"}", "final persisted edge is not Top");
+                    run.CheckPositionedBar(bar);
+                    run.Check(DesktopProbe.RequestClose(bar.Handle), "WM_CLOSE was not processed after edge switches");
+                });
+            })
+            {
+                IsBackground = true,
+                Name = "edge-switch-observer",
+            }.Start();
+        });
+
+        run.CheckOrder("bar-positioned", "edge-applied:Bottom", "edge-applied:Top", "settings-saved:Top", "remove", "restored");
+        return run.Finish();
+    }
+
+    private static int SettingsFailure(SettingsFault fault)
+    {
+        ObservedSettingsStore? observed = null;
+        var run = new LifecycleRun(directory =>
+        {
+            Directory.CreateDirectory(directory);
+            var path = Path.Combine(directory, "settings.json");
+            File.WriteAllText(
+                path,
+                fault == SettingsFault.Backup ? "{ malformed" : "{\"edge\":\"Top\"}");
+            var production = new JsonSettingsStore(directory, TimeProvider.System, new FaultingSettingsFileOperations(fault));
+            return observed = new ObservedSettingsStore(production);
+        });
+
+        run.Run((bar, _) =>
+        {
+            run.Check(bar.AppliedEdge == BarEdge.Top, $"startup edge {bar.AppliedEdge}, expected Top");
+            run.CheckPositionedBar(bar);
+            run.Check(bar.SelectEdge(BarEdge.Bottom), "Bottom selection failed");
+
+            new Thread(() =>
+            {
+                var save = observed!.SaveCompleted.GetAwaiter().GetResult();
+                bar.Dispatcher.BeginInvoke(() =>
+                {
+                    run.Check(bar.AppliedEdge == BarEdge.Bottom, $"live edge {bar.AppliedEdge}, expected Bottom");
+                    run.CheckPositionedBar(bar);
+                    var saved = File.ReadAllText(Path.Combine(run.SettingsDirectory, "settings.json"));
+                    if (fault == SettingsFault.Write)
+                    {
+                        run.Check(!save.Succeeded, "the injected write unexpectedly succeeded");
+                        run.Check(saved == "{\"edge\":\"Top\"}", $"write failure changed the previous settings to {saved}");
+                    }
+                    else
+                    {
+                        run.Check(save.Succeeded, $"saving after the {fault} fault failed with {save.Issue}");
+                        run.Check(saved == "{\"edge\":\"Bottom\"}", $"the controllable bar did not persist Bottom: {saved}");
+                    }
+
+                    run.Check(DesktopProbe.RequestClose(bar.Handle), "WM_CLOSE was not processed after the settings fault");
+                });
+            })
+            {
+                IsBackground = true,
+                Name = $"settings-{fault}-observer",
+            }.Start();
+        });
+
+        var expectedLoad = fault switch
+        {
+            SettingsFault.Read => "settings-load-issue:ReadFailed",
+            SettingsFault.Backup => "settings-load-issue:BackupFailed",
+            SettingsFault.Write => "settings-loaded:Top",
+            _ => throw new ArgumentOutOfRangeException(nameof(fault)),
+        };
+        run.CheckOrder("guard-acquired", "settings-start", expectedLoad, "bar-positioned", "edge-applied:Bottom");
+        if (fault == SettingsFault.Write)
+        {
+            run.CheckOrder("edge-applied:Bottom", "settings-save-failed:WriteFailed", "settings-save-restart-only", "remove");
+        }
+        else
+        {
+            run.CheckOrder("edge-applied:Bottom", "settings-saved:Bottom", "remove");
+        }
+
+        return run.Finish();
+    }
+
+    /// <summary>
+    /// Shutdown starts while settings load. Tracked work keeps the dispatcher alive through the bounded wait, so a
+    /// load completing inside that wait must not create, register, or position the bar after shutdown began.
+    /// </summary>
+    private static int ShutdownDuringSettingsLoad()
+    {
+        LifecycleRun? run = null;
+        run = new LifecycleRun(_ => new ShutdownDuringLoadStore(() => run!));
+        var positioned = false;
+        run.Run((_, _) => positioned = true);
+
+        run.Check(!positioned, "the bar was created and positioned after shutdown began");
+        run.Check(run.ExitCode == ExitCodes.Success, $"coordinator exit code {run.ExitCode}, expected {ExitCodes.Success}");
+        run.CheckOrder("guard-acquired", "settings-start", "shutdown-requested", "wait-start", "settings-load-completed", "startup-skipped", "exit");
+        return run.Finish();
+    }
+
+    private sealed class ShutdownDuringLoadStore(Func<LifecycleRun> run) : ISettingsStore
+    {
+        private static readonly TaskCompletionSource HeldOpen = new();
+
+        public async Task<SettingsLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        {
+            // Called on the dispatcher thread before startup's first await.
+            var lifecycle = run();
+            _ = System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+            {
+                lifecycle.Shutdown!.Track("held-open", HeldOpen.Task);
+                lifecycle.Record("shutdown-requested");
+                _ = lifecycle.Shutdown.ShutdownAsync(ExitCodes.Success);
+            });
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), CancellationToken.None).ConfigureAwait(false);
+            System.Windows.Application.Current.Dispatcher.Invoke(() => lifecycle.Record("settings-load-completed"));
+            return new SettingsLoadResult(BarSettings.Default);
+        }
+
+        public Task<SettingsSaveResult> SaveAsync(BarSettings settings, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SettingsSaveResult());
     }
 
     /// <summary>

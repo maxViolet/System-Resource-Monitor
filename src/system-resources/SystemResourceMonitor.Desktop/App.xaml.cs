@@ -1,7 +1,10 @@
-using System.Windows;
-using SystemResourceMonitor.Desktop.Lifecycle;
+using System.IO;
 
+using System.Windows;
+using SystemResourceMonitor.Desktop.Adapters.Settings;
+using SystemResourceMonitor.Desktop.Lifecycle;
 namespace SystemResourceMonitor.Desktop;
+
 
 /// <summary>
 /// Composition root. Production components are created and wired here only.
@@ -12,7 +15,7 @@ public partial class App : Application
     private readonly CancellationTokenSource _lifetime = new();
     private DesktopStartup? _startup;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -24,8 +27,19 @@ public partial class App : Application
             shutdown.ShutdownAsync(ExitCodes.Failure);
         };
 
-        _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown);
-        _startup.Run();
+        try
+        {
+            var settingsDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "SystemResourceMonitor");
+            var settings = new JsonSettingsStore(settingsDirectory);
+            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher);
+            await _startup.RunAsync();
+        }
+        catch (Exception)
+        {
+            await shutdown.ShutdownAsync(ExitCodes.Failure);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

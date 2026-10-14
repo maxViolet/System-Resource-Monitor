@@ -1,6 +1,6 @@
 # Plan: System Resource Monitor
 
-Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md), and first-release scope in [ADR 0004](adr/0004-subscription-limits-in-first-release.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md), first-release scope in [ADR 0004](adr/0004-subscription-limits-in-first-release.md), tray-menu focus in [ADR 0008](adr/0008-tray-menu-foreground-owner.md), and exit on failed tray recovery in [ADR 0009](adr/0009-exit-when-tray-recovery-fails.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
 
 ## Product and first release
 
@@ -10,7 +10,7 @@ The first personal release (v1) shows CPU load, RAM usage, and the remaining sub
 - While fullscreen is active on the primary monitor, lower the bar to the bottom of the z-order without unregistering it or releasing its reserved strip. Restore its normal z-order without stealing focus when fullscreen ends or Alt+Tab activates a normal window, even if the game remains running. Fullscreen on another monitor does not change the bar state.
 - Show `CPU 12%` and `RAM 64%` with fixed-width sections and a RAM used/total GiB tooltip, followed by a `short%/weekly%` section for each qualified provider (Codex, Claude).
 - Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings; its tooltip explains why.
-- Tray actions switch top/bottom and exit. Explorer restart restores the tray icon and both actions. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart.
+- Tray actions switch top/bottom and exit. Explorer restart restores the tray icon and both actions. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart. While the tray menu is open, only a hidden menu owner may hold foreground; the bar itself never takes focus.
 - Exit releases AppBar before waiting for collectors. Waiting for collectors is bounded to 2 seconds.
 - No GPU, temperatures, installer, or autostart are required for this release. A provider whose qualification is rejected has no section.
 
