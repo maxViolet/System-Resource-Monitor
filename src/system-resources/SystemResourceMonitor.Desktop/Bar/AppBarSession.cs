@@ -48,7 +48,28 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
     /// <summary>Explorer discarded its registration; establish it again without sending <c>ABM_REMOVE</c>.</summary>
     public void RegisterAfterShellRestart()
     {
-        native.Register(hwnd, callbackMessage);
+        try
+        {
+            native.Register(hwnd, callbackMessage);
+        }
+        catch (Exception)
+        {
+            // ABM_NEW is rejected for a window Explorer still has registered (a spurious TaskbarCreated). Placement
+            // cannot tell that apart from a lost registration: ABM_QUERYPOS/ABM_SETPOS return TRUE for unregistered
+            // windows without reserving anything. Start over; a second rejection is a genuine failure.
+            try
+            {
+                native.Remove(hwnd);
+            }
+            catch (Exception)
+            {
+                // Expected after a real Explorer restart, which already dropped the registration.
+            }
+
+            native.Register(hwnd, callbackMessage);
+        }
+
+        // When this throws, _registered keeps its value, so shutdown still sends ABM_REMOVE (harmless if unregistered).
         _registered = true;
     }
 

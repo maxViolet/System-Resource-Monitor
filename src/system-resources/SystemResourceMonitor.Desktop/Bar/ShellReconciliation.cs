@@ -93,6 +93,33 @@ internal sealed class ReconciliationCoordinator(Action<Action> schedule, Action<
     }
 }
 
+/// <summary>
+/// Holds reconciliation reasons while the tray menu's modal loop runs (it pumps dispatcher work, and recovery would
+/// destroy the menu being tracked), then re-requests them once the menu closes.
+/// </summary>
+internal sealed class MenuReconciliationDeferral(Func<bool> isMenuOpen, Action<ReconciliationReason> request)
+{
+    private ReconciliationReason _deferred;
+
+    public bool TryDefer(ReconciliationReason reason)
+    {
+        if (!isMenuOpen())
+        {
+            return false;
+        }
+
+        _deferred |= reason;
+        return true;
+    }
+
+    public void MenuClosed()
+    {
+        var deferred = _deferred;
+        _deferred = ReconciliationReason.None;
+        request(deferred);
+    }
+}
+
 internal enum ShellRecoveryAction
 {
     None,
@@ -118,19 +145,10 @@ internal static class ShellRecovery
     /// <summary>Restores Explorer-owned resources in AppBar-then-tray order and exposes partial failure.</summary>
     public static ShellRecoveryResult Recover(AppBarSession appBar, ITrayIcon tray, BarEdge edge)
     {
-        try
-        {
-            appBar.RegisterAfterShellRestart();
-        }
-        catch (Exception)
-        {
-            // A spurious TaskbarCreated reaches a bar Explorer still has registered, so ABM_NEW is rejected while
-            // the reservation survives. Placement below then succeeds; after a real loss it fails and is reported.
-        }
-
         var appBarRecovered = false;
         try
         {
+            appBar.RegisterAfterShellRestart();
             appBar.Place(edge);
             appBarRecovered = true;
         }

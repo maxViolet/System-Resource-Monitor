@@ -231,7 +231,7 @@ public static class Program
 
         run.Check(!positioned, "the bar was created and positioned after shutdown began");
         run.Check(run.ExitCode == ExitCodes.Success, $"coordinator exit code {run.ExitCode}, expected {ExitCodes.Success}");
-        run.CheckOrder("guard-acquired", "settings-start", "shutdown-requested", "wait-start", "settings-load-completed", "exit");
+        run.CheckOrder("guard-acquired", "settings-start", "shutdown-requested", "wait-start", "settings-load-completed", "startup-skipped", "exit");
         return run.Finish();
     }
 

@@ -71,6 +71,7 @@ public sealed class AppBarSessionTests
         var appBar = new AppBarSession(123, 456, native);
         appBar.Register();
         appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
         events.Clear();
         var tray = new FakeTray(events);
 
@@ -82,7 +83,7 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
-    public void Spurious_TaskbarCreated_with_a_surviving_registration_still_recovers_placement()
+    public void Spurious_TaskbarCreated_with_a_surviving_registration_re_registers_and_recovers()
     {
         var events = new List<string>();
         var native = new FakeNative(events);
@@ -90,35 +91,37 @@ public sealed class AppBarSessionTests
         appBar.Register();
         appBar.Place(BarEdge.Top);
         events.Clear();
-        native.FailRegister = true;
         var tray = new FakeTray(events);
 
         var result = ShellRecovery.Recover(appBar, tray, BarEdge.Top);
 
         Assert.True(result.Succeeded);
-        Assert.Equal(["abm-new", "abm-querypos", "abm-setpos", "setwindowpos", "nim-add", "nim-setversion"], events);
+        Assert.Equal(
+            ["abm-new", "abm-remove", "abm-new", "abm-querypos", "abm-setpos", "setwindowpos", "nim-add", "nim-setversion"],
+            events);
     }
 
     [Fact]
-    public void Lost_AppBar_recovery_is_reported_retains_cleanup_responsibility_and_still_attempts_the_tray()
+    public void Rejected_re_registration_is_not_reported_as_recovered_even_though_unregistered_placement_succeeds()
     {
         var events = new List<string>();
         var native = new FakeNative(events);
         var appBar = new AppBarSession(123, 456, native);
         appBar.Register();
         appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
+        native.RejectAllRegistrations = true;
         events.Clear();
-        native.FailRegister = true;
-        native.FailQuery = true;
         var tray = new FakeTray(events);
 
         var result = ShellRecovery.Recover(appBar, tray, BarEdge.Top);
 
         Assert.False(result.AppBarRecovered);
         Assert.True(result.TrayRecovered);
-        Assert.Contains("nim-add", events);
+        Assert.DoesNotContain("abm-querypos", events);
+        events.Clear();
         appBar.Remove();
-        Assert.Equal(1, native.RemoveCount);
+        Assert.Equal(["abm-remove"], events);
     }
 
     [Theory]
@@ -144,6 +147,7 @@ public sealed class AppBarSessionTests
         var appBar = new AppBarSession(123, 456, native);
         appBar.Register();
         appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
         events.Clear();
         var tray = new FakeTray(events) { FailRecreate = true };
 
@@ -270,43 +274,42 @@ public sealed class AppBarSessionTests
 
         public int SetPositionCount { get; private set; }
 
-        public bool FailRegister { get; set; }
+        public bool RejectAllRegistrations { get; set; }
 
         public bool FailWindowPosition { get; set; }
 
-        public bool FailQuery { get; set; }
-
         public PixelRect MonitorBounds { get; set; } = new(-1920, -100, 0, 1340);
         public uint Dpi { get; set; } = 144;
+
+        /// <summary>Explorer's view: like Windows, ABM_NEW is rejected for a window it already has registered.</summary>
+        private bool _registeredWithExplorer;
+
+        public void ExplorerRestarted() => _registeredWithExplorer = false;
 
         public void Register(nint hwnd, uint callbackMessage)
         {
             RegisterCount++;
             _events.Add("abm-new");
-            if (FailRegister)
+            if (RejectAllRegistrations || _registeredWithExplorer)
             {
-                throw new InvalidOperationException("register");
+                throw new InvalidOperationException("ABM_NEW rejected the bar.");
             }
+
+            _registeredWithExplorer = true;
         }
 
         public void Remove(nint hwnd)
         {
             RemoveCount++;
             _events.Add("abm-remove");
+            _registeredWithExplorer = false;
         }
 
         public uint GetWindowDpi(nint hwnd) => Dpi;
 
         public PixelRect GetPrimaryMonitorBounds() => MonitorBounds;
 
-        public void QueryPosition(nint hwnd, BarEdge edge, ref PixelRect bounds)
-        {
-            _events.Add("abm-querypos");
-            if (FailQuery)
-            {
-                throw new InvalidOperationException("ABM_QUERYPOS failed.");
-            }
-        }
+        public void QueryPosition(nint hwnd, BarEdge edge, ref PixelRect bounds) => _events.Add("abm-querypos");
 
         public void SetPosition(nint hwnd, BarEdge edge, ref PixelRect bounds)
         {

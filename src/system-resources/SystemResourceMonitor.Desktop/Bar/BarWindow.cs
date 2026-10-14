@@ -32,7 +32,7 @@ public sealed class BarWindow : Window, IShutdownBar
     private uint _taskbarCreatedMessage;
     private bool _finalClose;
     private bool _shuttingDown;
-    private ReconciliationReason _deferredWhileMenuOpen;
+    private MenuReconciliationDeferral? _menuDeferral;
 
     public BarWindow(
         BarEdge initialEdge,
@@ -85,6 +85,7 @@ public sealed class BarWindow : Window, IShutdownBar
         _reconciliation = new ReconciliationCoordinator(
             action => Dispatcher.BeginInvoke(action),
             Reconcile);
+        _menuDeferral = new MenuReconciliationDeferral(() => _tray?.IsMenuOpen == true, _reconciliation.Request);
         _appBar.Register();
         _appBar.Place(_initialEdge);
         Show();
@@ -93,7 +94,7 @@ public sealed class BarWindow : Window, IShutdownBar
             _hwnd,
             edge => SelectEdge(edge),
             _closeRequested,
-            OnTrayMenuClosed,
+            () => _menuDeferral!.MenuClosed(),
             new TrayMenuOwner(new Win32TrayMenuNativeApi()));
         _tray.SetAppliedEdge(_initialEdge);
         _tray.Start();
@@ -198,10 +199,8 @@ public sealed class BarWindow : Window, IShutdownBar
             return;
         }
 
-        if (_tray.IsMenuOpen)
+        if (_menuDeferral!.TryDefer(reason))
         {
-            // The menu's modal loop pumps dispatcher work; recovery would destroy the menu being tracked.
-            _deferredWhileMenuOpen |= reason;
             return;
         }
 
@@ -234,13 +233,6 @@ public sealed class BarWindow : Window, IShutdownBar
             _record?.Invoke($"reconciliation-failed:{exception.GetType().Name}");
             ReportStatus("The bar could not reconcile its position.");
         }
-    }
-
-    private void OnTrayMenuClosed()
-    {
-        var deferred = _deferredWhileMenuOpen;
-        _deferredWhileMenuOpen = ReconciliationReason.None;
-        _reconciliation?.Request(deferred);
     }
 
     private void AddExtendedStyle(nint flags)

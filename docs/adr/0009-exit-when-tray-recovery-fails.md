@@ -6,7 +6,7 @@ Status: accepted, 2026-10-14. Applies to Explorer recovery in the [implementatio
 
 On `TaskbarCreated`, the bar re-establishes the AppBar first and then the tray icon:
 
-- It calls `ABM_NEW`. If `ABM_NEW` is rejected, the bar keeps its responsibility to send `ABM_REMOVE` and still attempts placement. A spurious `TaskbarCreated` reaches a bar that Explorer still has registered, so `ABM_NEW` fails while placement succeeds. Recovery counts as successful only when placement succeeds.
+- It calls `ABM_NEW`. A spurious `TaskbarCreated` reaches a bar that Explorer still has registered, and Windows rejects `ABM_NEW` for an already-registered window. On rejection, the bar sends a best-effort `ABM_REMOVE` and calls `ABM_NEW` again. A second rejection is a genuine failure, and the bar does not attempt placement. Placement cannot verify the registration, because `ABM_QUERYPOS` and `ABM_SETPOS` return TRUE for an unregistered window without reserving anything. The bar keeps its responsibility to send `ABM_REMOVE` at shutdown in every case.
 - It recreates the icon. It deletes any icon that survived with `NIM_DELETE`, ignoring the result, and then calls `NIM_ADD` and `NIM_SETVERSION`.
 
 If the AppBar is not recovered but the tray is, the failure is reported through the tray, which keeps Position and Exit available.
@@ -22,4 +22,4 @@ The tray is the bar's only control surface. Without the tray there is no Positio
 
 ## Acceptance
 
-Deterministic tests cover three behaviors: the recovery decision for each AppBar and tray outcome, recovery after a rejected `ABM_NEW` whose registration survived, and deletion of a surviving icon before it is added again. A real Explorer restart on Windows 11 must restore the reservation and a working tray. A tray failure must exit with the work area restored.
+Deterministic tests cover four behaviors: the recovery decision for each AppBar and tray outcome, re-registration after a rejected `ABM_NEW` whose registration survived, a rejected re-registration that is reported as a failure even though unregistered placement would succeed, and deletion of a surviving icon before it is added again. A Windows probe recorded that `ABM_QUERYPOS` and `ABM_SETPOS` return TRUE for an unregistered window and that a second `ABM_NEW` returns FALSE. A real Explorer restart on Windows 11 must restore the reservation and a working tray. A tray failure must exit with the work area restored.

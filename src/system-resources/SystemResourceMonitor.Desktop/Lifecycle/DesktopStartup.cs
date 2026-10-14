@@ -36,7 +36,13 @@ public sealed class DesktopStartup(
         {
             record?.Invoke("settings-start");
             var loaded = await settingsStore.LoadAsync().ConfigureAwait(false);
-            await dispatcher.InvokeAsync(() => shutdown.TryPublish(() => CompleteStartup(loaded)));
+            await dispatcher.InvokeAsync(() =>
+            {
+                if (!shutdown.TryPublish(() => CompleteStartup(loaded)))
+                {
+                    record?.Invoke("startup-skipped");
+                }
+            });
         }
         catch (Exception exception)
         {

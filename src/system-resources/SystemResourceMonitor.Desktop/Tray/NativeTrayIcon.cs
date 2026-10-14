@@ -203,7 +203,8 @@ internal sealed class NativeTrayIcon : ITrayIcon
         }
 
         var notification = (int)((long)lParam & 0xffff);
-        if (notification is WM_CONTEXTMENU or NIN_SELECT or NIN_KEYSELECT)
+        // A second callback pumped by the open menu's modal loop must not open a nested menu.
+        if (!IsMenuOpen && notification is WM_CONTEXTMENU or NIN_SELECT or NIN_KEYSELECT)
         {
             ShowMenu(wParam);
         }
