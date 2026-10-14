@@ -7,6 +7,9 @@ namespace SystemResourceMonitor.Desktop.Bar;
 
 internal interface ITrayIcon
 {
+    /// <summary>True while the popup menu's modal loop runs; shell recovery must not touch tray resources then.</summary>
+    bool IsMenuOpen { get; }
+
     void Start();
 
     void Recreate();
@@ -47,6 +50,16 @@ internal sealed class TrayIconRegistration(Action add, Action setVersion, Action
         }
     }
 
+    /// <summary>
+    /// Explorer recovery: delete any icon that survived (a spurious <c>TaskbarCreated</c> leaves it alive and would
+    /// make <c>NIM_ADD</c> fail), rebuild owned resources, then add and version the icon again.
+    /// </summary>
+    public void Readd(Action rebuildResources)
+    {
+        Remove();
+        rebuildResources();
+        Add();
+    }
 
     public void Remove()
     {
@@ -78,6 +91,7 @@ internal sealed class NativeTrayIcon : ITrayIcon
     private readonly nint _hwnd;
     private readonly Action<BarEdge> _selectEdge;
     private readonly Action _exitRequested;
+    private readonly Action _menuClosed;
     private readonly TrayIconRegistration _registration;
     private readonly TrayMenuOwner _menuOwner;
     private nint _menu;
@@ -86,14 +100,22 @@ internal sealed class NativeTrayIcon : ITrayIcon
     private BarEdge _appliedEdge;
     private bool _positionMenuAttached;
 
-    public NativeTrayIcon(nint hwnd, Action<BarEdge> selectEdge, Action exitRequested, TrayMenuOwner menuOwner)
+    public NativeTrayIcon(
+        nint hwnd,
+        Action<BarEdge> selectEdge,
+        Action exitRequested,
+        Action menuClosed,
+        TrayMenuOwner menuOwner)
     {
         _hwnd = hwnd;
         _selectEdge = selectEdge;
         _exitRequested = exitRequested;
+        _menuClosed = menuClosed;
         _menuOwner = menuOwner;
         _registration = new TrayIconRegistration(AddNativeIcon, SetNativeVersion, DeleteNativeIcon);
     }
+
+    public bool IsMenuOpen => _menuOwner.IsTracking;
 
     public void Start()
     {
@@ -112,15 +134,29 @@ internal sealed class NativeTrayIcon : ITrayIcon
 
     public void Recreate()
     {
-        // A spurious or partial shell restart can leave the old identifier alive.
-        // Best-effort deletion prevents an existing icon from blocking NIM_ADD.
-        _registration.Remove();
-        DestroyResources();
-        Start();
+        try
+        {
+            _registration.Readd(() =>
+            {
+                DestroyResources();
+                CreateResources();
+            });
+        }
+        catch
+        {
+            DestroyResources();
+            throw;
+        }
     }
 
     public void Remove()
     {
+        if (IsMenuOpen)
+        {
+            // Shutdown can run inside the menu's modal loop; end tracking before destroying what it uses.
+            _ = EndMenu();
+        }
+
         try
         {
             _registration.Remove();
@@ -275,18 +311,25 @@ internal sealed class NativeTrayIcon : ITrayIcon
             throw new Win32Exception(Marshal.GetLastPInvokeError(), "GetCursorPos failed for the tray menu.");
         }
 
-        var command = _menuOwner.Show(_menu, point);
-        switch (command)
+        try
         {
-            case TopCommand:
-                _selectEdge(BarEdge.Top);
-                break;
-            case BottomCommand:
-                _selectEdge(BarEdge.Bottom);
-                break;
-            case ExitCommand:
-                _exitRequested();
-                break;
+            var command = _menuOwner.Show(_menu, point);
+            switch (command)
+            {
+                case TopCommand:
+                    _selectEdge(BarEdge.Top);
+                    break;
+                case BottomCommand:
+                    _selectEdge(BarEdge.Bottom);
+                    break;
+                case ExitCommand:
+                    _exitRequested();
+                    break;
+            }
+        }
+        finally
+        {
+            _menuClosed();
         }
     }
 

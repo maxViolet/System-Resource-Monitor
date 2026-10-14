@@ -21,6 +21,7 @@ public sealed class LifecycleProcessTests
     [InlineData("--settings-read-failure")]
     [InlineData("--settings-backup-failure")]
     [InlineData("--settings-write-failure")]
+    [InlineData("--shutdown-during-settings-load")]
     public async Task TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(string mode)
     {
         var cancellation = TestContext.Current.CancellationToken;

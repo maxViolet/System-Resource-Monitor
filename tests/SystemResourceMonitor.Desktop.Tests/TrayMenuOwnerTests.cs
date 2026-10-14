@@ -9,7 +9,7 @@ public sealed class TrayMenuOwnerTests
     private const nint ApplicationChosenDuringMenu = 0x300;
 
     [Fact]
-    public void Menu_uses_the_hidden_owner_and_returns_foreground_to_the_previous_application()
+    public void Menu_uses_the_hidden_owner_and_returns_foreground_to_the_window_foreground_when_it_opened()
     {
         var native = new FakeNative { Foreground = OtherApplication };
         var owner = new TrayMenuOwner(native);
@@ -60,6 +60,27 @@ public sealed class TrayMenuOwnerTests
         Assert.Equal(1, native.DestroyCount);
     }
 
+    [Fact]
+    public void Owner_removed_by_work_pumped_during_tracking_still_returns_the_chosen_command()
+    {
+        var native = new FakeNative { Foreground = OtherApplication, RefusePostNull = true };
+        var owner = new TrayMenuOwner(native);
+        owner.Start();
+        var trackingObserved = false;
+        native.DuringTrack = () =>
+        {
+            trackingObserved = owner.IsTracking;
+            owner.Remove();
+        };
+
+        var command = owner.Show(0x42, default);
+
+        Assert.True(trackingObserved);
+        Assert.False(owner.IsTracking);
+        Assert.Equal(1002u, command);
+        Assert.Contains("post-null:256", native.Events);
+    }
+
     private sealed class FakeNative : ITrayMenuNativeApi
     {
         public List<string> Events { get; } = [];
@@ -69,6 +90,10 @@ public sealed class TrayMenuOwnerTests
         public nint? ForegroundAfterTrack { get; init; }
 
         public bool RefuseForeground { get; init; }
+
+        public bool RefusePostNull { get; init; }
+
+        public Action? DuringTrack { get; set; }
 
         public int DestroyCount { get; private set; }
 
@@ -97,6 +122,7 @@ public sealed class TrayMenuOwnerTests
         public uint Track(nint menu, NativeMethods.POINT point, nint owner)
         {
             Events.Add($"track:{owner}");
+            DuringTrack?.Invoke();
             if (ForegroundAfterTrack is { } chosen)
             {
                 Foreground = chosen;
@@ -108,7 +134,7 @@ public sealed class TrayMenuOwnerTests
         public bool PostNull(nint hwnd)
         {
             Events.Add($"post-null:{hwnd}");
-            return true;
+            return !RefusePostNull;
         }
     }
 }

@@ -37,13 +37,19 @@ internal sealed class TrayMenuOwner(ITrayMenuNativeApi native)
         }
     }
 
+    /// <summary>True while <see cref="Show"/> is inside the menu's modal loop, which also pumps dispatcher work.</summary>
+    public bool IsTracking { get; private set; }
+
     /// <summary>
     /// Makes the hidden owner foreground, tracks the menu, posts the documented benign task-switch message, and
-    /// returns foreground to the previous window only when the user did not activate another window meanwhile.
+    /// returns foreground to the window that was foreground when the menu opened (the taskbar after a mouse click)
+    /// only when no other window was activated meanwhile.
     /// </summary>
     public uint Show(nint menu, POINT point)
     {
-        if (_hwnd == 0)
+        // Work pumped by the modal loop may remove this owner; use the handle captured before tracking.
+        var owner = _hwnd;
+        if (owner == 0)
         {
             throw new InvalidOperationException("The tray menu owner has not started.");
         }
@@ -52,15 +58,23 @@ internal sealed class TrayMenuOwner(ITrayMenuNativeApi native)
 
         // Explorer grants foreground rights for a tray click. If the lock still refuses, the menu remains usable;
         // only outside-click dismissal degrades, which is preferable to losing Position and Exit.
-        _ = native.SetForeground(_hwnd);
+        _ = native.SetForeground(owner);
 
-        var command = native.Track(menu, point, _hwnd);
-        if (!native.PostNull(_hwnd))
+        uint command;
+        IsTracking = true;
+        try
         {
-            throw new InvalidOperationException($"PostMessage failed for the tray menu owner with error {Marshal.GetLastPInvokeError()}.");
+            command = native.Track(menu, point, owner);
+        }
+        finally
+        {
+            IsTracking = false;
         }
 
-        if (previousForeground != 0 && previousForeground != _hwnd && native.GetForeground() == _hwnd)
+        // Best-effort: failing to force the documented task switch must not discard the user's chosen command.
+        _ = native.PostNull(owner);
+
+        if (previousForeground != 0 && previousForeground != owner && native.GetForeground() == owner)
         {
             // Foreground-lock rules may refuse this; the visible bar is never activated either way.
             _ = native.SetForeground(previousForeground);

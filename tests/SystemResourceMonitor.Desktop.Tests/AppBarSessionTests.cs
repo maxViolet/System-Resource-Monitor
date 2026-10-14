@@ -82,7 +82,7 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
-    public void Explorer_recovery_failure_retains_AppBar_cleanup_responsibility_and_still_attempts_the_tray()
+    public void Spurious_TaskbarCreated_with_a_surviving_registration_still_recovers_placement()
     {
         var events = new List<string>();
         var native = new FakeNative(events);
@@ -95,11 +95,45 @@ public sealed class AppBarSessionTests
 
         var result = ShellRecovery.Recover(appBar, tray, BarEdge.Top);
 
+        Assert.True(result.Succeeded);
+        Assert.Equal(["abm-new", "abm-querypos", "abm-setpos", "setwindowpos", "nim-add", "nim-setversion"], events);
+    }
+
+    [Fact]
+    public void Lost_AppBar_recovery_is_reported_retains_cleanup_responsibility_and_still_attempts_the_tray()
+    {
+        var events = new List<string>();
+        var native = new FakeNative(events);
+        var appBar = new AppBarSession(123, 456, native);
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        events.Clear();
+        native.FailRegister = true;
+        native.FailQuery = true;
+        var tray = new FakeTray(events);
+
+        var result = ShellRecovery.Recover(appBar, tray, BarEdge.Top);
+
         Assert.False(result.AppBarRecovered);
         Assert.True(result.TrayRecovered);
-        Assert.Equal(["abm-new", "nim-add", "nim-setversion"], events);
+        Assert.Contains("nim-add", events);
         appBar.Remove();
         Assert.Equal(1, native.RemoveCount);
+    }
+
+    [Theory]
+    [InlineData(true, true, nameof(ShellRecoveryAction.None))]
+    [InlineData(false, true, nameof(ShellRecoveryAction.ReportAppBarFailure))]
+    [InlineData(true, false, nameof(ShellRecoveryAction.FailureShutdown))]
+    [InlineData(false, false, nameof(ShellRecoveryAction.FailureShutdown))]
+    public void Lost_tray_forces_failure_shutdown_and_lost_AppBar_alone_is_reported(
+        bool appBarRecovered,
+        bool trayRecovered,
+        string expected)
+    {
+        Assert.Equal(
+            Enum.Parse<ShellRecoveryAction>(expected),
+            new ShellRecoveryResult(appBarRecovered, trayRecovered).NextAction);
     }
 
     [Fact]
@@ -192,6 +226,23 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
+    public void Tray_readd_deletes_a_surviving_icon_before_adding_it_again()
+    {
+        var events = new List<string>();
+        var registration = new TrayIconRegistration(
+            () => events.Add("nim-add"),
+            () => events.Add("nim-setversion"),
+            () => events.Add("nim-delete"));
+        registration.Add();
+        events.Clear();
+
+        registration.Readd(() => events.Add("rebuild"));
+
+        Assert.Equal(["nim-delete", "rebuild", "nim-add", "nim-setversion"], events);
+        Assert.True(registration.IsAdded);
+    }
+
+    [Fact]
     public void Failed_tray_version_deletes_the_partial_icon()
     {
         var events = new List<string>();
@@ -223,6 +274,8 @@ public sealed class AppBarSessionTests
 
         public bool FailWindowPosition { get; set; }
 
+        public bool FailQuery { get; set; }
+
         public PixelRect MonitorBounds { get; set; } = new(-1920, -100, 0, 1340);
         public uint Dpi { get; set; } = 144;
 
@@ -246,7 +299,14 @@ public sealed class AppBarSessionTests
 
         public PixelRect GetPrimaryMonitorBounds() => MonitorBounds;
 
-        public void QueryPosition(nint hwnd, BarEdge edge, ref PixelRect bounds) => _events.Add("abm-querypos");
+        public void QueryPosition(nint hwnd, BarEdge edge, ref PixelRect bounds)
+        {
+            _events.Add("abm-querypos");
+            if (FailQuery)
+            {
+                throw new InvalidOperationException("ABM_QUERYPOS failed.");
+            }
+        }
 
         public void SetPosition(nint hwnd, BarEdge edge, ref PixelRect bounds)
         {
@@ -268,6 +328,8 @@ public sealed class AppBarSessionTests
     private sealed class FakeTray(List<string> events) : ITrayIcon
     {
         public bool FailRecreate { get; init; }
+
+        public bool IsMenuOpen => false;
 
         public void Start()
         {

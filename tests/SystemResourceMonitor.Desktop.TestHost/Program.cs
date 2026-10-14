@@ -16,7 +16,7 @@ public static class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --settings-read-failure | --settings-backup-failure | --settings-write-failure";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load";
 
     [STAThread]
     public static int Main(string[] args)
@@ -40,6 +40,8 @@ public static class Program
                 return SettingsFailure(SettingsFault.Backup);
             case ["--settings-write-failure"]:
                 return SettingsFailure(SettingsFault.Write);
+            case ["--shutdown-during-settings-load"]:
+                return ShutdownDuringSettingsLoad();
             default:
                 Console.Error.WriteLine(Usage);
                 return InvalidInvocation;
@@ -216,6 +218,46 @@ public static class Program
         return run.Finish();
     }
 
+    /// <summary>
+    /// Shutdown starts while settings load. Tracked work keeps the dispatcher alive through the bounded wait, so a
+    /// load completing inside that wait must not create, register, or position the bar after shutdown began.
+    /// </summary>
+    private static int ShutdownDuringSettingsLoad()
+    {
+        LifecycleRun? run = null;
+        run = new LifecycleRun(_ => new ShutdownDuringLoadStore(() => run!));
+        var positioned = false;
+        run.Run((_, _) => positioned = true);
+
+        run.Check(!positioned, "the bar was created and positioned after shutdown began");
+        run.Check(run.ExitCode == ExitCodes.Success, $"coordinator exit code {run.ExitCode}, expected {ExitCodes.Success}");
+        run.CheckOrder("guard-acquired", "settings-start", "shutdown-requested", "wait-start", "settings-load-completed", "exit");
+        return run.Finish();
+    }
+
+    private sealed class ShutdownDuringLoadStore(Func<LifecycleRun> run) : ISettingsStore
+    {
+        private static readonly TaskCompletionSource HeldOpen = new();
+
+        public async Task<SettingsLoadResult> LoadAsync(CancellationToken cancellationToken = default)
+        {
+            // Called on the dispatcher thread before startup's first await.
+            var lifecycle = run();
+            _ = System.Windows.Threading.Dispatcher.CurrentDispatcher.BeginInvoke(() =>
+            {
+                lifecycle.Shutdown!.Track("held-open", HeldOpen.Task);
+                lifecycle.Record("shutdown-requested");
+                _ = lifecycle.Shutdown.ShutdownAsync(ExitCodes.Success);
+            });
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), CancellationToken.None).ConfigureAwait(false);
+            System.Windows.Application.Current.Dispatcher.Invoke(() => lifecycle.Record("settings-load-completed"));
+            return new SettingsLoadResult(BarSettings.Default);
+        }
+
+        public Task<SettingsSaveResult> SaveAsync(BarSettings settings, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new SettingsSaveResult());
+    }
 
     /// <summary>
     /// Holds the bar until a line or end of input arrives on stdin, then closes it with <c>WM_CLOSE</c>.

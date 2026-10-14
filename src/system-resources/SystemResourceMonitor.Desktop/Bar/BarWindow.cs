@@ -32,6 +32,7 @@ public sealed class BarWindow : Window, IShutdownBar
     private uint _taskbarCreatedMessage;
     private bool _finalClose;
     private bool _shuttingDown;
+    private ReconciliationReason _deferredWhileMenuOpen;
 
     public BarWindow(
         BarEdge initialEdge,
@@ -92,6 +93,7 @@ public sealed class BarWindow : Window, IShutdownBar
             _hwnd,
             edge => SelectEdge(edge),
             _closeRequested,
+            OnTrayMenuClosed,
             new TrayMenuOwner(new Win32TrayMenuNativeApi()));
         _tray.SetAppliedEdge(_initialEdge);
         _tray.Start();
@@ -104,6 +106,12 @@ public sealed class BarWindow : Window, IShutdownBar
         if (_appBar is null || _tray is null)
         {
             throw new InvalidOperationException("The bar has not started.");
+        }
+
+        if (_shuttingDown)
+        {
+            // A menu command can return after shutdown ran inside the menu's modal loop.
+            return false;
         }
 
         if (_appBar.AppliedEdge == edge)
@@ -190,20 +198,27 @@ public sealed class BarWindow : Window, IShutdownBar
             return;
         }
 
+        if (_tray.IsMenuOpen)
+        {
+            // The menu's modal loop pumps dispatcher work; recovery would destroy the menu being tracked.
+            _deferredWhileMenuOpen |= reason;
+            return;
+        }
+
         if ((reason & ReconciliationReason.ExplorerRestart) != 0)
         {
             var result = ShellRecovery.Recover(_appBar, _tray, AppliedEdge);
             _record?.Invoke($"recovery-appbar:{(result.AppBarRecovered ? "success" : "failure")}");
             _record?.Invoke($"recovery-tray:{(result.TrayRecovered ? "success" : "failure")}");
             // Recreated menu resources initialize their checks from the last applied edge.
-
-            if (!result.TrayRecovered)
+            switch (result.NextAction)
             {
-                _shellIntegrationFailed();
-            }
-            else if (!result.AppBarRecovered)
-            {
-                ReportStatus("Shell recovery failed.");
+                case ShellRecoveryAction.FailureShutdown:
+                    _shellIntegrationFailed();
+                    break;
+                case ShellRecoveryAction.ReportAppBarFailure:
+                    ReportStatus("Shell recovery failed.");
+                    break;
             }
 
             return;
@@ -219,6 +234,13 @@ public sealed class BarWindow : Window, IShutdownBar
             _record?.Invoke($"reconciliation-failed:{exception.GetType().Name}");
             ReportStatus("The bar could not reconcile its position.");
         }
+    }
+
+    private void OnTrayMenuClosed()
+    {
+        var deferred = _deferredWhileMenuOpen;
+        _deferredWhileMenuOpen = ReconciliationReason.None;
+        _reconciliation?.Request(deferred);
     }
 
     private void AddExtendedStyle(nint flags)

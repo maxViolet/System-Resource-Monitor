@@ -19,7 +19,7 @@ The tray can switch the bar between the top and bottom of the primary monitor an
 
 The only first-release setting is edge, defaulting to Top, stored at `%LocalAppData%\SystemResourceMonitor\settings.json`. Replace atomically from a temporary file in the same directory. Missing settings use defaults. Preserve malformed settings as `settings.invalid-<timestamp>.json` when possible. Read, backup, or write failure must not stop monitoring; a failed write reports that the current position applies only until restart.
 
-Handle AppBar position notifications, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, `TaskbarCreated`, and primary-monitor changes on the WPF thread. On `TaskbarCreated`, re-register and renegotiate the AppBar, recreate the tray icon with `NIM_ADD`, and set its callback behavior with `NIM_SETVERSION`. Report failures instead of assuming recovery succeeded. The tray menu uses the hidden foreground owner from [ADR 0008](../adr/0008-tray-menu-foreground-owner.md); no other B03 path may make a Desktop window foreground.
+Handle AppBar position notifications, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, `TaskbarCreated`, and primary-monitor changes on the WPF thread. On `TaskbarCreated`, re-register and renegotiate the AppBar, recreate the tray icon with `NIM_ADD`, and set its callback behavior with `NIM_SETVERSION`. Report failures instead of assuming recovery succeeded; a tray that cannot be recreated ends the application and releases its reservation ([ADR 0009](../adr/0009-exit-when-tray-recovery-fails.md)). The tray menu uses the hidden foreground owner from [ADR 0008](../adr/0008-tray-menu-foreground-owner.md); no other B03 path may make a Desktop window foreground.
 
 ## Acceptance criteria
 

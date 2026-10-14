@@ -93,9 +93,24 @@ internal sealed class ReconciliationCoordinator(Action<Action> schedule, Action<
     }
 }
 
+internal enum ShellRecoveryAction
+{
+    None,
+    ReportAppBarFailure,
+    FailureShutdown,
+}
+
 internal readonly record struct ShellRecoveryResult(bool AppBarRecovered, bool TrayRecovered)
 {
     public bool Succeeded => AppBarRecovered && TrayRecovered;
+
+    /// <summary>
+    /// Without a tray icon there is no Position or Exit, so a reservation the user cannot release is worse than
+    /// exiting (ADR 0009). An AppBar failure leaves the tray usable and is reported through it.
+    /// </summary>
+    public ShellRecoveryAction NextAction => !TrayRecovered
+        ? ShellRecoveryAction.FailureShutdown
+        : AppBarRecovered ? ShellRecoveryAction.None : ShellRecoveryAction.ReportAppBarFailure;
 }
 
 internal static class ShellRecovery
@@ -103,10 +118,19 @@ internal static class ShellRecovery
     /// <summary>Restores Explorer-owned resources in AppBar-then-tray order and exposes partial failure.</summary>
     public static ShellRecoveryResult Recover(AppBarSession appBar, ITrayIcon tray, BarEdge edge)
     {
-        var appBarRecovered = false;
         try
         {
             appBar.RegisterAfterShellRestart();
+        }
+        catch (Exception)
+        {
+            // A spurious TaskbarCreated reaches a bar Explorer still has registered, so ABM_NEW is rejected while
+            // the reservation survives. Placement below then succeeds; after a real loss it fails and is reported.
+        }
+
+        var appBarRecovered = false;
+        try
+        {
             appBar.Place(edge);
             appBarRecovered = true;
         }

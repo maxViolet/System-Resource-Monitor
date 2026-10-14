@@ -6,7 +6,9 @@ Status: accepted, 2026-10-14. Narrows the "never steal focus" rule of the [imple
 
 The tray context menu is owned by a hidden, never-shown native window that belongs to the Desktop process. That owner, not the visible bar, is passed to `TrackPopupMenuEx`. Before tracking, the owner calls `SetForegroundWindow` on itself; after tracking, it posts `WM_NULL` to itself. These steps follow the notification-icon pattern in the [`TrackPopupMenu` documentation](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-trackpopupmenu#remarks).
 
-After the menu closes, the owner returns foreground to the previous window. It does so only when the owner is still the foreground window, so a window the user activated while the menu was open is never overridden. If Windows refuses to make the owner foreground, the menu still opens: Position and Exit stay usable, and only dismissal by clicking outside the menu degrades.
+After the menu closes, the owner returns foreground to the window that was foreground when the menu opened. After a mouse click on the tray icon, that window is the taskbar, because the click activates the taskbar first. The owner restores foreground only when it still holds it, so a window the user activated while the menu was open is never overridden. If Windows refuses to make the owner foreground, the menu still opens: Position and Exit stay usable, and only dismissal by clicking outside the menu degrades.
+
+The menu's modal loop also pumps WPF dispatcher work. Shell recovery is deferred until the menu closes, so it cannot destroy the menu or owner that Windows is still tracking. Shutdown that runs inside the loop calls `EndMenu` before it destroys them.
 
 The visible bar keeps `WS_EX_NOACTIVATE`, its `WM_MOUSEACTIVATE` handling, and `SWP_NOACTIVATE`. It never becomes the foreground window and never receives keyboard focus.
 
@@ -21,4 +23,4 @@ The hidden owner confines the foreground change to an invisible window, for as l
 
 ## Acceptance
 
-With `SetWinEventHook` running, a real tray click must produce foreground and focus events only for the hidden owner and the menu. No event may target the visible bar. The prior application must regain foreground after the menu closes without a selection. An outside click and Escape must both dismiss the menu. Every other B03 scenario keeps the rule that no event targets the Desktop process.
+With `SetWinEventHook` running, a real tray click must produce foreground and focus events only for the taskbar, the hidden owner, and the menu. No event may target the visible bar. After a menu closes without a selection, the window that was foreground when the menu opened must regain foreground. An outside click and Escape must both dismiss the menu. Every other B03 scenario keeps the rule that no event targets the Desktop process.
