@@ -36,7 +36,7 @@ public sealed class DesktopStartup(
         {
             record?.Invoke("settings-start");
             var loaded = await settingsStore.LoadAsync().ConfigureAwait(false);
-            await dispatcher.InvokeAsync(() => CompleteStartup(loaded));
+            await dispatcher.InvokeAsync(() => shutdown.TryPublish(() => CompleteStartup(loaded)));
         }
         catch (Exception exception)
         {
@@ -59,6 +59,7 @@ public sealed class DesktopStartup(
             loaded.Settings.Edge,
             edge => persistence!.Enqueue(edge),
             () => shutdown.ShutdownAsync(ExitCodes.Success),
+            () => shutdown.ShutdownAsync(ExitCodes.Failure),
             record);
         persistence = new SettingsPersistenceQueue(
             settingsStore,

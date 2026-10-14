@@ -48,8 +48,8 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
     /// <summary>Explorer discarded its registration; establish it again without sending <c>ABM_REMOVE</c>.</summary>
     public void RegisterAfterShellRestart()
     {
-        _registered = false;
-        Register();
+        native.Register(hwnd, callbackMessage);
+        _registered = true;
     }
 
     public void Place(BarEdge edge)

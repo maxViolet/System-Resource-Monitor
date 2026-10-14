@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Extensions.Time.Testing;
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Settings;
@@ -34,6 +35,19 @@ public sealed class SettingsStoreTests
         Assert.Equal(new BarSettings(edge), additive.Settings);
         Assert.Null(additive.Issue);
     }
+    [Fact]
+    public async Task UTF8_BOM_is_accepted()
+    {
+        using var directory = new TemporaryDirectory();
+        var path = System.IO.Path.Combine(directory.Path, "settings.json");
+        File.WriteAllBytes(path, [.. Encoding.UTF8.GetPreamble(), .. Encoding.UTF8.GetBytes("{\"edge\":\"Bottom\"}")]);
+
+        var result = await new JsonSettingsStore(directory.Path).LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(new BarSettings(BarEdge.Bottom), result.Settings);
+        Assert.Null(result.Issue);
+    }
+
 
     [Theory]
     [InlineData("{}")]
@@ -100,7 +114,7 @@ public sealed class SettingsStoreTests
         var settingsPath = System.IO.Path.Combine(directory.Path, "settings.json");
         var previous = File.ReadAllBytes(settingsPath);
 
-        var failing = new JsonSettingsStore(directory.Path, TimeProvider.System, new FaultingFiles(replaceFails: true));
+        var failing = new JsonSettingsStore(directory.Path, TimeProvider.System, new FaultingFiles(commitFails: true));
         var failed = await failing.SaveAsync(new BarSettings(BarEdge.Bottom), TestContext.Current.CancellationToken);
         Assert.Equal(SettingsSaveIssue.WriteFailed, failed.Issue);
         Assert.Equal(previous, File.ReadAllBytes(settingsPath));
@@ -113,7 +127,7 @@ public sealed class SettingsStoreTests
     private sealed class FaultingFiles(
         bool readFails = false,
         bool backupFails = false,
-        bool replaceFails = false) : ISettingsFileOperations
+        bool commitFails = false) : ISettingsFileOperations
     {
         private readonly SettingsFileOperations _inner = new();
 
@@ -133,14 +147,14 @@ public sealed class SettingsStoreTests
             _inner.MoveNew(source, destination);
         }
 
-        public void Replace(string source, string destination)
+        public void MoveOverwrite(string source, string destination)
         {
-            if (replaceFails)
+            if (commitFails)
             {
-                throw new IOException("replace");
+                throw new IOException("commit");
             }
 
-            _inner.Replace(source, destination);
+            _inner.MoveOverwrite(source, destination);
         }
 
         public void WriteAndFlush(string path, ReadOnlySpan<byte> content) => _inner.WriteAndFlush(path, content);

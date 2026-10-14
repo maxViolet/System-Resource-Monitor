@@ -47,7 +47,6 @@ internal sealed class TrayIconRegistration(Action add, Action setVersion, Action
         }
     }
 
-    public void ForgetAfterExplorerRestart() => IsAdded = false;
 
     public void Remove()
     {
@@ -80,17 +79,19 @@ internal sealed class NativeTrayIcon : ITrayIcon
     private readonly Action<BarEdge> _selectEdge;
     private readonly Action _exitRequested;
     private readonly TrayIconRegistration _registration;
+    private readonly TrayMenuOwner _menuOwner;
     private nint _menu;
     private nint _positionMenu;
     private nint _icon;
     private BarEdge _appliedEdge;
     private bool _positionMenuAttached;
 
-    public NativeTrayIcon(nint hwnd, Action<BarEdge> selectEdge, Action exitRequested)
+    public NativeTrayIcon(nint hwnd, Action<BarEdge> selectEdge, Action exitRequested, TrayMenuOwner menuOwner)
     {
         _hwnd = hwnd;
         _selectEdge = selectEdge;
         _exitRequested = exitRequested;
+        _menuOwner = menuOwner;
         _registration = new TrayIconRegistration(AddNativeIcon, SetNativeVersion, DeleteNativeIcon);
     }
 
@@ -98,6 +99,7 @@ internal sealed class NativeTrayIcon : ITrayIcon
     {
         try
         {
+            _menuOwner.Start();
             CreateResources();
             _registration.Add();
         }
@@ -110,15 +112,24 @@ internal sealed class NativeTrayIcon : ITrayIcon
 
     public void Recreate()
     {
-        _registration.ForgetAfterExplorerRestart();
+        // A spurious or partial shell restart can leave the old identifier alive.
+        // Best-effort deletion prevents an existing icon from blocking NIM_ADD.
+        _registration.Remove();
         DestroyResources();
         Start();
     }
 
     public void Remove()
     {
-        _registration.Remove();
-        DestroyResources();
+        try
+        {
+            _registration.Remove();
+        }
+        finally
+        {
+            DestroyResources();
+            _menuOwner.Remove();
+        }
     }
 
     public void SetAppliedEdge(BarEdge edge)
@@ -264,7 +275,7 @@ internal sealed class NativeTrayIcon : ITrayIcon
             throw new Win32Exception(Marshal.GetLastPInvokeError(), "GetCursorPos failed for the tray menu.");
         }
 
-        var command = TrackPopupMenuEx(_menu, TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_NONOTIFY, point.X, point.Y, _hwnd, 0);
+        var command = _menuOwner.Show(_menu, point);
         switch (command)
         {
             case TopCommand:

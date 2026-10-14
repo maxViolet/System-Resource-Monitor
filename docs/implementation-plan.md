@@ -79,7 +79,7 @@ Observe completion/fault of any pending managed task while the process remains a
 - Treat `ABN_FULLSCREENAPP` as a trigger to reconcile current foreground-window bounds and monitor, not as an authoritative global fullscreen flag. Reconcile additionally every 500 ms so Alt+Tab restoration does not depend on game termination or another shell notification. Compare the foreground top-level window against the full primary-monitor bounds in physical pixels, not the reduced work area; exclude the bar and shell desktop windows. Coalesce checks and change z-order only when state changes. This reconciliation remains active while the bar is lowered and is included in the resource-budget measurements. Test maximized ordinary windows as a negative case.
 - On `TaskbarCreated`, restore both shell integrations on the owning WPF thread: call `ABM_NEW`, then `ABM_QUERYPOS` and `ABM_SETPOS` to reserve the strip; call `Shell_NotifyIcon(NIM_ADD)` to recreate the tray icon, followed by `Shell_NotifyIcon(NIM_SETVERSION)`. Check native return values and report a failed recovery rather than assuming either resource exists. Reconcile fullscreen state before restoring z-order.
 - Native wrappers check return codes, structure sizes, pointer widths, callback lifetimes, and handle ownership; use `SafeHandle` where ownership applies.
-- The first-release tray contains position and exit actions only.
+- The first-release tray contains position and exit actions only. Follow [ADR 0008](adr/0008-tray-menu-foreground-owner.md): a hidden native owner becomes foreground for `TrackPopupMenuEx`, posts `WM_NULL` afterwards, and returns foreground to the previous window only if it still holds foreground. The visible bar is never that owner.
 
 ## Delivery slices
 

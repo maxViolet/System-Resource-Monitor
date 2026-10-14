@@ -82,11 +82,15 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
-    public void Explorer_recovery_exposes_partial_AppBar_failure_and_still_attempts_the_tray()
+    public void Explorer_recovery_failure_retains_AppBar_cleanup_responsibility_and_still_attempts_the_tray()
     {
         var events = new List<string>();
-        var native = new FakeNative(events) { FailRegister = true };
+        var native = new FakeNative(events);
         var appBar = new AppBarSession(123, 456, native);
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        events.Clear();
+        native.FailRegister = true;
         var tray = new FakeTray(events);
 
         var result = ShellRecovery.Recover(appBar, tray, BarEdge.Top);
@@ -94,6 +98,8 @@ public sealed class AppBarSessionTests
         Assert.False(result.AppBarRecovered);
         Assert.True(result.TrayRecovered);
         Assert.Equal(["abm-new", "nim-add", "nim-setversion"], events);
+        appBar.Remove();
+        Assert.Equal(1, native.RemoveCount);
     }
 
     [Fact]
@@ -115,17 +121,19 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
-    public void Placement_reads_fresh_primary_monitor_geometry_each_time()
+    public void Placement_reads_fresh_primary_monitor_geometry_and_DPI_each_time()
     {
         var native = new FakeNative();
         var appBar = new AppBarSession(123, 456, native);
         appBar.Register();
         appBar.Place(BarEdge.Top);
         native.MonitorBounds = new PixelRect(0, -1080, 1920, 0);
+        native.Dpi = 192;
 
         appBar.Place(BarEdge.Top);
 
-        Assert.Equal(new PixelRect(0, -1080, 1920, -1044), appBar.ReservedBounds);
+        Assert.Equal(48, appBar.ThicknessPixels);
+        Assert.Equal(new PixelRect(0, -1080, 1920, -1032), appBar.ReservedBounds);
     }
 
     [Fact]
@@ -216,6 +224,7 @@ public sealed class AppBarSessionTests
         public bool FailWindowPosition { get; set; }
 
         public PixelRect MonitorBounds { get; set; } = new(-1920, -100, 0, 1340);
+        public uint Dpi { get; set; } = 144;
 
         public void Register(nint hwnd, uint callbackMessage)
         {
@@ -233,7 +242,7 @@ public sealed class AppBarSessionTests
             _events.Add("abm-remove");
         }
 
-        public uint GetWindowDpi(nint hwnd) => 144;
+        public uint GetWindowDpi(nint hwnd) => Dpi;
 
         public PixelRect GetPrimaryMonitorBounds() => MonitorBounds;
 

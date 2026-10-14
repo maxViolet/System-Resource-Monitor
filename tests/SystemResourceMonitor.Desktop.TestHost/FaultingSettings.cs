@@ -34,14 +34,14 @@ internal sealed class FaultingSettingsFileOperations(SettingsFault fault) : ISet
         _inner.MoveNew(source, destination);
     }
 
-    public void Replace(string source, string destination)
+    public void MoveOverwrite(string source, string destination)
     {
         if (fault == SettingsFault.Write)
         {
-            throw new IOException("Injected settings replacement failure.");
+            throw new IOException("Injected settings commit failure.");
         }
 
-        _inner.Replace(source, destination);
+        _inner.MoveOverwrite(source, destination);
     }
 
     public void WriteAndFlush(string path, ReadOnlySpan<byte> content) => _inner.WriteAndFlush(path, content);

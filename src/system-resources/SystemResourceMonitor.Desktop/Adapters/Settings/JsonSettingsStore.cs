@@ -95,14 +95,7 @@ public sealed class JsonSettingsStore : ISettingsStore
             _files.CreateDirectory(_directory);
             var content = Encoding.UTF8.GetBytes($"{{\"edge\":\"{settings.Edge}\"}}");
             _files.WriteAndFlush(temporary, content);
-            if (_files.FileExists(_path))
-            {
-                _files.Replace(temporary, _path);
-            }
-            else
-            {
-                _files.MoveNew(temporary, _path);
-            }
+            _files.MoveOverwrite(temporary, _path);
 
             return new SettingsSaveResult();
         }
@@ -138,7 +131,13 @@ public sealed class JsonSettingsStore : ISettingsStore
         settings = BarSettings.Default;
         try
         {
-            using var document = JsonDocument.Parse(content);
+            ReadOnlyMemory<byte> json = content;
+            if (json.Length >= 3 && json.Span[0] == 0xef && json.Span[1] == 0xbb && json.Span[2] == 0xbf)
+            {
+                json = json[3..];
+            }
+
+            using var document = JsonDocument.Parse(json);
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 return false;

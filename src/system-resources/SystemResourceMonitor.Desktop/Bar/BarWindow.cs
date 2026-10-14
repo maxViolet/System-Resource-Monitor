@@ -21,6 +21,7 @@ public sealed class BarWindow : Window, IShutdownBar
     private readonly BarEdge _initialEdge;
     private readonly Action<BarEdge> _edgeApplied;
     private readonly Action _closeRequested;
+    private readonly Action _shellIntegrationFailed;
     private readonly Action<string>? _record;
     private HwndSourceHook? _hook;
     private AppBarSession? _appBar;
@@ -36,11 +37,13 @@ public sealed class BarWindow : Window, IShutdownBar
         BarEdge initialEdge,
         Action<BarEdge> edgeApplied,
         Action closeRequested,
+        Action shellIntegrationFailed,
         Action<string>? record = null)
     {
         _initialEdge = initialEdge;
         _edgeApplied = edgeApplied;
         _closeRequested = closeRequested;
+        _shellIntegrationFailed = shellIntegrationFailed;
         _record = record;
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
@@ -85,7 +88,11 @@ public sealed class BarWindow : Window, IShutdownBar
         _appBar.Place(_initialEdge);
         Show();
 
-        _tray = new NativeTrayIcon(_hwnd, edge => SelectEdge(edge), _closeRequested);
+        _tray = new NativeTrayIcon(
+            _hwnd,
+            edge => SelectEdge(edge),
+            _closeRequested,
+            new TrayMenuOwner(new Win32TrayMenuNativeApi()));
         _tray.SetAppliedEdge(_initialEdge);
         _tray.Start();
     }
@@ -190,7 +197,11 @@ public sealed class BarWindow : Window, IShutdownBar
             _record?.Invoke($"recovery-tray:{(result.TrayRecovered ? "success" : "failure")}");
             // Recreated menu resources initialize their checks from the last applied edge.
 
-            if (!result.Succeeded)
+            if (!result.TrayRecovered)
+            {
+                _shellIntegrationFailed();
+            }
+            else if (!result.AppBarRecovered)
             {
                 ReportStatus("Shell recovery failed.");
             }

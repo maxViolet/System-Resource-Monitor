@@ -13,7 +13,7 @@ internal interface ISettingsFileOperations
 
     void MoveNew(string source, string destination);
 
-    void Replace(string source, string destination);
+    void MoveOverwrite(string source, string destination);
 
     void WriteAndFlush(string path, ReadOnlySpan<byte> content);
 
@@ -30,7 +30,7 @@ internal sealed class SettingsFileOperations : ISettingsFileOperations
 
     public void MoveNew(string source, string destination) => File.Move(source, destination);
 
-    public void Replace(string source, string destination) => File.Replace(source, destination, null);
+    public void MoveOverwrite(string source, string destination) => File.Move(source, destination, overwrite: true);
 
     public void WriteAndFlush(string path, ReadOnlySpan<byte> content)
     {

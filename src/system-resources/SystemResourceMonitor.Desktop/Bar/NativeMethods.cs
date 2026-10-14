@@ -17,6 +17,7 @@ internal static partial class NativeMethods
     internal const uint ABN_POSCHANGED = 0x1;
     internal const uint ABN_FULLSCREENAPP = 0x2;
 
+    internal const int WM_NULL = 0x0000;
     internal const int WM_MOUSEACTIVATE = 0x0021;
     internal const int WM_CONTEXTMENU = 0x007B;
     internal const int WM_DISPLAYCHANGE = 0x007E;
@@ -28,6 +29,7 @@ internal static partial class NativeMethods
     internal const int GWL_EXSTYLE = -20;
     internal const nint WS_EX_TOOLWINDOW = 0x00000080;
     internal const nint WS_EX_NOACTIVATE = 0x08000000;
+    internal const uint WS_POPUP = 0x80000000;
 
     internal const uint SWP_NOZORDER = 0x0004;
     internal const uint SWP_NOACTIVATE = 0x0010;
@@ -160,6 +162,36 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetCursorPos(out POINT lpPoint);
+
+    [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    internal static partial nint CreateWindowEx(
+        uint dwExStyle,
+        string lpClassName,
+        string lpWindowName,
+        uint dwStyle,
+        int x,
+        int y,
+        int nWidth,
+        int nHeight,
+        nint hWndParent,
+        nint hMenu,
+        nint hInstance,
+        nint lpParam);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool DestroyWindow(nint hWnd);
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetForegroundWindow(nint hWnd);
+
+    [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool PostMessage(nint hWnd, int msg, nint wParam, nint lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     internal readonly record struct PixelPoint(int X, int Y);
