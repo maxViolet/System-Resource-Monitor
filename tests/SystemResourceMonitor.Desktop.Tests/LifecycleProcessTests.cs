@@ -17,7 +17,11 @@ public sealed class LifecycleProcessTests
     [Theory(Timeout = TimeoutMilliseconds)]
     [InlineData("--fail-after-setpos")]
     [InlineData("--bounded-shutdown")]
-    public async Task TestHost_fault_mode_passes_its_work_area_and_marker_assertions(string mode)
+    [InlineData("--edge-switches")]
+    [InlineData("--settings-read-failure")]
+    [InlineData("--settings-backup-failure")]
+    [InlineData("--settings-write-failure")]
+    public async Task TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(string mode)
     {
         var cancellation = TestContext.Current.CancellationToken;
         using var host = ChildProcess.Start(TestHostExe, mode);
@@ -57,8 +61,10 @@ public sealed class LifecycleProcessTests
         var bar = await WaitForSingleWindowAsync(owner, cancellation);
         var barRect = DesktopProbe.WindowRect(bar);
         var reserved = DesktopProbe.WorkArea();
-        Assert.Equal(baseline.Top, barRect.Top);
-        Assert.Equal(baseline with { Top = baseline.Top + barRect.Height }, reserved);
+        Assert.True(
+            reserved == baseline with { Top = baseline.Top + barRect.Height } ||
+            reserved == baseline with { Bottom = baseline.Bottom - barRect.Height },
+            $"work area {reserved} is not a one-edge reservation from {baseline} for bar {barRect}");
 
         using (var second = ChildProcess.Start(DesktopExe))
         {

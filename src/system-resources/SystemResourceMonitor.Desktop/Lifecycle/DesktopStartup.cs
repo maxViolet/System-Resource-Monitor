@@ -1,17 +1,18 @@
+using System.Windows.Threading;
 using SystemResourceMonitor.Desktop.Bar;
+using SystemResourceMonitor.Desktop.Settings;
 
 namespace SystemResourceMonitor.Desktop.Lifecycle;
 
 /// <summary>
-/// Startup order: single-instance guard, then settings, then the bar. A process that does not own the guard
-/// exits before the settings step. Any failure after the guard is a handled startup failure that enters
-/// <see cref="ShutdownCoordinator"/>. Run and dispose it on the UI thread; disposal releases the guard.
+/// Startup order: acquire the per-session guard synchronously, load settings off the WPF thread, then create the bar
+/// and tray on the owning dispatcher. Any owner failure enters the shared shutdown coordinator.
 /// </summary>
-/// <param name="record">Step observer; only the test host supplies one.</param>
-/// <param name="afterBarPositioned">Runs after the bar is positioned; only the test host supplies one.</param>
 public sealed class DesktopStartup(
     string guardName,
     ShutdownCoordinator shutdown,
+    ISettingsStore settingsStore,
+    Dispatcher dispatcher,
     Action<string>? record = null,
     Action<BarWindow>? afterBarPositioned = null) : IDisposable
 {
@@ -20,34 +21,68 @@ public sealed class DesktopStartup(
 
     private SingleInstanceGuard? _guard;
 
-    public void Run()
+    public async Task RunAsync()
     {
         _guard = SingleInstanceGuard.TryAcquire(guardName);
         if (_guard is null)
         {
             record?.Invoke("non-owner");
-            _ = shutdown.ShutdownAsync(ExitCodes.Success);
+            await shutdown.ShutdownAsync(ExitCodes.Success);
             return;
         }
 
         record?.Invoke("guard-acquired");
         try
         {
-            // B03 loads settings here.
             record?.Invoke("settings-start");
-
-            var bar = new BarWindow(() => shutdown.ShutdownAsync(ExitCodes.Success));
-            shutdown.Attach(bar);
-            bar.Start();
-            record?.Invoke("bar-positioned");
-            afterBarPositioned?.Invoke(bar);
+            var loaded = await settingsStore.LoadAsync().ConfigureAwait(false);
+            await dispatcher.InvokeAsync(() => CompleteStartup(loaded));
         }
         catch (Exception exception)
         {
-            record?.Invoke($"startup-failed:{exception.GetType().Name}");
-            _ = shutdown.ShutdownAsync(ExitCodes.Failure);
+            await dispatcher.InvokeAsync(() =>
+            {
+                record?.Invoke($"startup-failed:{exception.GetType().Name}");
+                _ = shutdown.ShutdownAsync(ExitCodes.Failure);
+            });
         }
     }
 
     public void Dispose() => _guard?.Dispose();
+
+    private void CompleteStartup(SettingsLoadResult loaded)
+    {
+        record?.Invoke(loaded.Issue is null ? $"settings-loaded:{loaded.Settings.Edge}" : $"settings-load-issue:{loaded.Issue}");
+
+        SettingsPersistenceQueue? persistence = null;
+        var bar = new BarWindow(
+            loaded.Settings.Edge,
+            edge => persistence!.Enqueue(edge),
+            () => shutdown.ShutdownAsync(ExitCodes.Success),
+            record);
+        persistence = new SettingsPersistenceQueue(
+            settingsStore,
+            bar.ReportStatus,
+            record,
+            shutdown.Track,
+            action => bar.Dispatcher.BeginInvoke(action));
+
+        shutdown.Attach(bar);
+        bar.Start();
+        record?.Invoke("bar-positioned");
+        if (loaded.Issue is { } issue)
+        {
+            bar.ReportStatus(LoadIssueMessage(issue));
+        }
+
+        afterBarPositioned?.Invoke(bar);
+    }
+
+    private static string LoadIssueMessage(SettingsLoadIssue issue) => issue switch
+    {
+        SettingsLoadIssue.ReadFailed => "Settings could not be read. Top is in use.",
+        SettingsLoadIssue.Malformed => "Invalid settings were preserved. Top is in use.",
+        SettingsLoadIssue.BackupFailed => "Invalid settings could not be preserved. Top is in use.",
+        _ => throw new ArgumentOutOfRangeException(nameof(issue)),
+    };
 }

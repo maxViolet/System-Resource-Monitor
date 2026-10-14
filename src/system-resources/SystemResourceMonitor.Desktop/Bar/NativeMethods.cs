@@ -11,12 +11,18 @@ internal static partial class NativeMethods
     internal const uint ABM_REMOVE = 0x1;
     internal const uint ABM_QUERYPOS = 0x2;
     internal const uint ABM_SETPOS = 0x3;
+    internal const uint ABE_BOTTOM = 3;
     internal const uint ABE_TOP = 1;
     internal const uint ABN_STATECHANGE = 0x0;
     internal const uint ABN_POSCHANGED = 0x1;
     internal const uint ABN_FULLSCREENAPP = 0x2;
 
     internal const int WM_MOUSEACTIVATE = 0x0021;
+    internal const int WM_CONTEXTMENU = 0x007B;
+    internal const int WM_DISPLAYCHANGE = 0x007E;
+    internal const int WM_DPICHANGED = 0x02E0;
+    internal const int WM_USER = 0x0400;
+    internal const int WM_APP = 0x8000;
     internal const nint MA_NOACTIVATE = 3;
 
     internal const int GWL_EXSTYLE = -20;
@@ -28,6 +34,30 @@ internal static partial class NativeMethods
 
     internal const uint MONITOR_DEFAULTTOPRIMARY = 0x1;
     internal const int UserDefaultDpi = 96;
+
+    internal const uint NIM_ADD = 0x00000000;
+    internal const uint NIM_MODIFY = 0x00000001;
+    internal const uint NIM_DELETE = 0x00000002;
+    internal const uint NIM_SETVERSION = 0x00000004;
+    internal const uint NIF_MESSAGE = 0x00000001;
+    internal const uint NIF_ICON = 0x00000002;
+    internal const uint NIF_TIP = 0x00000004;
+    internal const uint NIF_INFO = 0x00000010;
+    internal const uint NIIF_WARNING = 0x00000002;
+    internal const uint NOTIFYICON_VERSION_4 = 4;
+    internal const int NIN_SELECT = WM_USER;
+    internal const int NIN_KEYSELECT = WM_USER + 1;
+    internal const int IDI_APPLICATION = 32512;
+
+    internal const uint MF_STRING = 0x00000000;
+    internal const uint MF_CHECKED = 0x00000008;
+    internal const uint MF_POPUP = 0x00000010;
+    internal const uint MF_SEPARATOR = 0x00000800;
+    internal const uint MF_BYCOMMAND = 0x00000000;
+    internal const uint MF_UNCHECKED = 0x00000000;
+    internal const uint TPM_RIGHTBUTTON = 0x0002;
+    internal const uint TPM_RETURNCMD = 0x0100;
+    internal const uint TPM_NONOTIFY = 0x0080;
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct APPBARDATA
@@ -49,8 +79,39 @@ internal static partial class NativeMethods
         public uint dwFlags;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal unsafe struct NOTIFYICONDATAW
+    {
+        public uint cbSize;
+        public nint hWnd;
+        public uint uID;
+        public uint uFlags;
+        public uint uCallbackMessage;
+        public nint hIcon;
+        public fixed char szTip[128];
+        public uint dwState;
+        public uint dwStateMask;
+        public fixed char szInfo[256];
+        public uint uVersion;
+        public fixed char szInfoTitle[64];
+        public uint dwInfoFlags;
+        public Guid guidItem;
+        public nint hBalloonIcon;
+    }
+
     [LibraryImport("shell32.dll")]
     internal static partial nuint SHAppBarMessage(uint dwMessage, ref APPBARDATA pData);
+
+    [LibraryImport("shell32.dll", EntryPoint = "Shell_NotifyIconW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool ShellNotifyIcon(uint dwMessage, ref NOTIFYICONDATAW lpData);
 
     [LibraryImport("user32.dll", EntryPoint = "RegisterWindowMessageW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
     internal static partial uint RegisterWindowMessage(string lpString);
@@ -75,8 +136,30 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetMonitorInfo(nint hMonitor, ref MONITORINFO lpmi);
 
-    [LibraryImport("kernel32.dll")]
-    internal static partial int MulDiv(int nNumber, int nNumerator, int nDenominator);
+
+    [LibraryImport("user32.dll", EntryPoint = "LoadIconW", SetLastError = true)]
+    internal static partial nint LoadIcon(nint hInstance, nint lpIconName);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    internal static partial nint CreatePopupMenu();
+
+    [LibraryImport("user32.dll", EntryPoint = "AppendMenuW", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool AppendMenu(nint hMenu, uint uFlags, nuint uIDNewItem, string? lpNewItem);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool DestroyMenu(nint hMenu);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    internal static partial uint CheckMenuItem(nint hMenu, uint uIDCheckItem, uint uCheck);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    internal static partial uint TrackPopupMenuEx(nint hMenu, uint uFlags, int x, int y, nint hwnd, nint lptpm);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool GetCursorPos(out POINT lpPoint);
 
     [StructLayout(LayoutKind.Sequential)]
     internal readonly record struct PixelPoint(int X, int Y);

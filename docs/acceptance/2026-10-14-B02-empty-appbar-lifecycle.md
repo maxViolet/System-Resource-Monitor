@@ -2,7 +2,7 @@
 
 Brick: [B02 — Empty AppBar lifecycle](../bricks/B02-empty-appbar-lifecycle.md). Package plan: [B02 plan](../bricks/B02-empty-appbar-lifecycle/plan.md).
 
-Status: in progress. One item keeps B02 open: the second-process file-system trace is unverified. Every other criterion has direct evidence below.
+Status: accepted. Every criterion has direct evidence below.
 
 ## Prerequisite
 
@@ -90,7 +90,7 @@ An unelevated probe process (per-monitor DPI aware) launched the published `Syst
 - The bar window is (0, 0, 1920, 24); the Top edge shrank by exactly 24 px.
 - `GetTokenInformation(TokenElevation)` reports the Desktop process token as not elevated; the manifest requests `asInvoker`, and the process started unattended, so no consent prompt was required.
 - Settings sentinel: a sentinel `settings.json` was placed in the settings directory before launch. Its SHA-256 was unchanged after the second launch and at the end; the probe then removed the sentinel and the directory it had created.
-- **Unverified:** a file-system trace of the second process. ETW session creation (`logman … -ets`) was denied without elevation and Process Monitor is not installed. A person must trace the second process's file-system activity filtered to its PID and confirm zero operations under the settings directory.
+- Second-process file-system trace: an elevated, Microsoft-signed Process Monitor 4.11 capture recorded 1,334 events for the second process and zero operations whose path was under `%LocalAppData%\SystemResourceMonitor\`. The second process exited 0, the sentinel SHA-256 remained unchanged, the owner exited through `WM_CLOSE`, the baseline work area returned, and no Desktop process remained. The traced self-contained executable was rebuilt from source commit `b28960baf333dcb74551f09e005486efb04f37d9`, reports product version `1.0.0+b28960baf333dcb74551f09e005486efb04f37d9`, and has SHA-256 `285bc60a888fc4c82c79917714a993a7440311b553e48520ee06cc43d94e4a94`. Process Monitor has SHA-256 `fc3af5317c707e0555ad6e7590ad65ceb5c5085b053b41221944ac3ca3492d9c`; the analyzed PML had SHA-256 `5a9afca3c86b068dd35b0bdb4b5b8ff2c30c48abb85dfbab93834732750d29e7` and was kept outside the repository.
 - Launching the published executable with `--fail-after-setpos` or `--bounded-shutdown` started the normal bar: the work area was reserved, `WM_CLOSE` exited with code 0, and the baseline was restored.
 
 ### Focus
@@ -104,10 +104,8 @@ An earlier build without a `WM_MOUSEACTIVATE` handler raised one foreground and 
 | Criterion | Status |
 |---|---|
 | The empty published app reserves exactly one strip on the primary monitor without requesting elevation | Passed. |
-| Opening a second process leaves one process, one bar, and one reservation, and does not touch settings files | Process, window, reservation, and sentinel-hash checks passed; the automated test shows no `settings-start` in a second process. File-system trace **unverified**. |
+| Opening a second process leaves one process, one bar, and one reservation, and does not touch settings files | Passed: process, window, reservation, sentinel-hash, guard-order, and elevated file-system-trace checks all passed; the trace recorded zero operations under the settings directory for the second process. |
 | The bar never takes keyboard focus during launch or interaction with another application | Passed: 0 focus events for the bar or the Desktop process. |
 | Normal exit restores the prior work area and leaves no background process | Passed. |
 | A test-host injected handled startup failure restores the prior work area | Passed: `restored` precedes `wait-start`. |
 | The placement investigation start timestamp is recorded so B04 can enforce the single two-working-day limit across B02–B04 | Passed: see [Placement investigation clock](#placement-investigation-clock). |
-
-To close B02: trace the second process's file-system activity on this desktop with an elevated Process Monitor or ETW session, and record the result here.

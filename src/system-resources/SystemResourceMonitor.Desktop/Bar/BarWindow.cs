@@ -4,30 +4,44 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using SystemResourceMonitor.Desktop.Lifecycle;
+using SystemResourceMonitor.Desktop.Settings;
 using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
 
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// The empty, non-activating bar that reserves a Top strip of the primary monitor through the AppBar API.
-/// All members run on the window's owning WPF thread.
+/// The empty, non-activating AppBar. All HWND, tray, placement, and reconciliation members run on its WPF thread.
 /// </summary>
 public sealed class BarWindow : Window, IShutdownBar
 {
     public const int ThicknessDips = 24;
     private const string CallbackMessageName = "SystemResourceMonitor.AppBarCallback";
+    private const string TaskbarCreatedMessageName = "TaskbarCreated";
 
+    private readonly BarEdge _initialEdge;
+    private readonly Action<BarEdge> _edgeApplied;
     private readonly Action _closeRequested;
+    private readonly Action<string>? _record;
     private HwndSourceHook? _hook;
+    private AppBarSession? _appBar;
+    private ITrayIcon? _tray;
+    private ReconciliationCoordinator? _reconciliation;
     private nint _hwnd;
     private uint _callbackMessage;
-    private bool _registered;
+    private uint _taskbarCreatedMessage;
     private bool _finalClose;
+    private bool _shuttingDown;
 
-    /// <param name="closeRequested">Posted when something other than shutdown closes the window.</param>
-    public BarWindow(Action closeRequested)
+    public BarWindow(
+        BarEdge initialEdge,
+        Action<BarEdge> edgeApplied,
+        Action closeRequested,
+        Action<string>? record = null)
     {
+        _initialEdge = initialEdge;
+        _edgeApplied = edgeApplied;
         _closeRequested = closeRequested;
+        _record = record;
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         ShowActivated = false;
@@ -43,60 +57,107 @@ public sealed class BarWindow : Window, IShutdownBar
         Top = 0;
     }
 
-    /// <summary>Bar thickness in physical pixels at the window's DPI, used for negotiation.</summary>
-    public int ThicknessPixels { get; private set; }
+    public int ThicknessPixels => _appBar?.ThicknessPixels ?? 0;
 
-    /// <summary>The rectangle returned by <c>ABM_SETPOS</c> and applied to the window.</summary>
-    public PixelRect ReservedBounds { get; private set; }
+    public PixelRect ReservedBounds => _appBar?.ReservedBounds ?? default;
+
+    public BarEdge AppliedEdge => _appBar?.AppliedEdge ?? _initialEdge;
 
     public nint Handle => _hwnd;
 
-    /// <summary>
-    /// Registers the AppBar, reserves the Top strip, and shows the window without activating it.
-    /// Throws on any native failure; the caller's shutdown path removes a partial registration.
-    /// </summary>
+    /// <summary>Registers and positions the AppBar, then adds and versions the tray icon.</summary>
     public void Start()
     {
         _hwnd = new WindowInteropHelper(this).EnsureHandle();
         AddExtendedStyle(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
 
-        _callbackMessage = RegisterWindowMessage(CallbackMessageName);
-        if (_callbackMessage == 0)
-        {
-            throw new Win32Exception(Marshal.GetLastPInvokeError(), "RegisterWindowMessage failed.");
-        }
-
+        _callbackMessage = RegisterRequiredMessage(CallbackMessageName);
+        _taskbarCreatedMessage = RegisterRequiredMessage(TaskbarCreatedMessageName);
         _hook = OnWindowMessage;
         var source = HwndSource.FromHwnd(_hwnd) ?? throw new InvalidOperationException("The bar has no HwndSource.");
         source.AddHook(_hook);
 
-        var data = NewAppBarData();
-        data.uCallbackMessage = _callbackMessage;
-        if (SHAppBarMessage(ABM_NEW, ref data) == 0)
+        _appBar = new AppBarSession(_hwnd, _callbackMessage, new Win32AppBarNativeApi());
+        _reconciliation = new ReconciliationCoordinator(
+            action => Dispatcher.BeginInvoke(action),
+            Reconcile);
+        _appBar.Register();
+        _appBar.Place(_initialEdge);
+        Show();
+
+        _tray = new NativeTrayIcon(_hwnd, edge => SelectEdge(edge), _closeRequested);
+        _tray.SetAppliedEdge(_initialEdge);
+        _tray.Start();
+    }
+
+    /// <summary>Applies an edge transaction and persists only a successfully applied edge.</summary>
+    public bool SelectEdge(BarEdge edge)
+    {
+        Dispatcher.VerifyAccess();
+        if (_appBar is null || _tray is null)
         {
-            throw new InvalidOperationException("ABM_NEW rejected the bar.");
+            throw new InvalidOperationException("The bar has not started.");
         }
 
-        _registered = true;
-        ReserveTopStrip();
-        Show();
+        if (_appBar.AppliedEdge == edge)
+        {
+            return true;
+        }
+
+        try
+        {
+            _appBar.Place(edge);
+        }
+        catch (Exception exception)
+        {
+            _record?.Invoke($"placement-failed:{exception.GetType().Name}");
+            ReportStatus("The bar could not change position.");
+            return false;
+        }
+
+        try
+        {
+            _tray.SetAppliedEdge(edge);
+        }
+        catch (Exception exception)
+        {
+            _record?.Invoke($"tray-check-failed:{exception.GetType().Name}");
+            ReportStatus("The tray could not update its position check.");
+        }
+
+        _record?.Invoke($"edge-applied:{edge}");
+        _edgeApplied(edge);
+        return true;
+    }
+
+    public void ReportStatus(string message)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            _ = Dispatcher.BeginInvoke(() => ReportStatus(message));
+            return;
+        }
+
+        try
+        {
+            if (_tray?.ShowStatus(message) != true)
+            {
+                _record?.Invoke("status-unavailable");
+            }
+        }
+        catch (Exception exception)
+        {
+            _record?.Invoke($"status-failed:{exception.GetType().Name}");
+        }
     }
 
     public void RemoveAppBar()
     {
-        if (!_registered)
-        {
-            return;
-        }
-
-        var data = NewAppBarData();
-        if (SHAppBarMessage(ABM_REMOVE, ref data) == 0)
-        {
-            throw new InvalidOperationException("ABM_REMOVE failed.");
-        }
-
-        _registered = false;
+        _shuttingDown = true;
+        _appBar?.Remove();
     }
+
+    public void RemoveTrayIcon() => _tray?.Remove();
 
     public void CloseFinal()
     {
@@ -115,53 +176,38 @@ public sealed class BarWindow : Window, IShutdownBar
         base.OnClosing(e);
     }
 
-    private void ReserveTopStrip()
+    private void Reconcile(ReconciliationReason reason)
     {
-        var dpi = GetDpiForWindow(_hwnd);
-        if (dpi == 0)
+        if (_shuttingDown || _appBar is null || _tray is null)
         {
-            throw new InvalidOperationException("GetDpiForWindow failed.");
+            return;
         }
 
-        ThicknessPixels = MulDiv(ThicknessDips, (int)dpi, UserDefaultDpi);
-        if (ThicknessPixels <= 0)
+        if ((reason & ReconciliationReason.ExplorerRestart) != 0)
         {
-            throw new InvalidOperationException($"MulDiv returned {ThicknessPixels} for {dpi} DPI.");
+            var result = ShellRecovery.Recover(_appBar, _tray, AppliedEdge);
+            _record?.Invoke($"recovery-appbar:{(result.AppBarRecovered ? "success" : "failure")}");
+            _record?.Invoke($"recovery-tray:{(result.TrayRecovered ? "success" : "failure")}");
+            // Recreated menu resources initialize their checks from the last applied edge.
+
+            if (!result.Succeeded)
+            {
+                ReportStatus("Shell recovery failed.");
+            }
+
+            return;
         }
 
-        var monitorInfo = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
-        if (!GetMonitorInfo(MonitorFromPoint(new PixelPoint(0, 0), MONITOR_DEFAULTTOPRIMARY), ref monitorInfo))
+        try
         {
-            throw new InvalidOperationException("GetMonitorInfo failed for the primary monitor.");
+            _appBar.Place(AppliedEdge);
+            _record?.Invoke("reconciled");
         }
-
-        var data = NewAppBarData();
-        data.uEdge = ABE_TOP;
-        data.rc = monitorInfo.rcMonitor;
-        if (SHAppBarMessage(ABM_QUERYPOS, ref data) == 0)
+        catch (Exception exception)
         {
-            throw new InvalidOperationException("ABM_QUERYPOS failed.");
+            _record?.Invoke($"reconciliation-failed:{exception.GetType().Name}");
+            ReportStatus("The bar could not reconcile its position.");
         }
-
-        // ABM_QUERYPOS adjusts the edges but does not preserve the requested size.
-        data.rc = data.rc with { Bottom = data.rc.Top + ThicknessPixels };
-        if (SHAppBarMessage(ABM_SETPOS, ref data) == 0)
-        {
-            throw new InvalidOperationException("ABM_SETPOS failed.");
-        }
-
-        var bounds = data.rc;
-        if (bounds.Width <= 0 || bounds.Height <= 0)
-        {
-            throw new InvalidOperationException($"ABM_SETPOS returned an empty rectangle {bounds}.");
-        }
-
-        if (!SetWindowPos(_hwnd, 0, bounds.Left, bounds.Top, bounds.Width, bounds.Height, SWP_NOZORDER | SWP_NOACTIVATE))
-        {
-            throw new Win32Exception(Marshal.GetLastPInvokeError(), "SetWindowPos failed.");
-        }
-
-        ReservedBounds = bounds;
     }
 
     private void AddExtendedStyle(nint flags)
@@ -181,33 +227,46 @@ public sealed class BarWindow : Window, IShutdownBar
 
     private nint OnWindowMessage(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
     {
-        // WS_EX_NOACTIVATE alone still let a click raise foreground and focus events for the bar.
         if (msg == WM_MOUSEACTIVATE)
         {
             handled = true;
             return MA_NOACTIVATE;
         }
 
-        if ((uint)msg == _callbackMessage)
+        try
         {
-            // B02 keeps its fixed strip for every notification; later bricks fill these handlers.
-            switch ((uint)wParam)
+            if (_tray?.HandleWindowMessage(msg, wParam, lParam) == true)
             {
-                case ABN_STATECHANGE:
-                case ABN_POSCHANGED:
-                    // B03 renegotiates the strip.
-                    break;
-                case ABN_FULLSCREENAPP:
-                    // B04 reconciles fullscreen state.
-                    break;
+                handled = true;
+                return 0;
             }
+        }
+        catch (Exception exception)
+        {
+            _record?.Invoke($"tray-action-failed:{exception.GetType().Name}");
+            ReportStatus("The tray action failed.");
+            handled = true;
+            return 0;
+        }
 
+        var reason = _shuttingDown
+            ? ReconciliationReason.None
+            : ShellMessageClassifier.Classify(msg, wParam, _callbackMessage, _taskbarCreatedMessage);
+        _reconciliation?.Request(reason);
+        if ((uint)msg == _taskbarCreatedMessage || (uint)msg == _callbackMessage)
+        {
+            // Fullscreen is intentionally classified as no B03 transition, but the AppBar callback is handled.
             handled = true;
         }
 
         return 0;
     }
 
-    private APPBARDATA NewAppBarData() =>
-        new() { cbSize = (uint)Marshal.SizeOf<APPBARDATA>(), hWnd = _hwnd };
+    private static uint RegisterRequiredMessage(string name)
+    {
+        var message = RegisterWindowMessage(name);
+        return message == 0
+            ? throw new Win32Exception(Marshal.GetLastPInvokeError(), $"RegisterWindowMessage failed for {name}.")
+            : message;
+    }
 }

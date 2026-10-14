@@ -26,7 +26,7 @@ public sealed class ShutdownCoordinatorTests
 
         var completion = _shutdown.ShutdownAsync(ExitCodes.Success);
 
-        Assert.Equal(["cancel", "remove-appbar", "remove", "close-final", "wait-start"], _events);
+        Assert.Equal(["cancel", "remove-appbar", "remove", "remove-tray", "tray-remove", "close-final", "wait-start"], _events);
         Assert.False(completion.IsCompleted);
         Assert.False(_shutdown.TryPublish(() => _events.Add("published")));
     }
@@ -75,7 +75,9 @@ public sealed class ShutdownCoordinatorTests
 
         Assert.Same(first, second);
         Assert.True(first.IsCompleted);
-        Assert.Equal(["cancel", "remove-appbar", "remove", "close-final", "wait-start", "exit", "exited:1"], _events);
+        Assert.Equal(
+            ["cancel", "remove-appbar", "remove", "remove-tray", "tray-remove", "close-final", "wait-start", "exit", "exited:1"],
+            _events);
     }
 
     [Fact]
@@ -100,8 +102,8 @@ public sealed class ShutdownCoordinatorTests
 
         Assert.Equal(
             [
-                "cancel", "shutdown-failed:AggregateException", "remove-appbar", "remove", "close-final", "wait-start",
-                "pending:source", "exit", $"exited:{ExitCodes.Failure}",
+                "cancel", "shutdown-failed:AggregateException", "remove-appbar", "remove", "remove-tray", "tray-remove",
+                "close-final", "wait-start", "pending:source", "exit", $"exited:{ExitCodes.Failure}",
             ],
             _events);
     }
@@ -114,7 +116,10 @@ public sealed class ShutdownCoordinatorTests
         _shutdown.ShutdownAsync(ExitCodes.Success);
 
         Assert.Equal(
-            ["cancel", "remove-appbar", "shutdown-failed:InvalidOperationException", "close-final", "wait-start", "exit", $"exited:{ExitCodes.Failure}"],
+            [
+                "cancel", "remove-appbar", "shutdown-failed:InvalidOperationException", "remove-tray", "tray-remove",
+                "close-final", "wait-start", "exit", $"exited:{ExitCodes.Failure}",
+            ],
             _events);
     }
 
@@ -128,6 +133,8 @@ public sealed class ShutdownCoordinatorTests
                 throw new InvalidOperationException("ABM_REMOVE failed.");
             }
         }
+
+        public void RemoveTrayIcon() => events.Add("remove-tray");
 
         public void CloseFinal() => events.Add("close-final");
     }

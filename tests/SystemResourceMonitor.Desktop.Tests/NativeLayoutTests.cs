@@ -14,5 +14,6 @@ public sealed class NativeLayoutTests
         Assert.Equal(16, Marshal.SizeOf<PixelRect>());
         Assert.Equal(48, Marshal.SizeOf<NativeMethods.APPBARDATA>());
         Assert.Equal(40, Marshal.SizeOf<NativeMethods.MONITORINFO>());
+        Assert.Equal(976, Marshal.SizeOf<NativeMethods.NOTIFYICONDATAW>());
     }
 }
