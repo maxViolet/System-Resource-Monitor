@@ -4,10 +4,17 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- LibraryImport generates blittable marshalling stubs. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SystemResourceMonitor.Core\SystemResourceMonitor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SystemResourceMonitor.Desktop.Tests" />
   </ItemGroup>
 
 </Project>

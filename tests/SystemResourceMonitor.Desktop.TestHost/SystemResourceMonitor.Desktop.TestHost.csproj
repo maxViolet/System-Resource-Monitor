@@ -4,6 +4,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- The bar's DPI awareness comes from the process, so the host uses the production manifest. -->
+    <ApplicationManifest>..\..\src\system-resources\SystemResourceMonitor.Desktop\app.manifest</ApplicationManifest>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\system-resources\SystemResourceMonitor.Desktop\SystemResourceMonitor.Desktop.csproj" />
+  </ItemGroup>
 
 </Project>
