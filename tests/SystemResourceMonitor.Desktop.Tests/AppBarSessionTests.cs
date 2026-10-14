@@ -124,6 +124,31 @@ public sealed class AppBarSessionTests
         Assert.Equal(["abm-remove"], events);
     }
 
+    [Fact]
+    public void Lost_registration_makes_edge_changes_fail_until_re_registration_succeeds()
+    {
+        var events = new List<string>();
+        var native = new FakeNative(events);
+        var appBar = new AppBarSession(123, 456, native);
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
+        native.RejectAllRegistrations = true;
+        Assert.ThrowsAny<Exception>(appBar.RegisterAfterShellRestart);
+        events.Clear();
+
+        Assert.ThrowsAny<Exception>(() => appBar.Place(BarEdge.Bottom));
+        Assert.Equal(BarEdge.Top, appBar.AppliedEdge);
+        Assert.DoesNotContain("abm-setpos", events);
+
+        native.RejectAllRegistrations = false;
+        events.Clear();
+        appBar.Place(BarEdge.Bottom);
+
+        Assert.Equal(BarEdge.Bottom, appBar.AppliedEdge);
+        Assert.Equal(["abm-new", "abm-querypos", "abm-setpos", "setwindowpos"], events);
+    }
+
     [Theory]
     [InlineData(true, true, nameof(ShellRecoveryAction.None))]
     [InlineData(false, true, nameof(ShellRecoveryAction.ReportAppBarFailure))]

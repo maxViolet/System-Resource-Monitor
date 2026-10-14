@@ -87,9 +87,16 @@ On `2769fca`, a probe posted the tray callback (`WM_CONTEXTMENU`, `NOTIFYICON_VE
 
 ### AppBar registration probe
 
-A probe created a hidden window and sent AppBar messages without ever calling `ABM_NEW`. `ABM_QUERYPOS` and `ABM_SETPOS` both returned TRUE, and the work area stayed `(0, 0, 1920, 1168)`. A first `ABM_NEW` returned TRUE, and a second `ABM_NEW` on the registered window returned FALSE. `ABM_REMOVE` returned TRUE, and the final work area equalled the baseline. So placement cannot prove a registration exists, and a spurious `TaskbarCreated` makes `ABM_NEW` fail for a bar that is still registered. ADR 0009's remove-and-re-register step addresses both.
+A probe created a hidden window and sent AppBar messages without ever calling `ABM_NEW`.
 
-Known limitation: if the user selects Top or Bottom while an Explorer restart is deferred behind the open menu, the selection runs on the stale registration first and may report "could not change position". The deferred recovery then re-places the bar at the previously applied edge. The failure is reported, not hidden.
+- `ABM_QUERYPOS` and `ABM_SETPOS` both returned TRUE, and the work area stayed `(0, 0, 1920, 1168)`.
+- A first `ABM_NEW` returned TRUE, and a second `ABM_NEW` on the registered window returned FALSE.
+- A second probe showed that `ABM_REMOVE` returns TRUE in every state: for a window that was never registered, a registered one, and one already removed.
+- The final work area equalled the baseline in both probes.
+
+So placement cannot prove that a registration exists, and a spurious `TaskbarCreated` makes `ABM_NEW` fail for a bar that is still registered. ADR 0009's remove-and-re-register step handles both, and so does the rule that placement after a lost registration retries `ABM_NEW` first. Shutdown's `ABM_REMOVE` cannot fail because a registration was lost.
+
+Known limitation: if the user selects Top or Bottom while a real Explorer restart is deferred behind the open menu, the selection is applied before recovery. Per the probe, it is unreserved until then. The deferred recovery runs as soon as the menu closes and reserves the newly applied edge, so the user's choice is kept.
 
 ## Manual and unavailable desktop gates
 

@@ -7,6 +7,8 @@ Status: accepted, 2026-10-14. Applies to Explorer recovery in the [implementatio
 On `TaskbarCreated`, the bar re-establishes the AppBar first and then the tray icon:
 
 - It calls `ABM_NEW`. A spurious `TaskbarCreated` reaches a bar that Explorer still has registered, and Windows rejects `ABM_NEW` for an already-registered window. On rejection, the bar sends a best-effort `ABM_REMOVE` and calls `ABM_NEW` again. A second rejection is a genuine failure, and the bar does not attempt placement. Placement cannot verify the registration, because `ABM_QUERYPOS` and `ABM_SETPOS` return TRUE for an unregistered window without reserving anything. The bar keeps its responsibility to send `ABM_REMOVE` at shutdown in every case.
+- While the registration is lost, every placement first retries registration. A still-rejected `ABM_NEW` fails the edge change or reconciliation visibly instead of reporting an unreserved bar as placed. `ABM_REMOVE` returns TRUE even for an unregistered window, so the shutdown removal never fails because of a lost registration.
+- Accepted cost: on a spurious `TaskbarCreated`, the remove-and-re-register step releases the strip briefly, so maximized windows may resize and then shrink back. The alternative, inferring registration from `SPI_GETWORKAREA` after placement, adds a work-area heuristic that other AppBars and the taskbar can confound.
 - It recreates the icon. It deletes any icon that survived with `NIM_DELETE`, ignoring the result, and then calls `NIM_ADD` and `NIM_SETVERSION`.
 
 If the AppBar is not recovered but the tray is, the failure is reported through the tray, which keeps Position and Exit available.

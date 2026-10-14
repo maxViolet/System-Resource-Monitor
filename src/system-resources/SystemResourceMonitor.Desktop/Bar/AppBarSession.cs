@@ -26,6 +26,7 @@ internal interface IAppBarNativeApi
 internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNativeApi native)
 {
     private bool _registered;
+    private bool _registrationLost;
     private BarEdge? _appliedEdge;
 
     public BarEdge? AppliedEdge => _appliedEdge;
@@ -45,31 +46,36 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
         _registered = true;
     }
 
-    /// <summary>Explorer discarded its registration; establish it again without sending <c>ABM_REMOVE</c>.</summary>
+    /// <summary>
+    /// Re-establishes the registration after <c>TaskbarCreated</c>, sending <c>ABM_REMOVE</c> only when Explorer
+    /// rejects <c>ABM_NEW</c>. A second rejection marks the registration lost until a later attempt succeeds.
+    /// </summary>
     public void RegisterAfterShellRestart()
     {
         try
         {
-            native.Register(hwnd, callbackMessage);
-        }
-        catch (Exception)
-        {
-            // ABM_NEW is rejected for a window Explorer still has registered (a spurious TaskbarCreated). Placement
-            // cannot tell that apart from a lost registration: ABM_QUERYPOS/ABM_SETPOS return TRUE for unregistered
-            // windows without reserving anything. Start over; a second rejection is a genuine failure.
             try
             {
-                native.Remove(hwnd);
+                native.Register(hwnd, callbackMessage);
             }
             catch (Exception)
             {
-                // Expected after a real Explorer restart, which already dropped the registration.
+                // ABM_NEW is rejected for a window Explorer still has registered (a spurious TaskbarCreated).
+                // Placement cannot tell that apart from a lost registration: ABM_QUERYPOS/ABM_SETPOS return TRUE for
+                // unregistered windows without reserving anything. Start over; a second rejection is a genuine failure.
+                native.Remove(hwnd);
+                native.Register(hwnd, callbackMessage);
             }
-
-            native.Register(hwnd, callbackMessage);
+        }
+        catch (Exception)
+        {
+            _registrationLost = true;
+            throw;
         }
 
-        // When this throws, _registered keeps its value, so shutdown still sends ABM_REMOVE (harmless if unregistered).
+        _registrationLost = false;
+
+        // Shutdown keeps ABM_REMOVE responsibility in every case; Windows returns TRUE even for unregistered windows.
         _registered = true;
     }
 
@@ -78,6 +84,12 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
         if (!_registered)
         {
             throw new InvalidOperationException("The AppBar is not registered.");
+        }
+
+        if (_registrationLost)
+        {
+            // Unregistered placement would "succeed" without reserving anything; retry registration or fail visibly.
+            RegisterAfterShellRestart();
         }
 
         var previous = _appliedEdge;
