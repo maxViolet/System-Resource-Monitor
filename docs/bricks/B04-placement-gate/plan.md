@@ -1,6 +1,6 @@
 # B04 implementation plan for coding agents
 
-Status: planned. This package implements [B04 — Fullscreen reconciliation and placement gate](../B04-placement-gate.md). The [product-plan placement gate](../../plan.md#1-validate-placement-first), [AppBar and shell behaviour](../../implementation-plan.md#appbar-and-shell-behaviour), [first-release desktop gate](../../implementation-plan.md#first-release-acceptance-gates), [ADR 0003](../../adr/0003-keep-appbar-registered-during-fullscreen.md), and [B03 handoff](../B03-shell-position-recovery/plan.md#boundary-for-b04) govern ambiguity. B03 must be accepted before B04 implementation begins.
+Status: planned. This package implements [B04 — Fullscreen reconciliation and placement gate](../B04-placement-gate.md). The [product-plan placement gate](../../plan.md#1-validate-placement-first), [AppBar and shell behaviour](../../implementation-plan.md#appbar-and-shell-behaviour), [first-release desktop gate](../../implementation-plan.md#first-release-acceptance-gates), [ADR 0003](../../adr/0003-keep-appbar-registered-during-fullscreen.md), [ADR 0009](../../adr/0009-exit-when-tray-recovery-fails.md), and [B03 handoff](../B03-shell-position-recovery/plan.md#boundary-for-b04) govern ambiguity. B03 must be accepted before B04 implementation begins.
 
 ## Outcome and handoff
 
@@ -15,11 +15,11 @@ Complete these steps in order. Keep the solution buildable after each implementa
 ### 1. Verify the B03 handoff and shared clock
 
 - Require an accepted B03 report with direct evidence for its tray, edge, Explorer, display/DPI, primary-monitor, auto-hidden taskbar, focus, and stale-reservation checks. Rerun the B02 start/exit and handled-startup-failure checks during B04 rather than inheriting their results.
-- Record the B02 source and acceptance status separately. Its [2026-10-14 report](../../acceptance/2026-10-14-B02-empty-appbar-lifecycle.md) records the shared investigation start at **2026-10-14 12:18 UTC+05:00** and the two-working-day deadline at **2026-10-16 12:18 UTC+05:00**. The report currently leaves the second-process file-system trace unverified; do not treat B02 as accepted until that item closes.
+- Use B02's accepted [2026-10-14 report](../../acceptance/2026-10-14-B02-empty-appbar-lifecycle.md) as the lifecycle baseline. Its second-process file-system trace recorded zero settings-directory operations. The shared investigation started at **2026-10-14 12:18 UTC+05:00** and reaches its two-working-day deadline at **2026-10-16 12:18 UTC+05:00**.
 - Inspect the accepted B03 dispatcher-owned placement/recovery path, its `ABN_FULLSCREENAPP` hook point, normal z-order behavior, AppBar callback lifetime, tray recovery result, and shutdown ownership. Capture the Windows build, display topology, primary monitor, resolution/scale, taskbar state, baseline work areas, and a foreground application used for focus checks. Identify the exact source commit and published/test-host artifacts used for the B04 baseline.
-- At the shared deadline, if a blocking placement failure remains in B02–B04, record it, mark B05 blocked, and request the explicit non-reserving-placement-or-suspension decision. Do not implement a fallback or change ADR 0001 without a new decision. B10 and B11 also remain gated by B04 acceptance.
+- At the shared deadline, if a blocking placement failure remains in B03–B04, record it, mark B05 blocked, and request the explicit non-reserving-placement-or-suspension decision. Do not implement a fallback or change ADR 0001 without a new decision. B10 and B11 also remain gated by B04 acceptance.
 
-**Gate:** B03 is accepted before code work; the B04 report identifies its accepted source/evidence, the unresolved B02 status if any, and the one shared deadline. If the prerequisite is not met, leave B04 unaccepted and record the blocker.
+**Gate:** B03 is accepted before code work; the B04 report identifies the accepted B02 and B03 source/evidence and the one shared deadline. If B03 is not accepted, leave B04 unaccepted and record the blocker.
 
 ### 2. Classify active primary-monitor fullscreen
 
@@ -42,16 +42,17 @@ Complete these steps in order. Keep the solution buildable after each implementa
 
 ### 4. Reconcile after Explorer recovery
 
-- Preserve B03's `TaskbarCreated` sequence on the owning WPF thread: `ABM_NEW`, `ABM_QUERYPOS`/`ABM_SETPOS`, `NIM_ADD`, then `NIM_SETVERSION`. Check each AppBar and tray result separately; a returned window message is not proof of recovery.
-- Once shell resources are restored, inspect the current foreground/primary-monitor state and only then choose the bar's z-order. Recovery during primary-monitor fullscreen ends lowered; recovery after an Alt+Tab ends normal. Keep the periodic check alive after recovery.
-- Do not duplicate tray icons, managed handlers, timers, or AppBar registrations across repeated `TaskbarCreated` messages. A partial native failure stays visible to the lifecycle reporter and remains retryable through the existing B03 path.
+- Preserve B03's `TaskbarCreated` recovery on the owning WPF thread ([ADR 0009](../../adr/0009-exit-when-tray-recovery-fails.md)): call `ABM_NEW`; if it is rejected, send a best-effort `ABM_REMOVE` and retry `ABM_NEW` once. A second rejection is an AppBar failure and must not proceed to placement. After successful registration, run `ABM_QUERYPOS`/`ABM_SETPOS` and apply the rectangle. Delete any surviving tray icon with `NIM_DELETE` (ignore that result), then call `NIM_ADD` and `NIM_SETVERSION`. Check AppBar and tray results separately; a returned window message is not proof of recovery.
+- Only after AppBar and tray recovery succeed, inspect the current foreground/primary-monitor state and choose the bar's z-order. Recovery during primary-monitor fullscreen ends lowered; recovery after an Alt+Tab ends normal. Keep the periodic check alive after recovery.
+- If AppBar recovery fails but the tray is recovered, report the failure through the tray and keep Position and Exit available for retry. If tray recreation fails, enter the shared failure-shutdown path with a failure exit code; that path sends `ABM_REMOVE` and releases the reserved strip. Do not leave a running bar without its tray control surface.
+- Do not duplicate tray icons, managed handlers, timers, or AppBar registrations across repeated `TaskbarCreated` messages. The conditional remove-and-re-register branch belongs only to shell recovery; fullscreen z-order transitions never unregister the AppBar.
 
-**Gate:** ordered tests prove resources are recreated before fullscreen z-order selection, repeated recovery is idempotent, and partial recovery cannot be reported as healthy. A real Explorer restart during fullscreen must separately prove reservation, tray actions, and correct z-order.
+**Gate:** ordered tests prove resources are recreated before fullscreen z-order selection, including the rejected-`ABM_NEW` retry and delete-before-add tray sequence. AppBar failure with a recovered tray remains reported and controllable; tray failure enters shared failure shutdown and restores work area. A real Explorer restart during fullscreen must separately prove reservation, tray actions, and correct z-order.
 
 ### 5. Automate the transition and regression checks
 
 - Add focused Desktop tests around observable state, call order, and timing using controlled foreground/monitor snapshots and time. Assert the 500-ms reconciliation remains active while lowered and restoration is requested on the first observation after Alt+Tab; the one-second desktop threshold still requires real Windows evidence.
-- Cover repeated `ABN_FULLSCREENAPP`, timer/notification bursts, failed and retried z-order changes, Explorer recovery during fullscreen, other-monitor fullscreen, maximized-window exclusion, and a change of primary monitor. Assert no fullscreen path calls `ABM_REMOVE`, `ABM_NEW`, or `ABM_SETPOS` solely because of a z-order transition.
+- Cover repeated `ABN_FULLSCREENAPP`, timer/notification bursts, failed and retried z-order changes, Explorer recovery during fullscreen, other-monitor fullscreen, maximized-window exclusion, and a change of primary monitor. Preserve B03's tests for a rejected `ABM_NEW` and its conditional `ABM_REMOVE`/second `ABM_NEW`, delete-before-add tray recreation, AppBar failure with a working tray, and tray failure causing shared shutdown and work-area restoration. Assert no fullscreen path calls `ABM_REMOVE`, `ABM_NEW`, or `ABM_SETPOS` solely because of a z-order transition.
 - Rerun the focused B02/B03 lifecycle, settings, tray, and placement tests. Use a separate test-host mode only where a real HWND/AppBar is needed; keep any fault injection and probes out of the published app.
 
 **Gate:** focused tests pass with externally visible state/call-order assertions. Native integration and published-app checks remain distinct and unverified until run.
