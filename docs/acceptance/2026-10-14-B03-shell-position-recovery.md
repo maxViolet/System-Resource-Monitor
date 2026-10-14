@@ -18,17 +18,17 @@ Status: in progress. Automated checks and the available single-monitor Windows i
 
 ## Source and artifacts
 
-The implementation is an uncommitted worktree based on commit `417f87571d96b6237735d445f35073356f0cadf6` and tree `26aa9b2d6408302c0920663e0bc8e3a8865b5301`. Because no clean implementation commit exists, the package plan's clean-commit artifact gate remains unverified even though the production assemblies below match between the published folder and test-host folder.
+The implementation was built from clean commit `93e0b1ac8aeb79c6fa050f6ab4711a3bc9590d0f` and tree `8c704d1d19996cb5e854b93c1c9ac9925595cf65`. Restore, build, test, and publish ran with no source edits between them. The production assemblies below match between the published folder and test-host folder.
 
 | Artifact | SHA-256 |
 |---|---|
-| published `SystemResourceMonitor.Desktop.exe` | `fee7d3026f4626321900f5d791f1750e69044402d8881c91a407f79a62f0b1bd` |
-| published `SystemResourceMonitor.Desktop.dll` | `b6bf6bb9cd0ea1046c4c28f34e693f84b85cd833450c3825f2f391a01cc38681` |
-| published `SystemResourceMonitor.Core.dll` | `1b70f8a52a74c702472e275fc594cf1c1727306cced4f90b031d4d21716dc8a` |
-| test-host `SystemResourceMonitor.Desktop.TestHost.exe` | `f9bc43393c60443d6ce47e43d5c55b6d4888c1d3405027c45ef905b219d4fdfd` |
-| test-host `SystemResourceMonitor.Desktop.TestHost.dll` | `aebef929365505099ce23cd335d2af96d1b09a8b850afa0aa3bcd33842faeb08` |
-| test-host `SystemResourceMonitor.Desktop.dll` | `b6bf6bb9cd0ea1046c4c28f34e693f84b85cd833450c3825f2f391a01cc38681` |
-| test-host `SystemResourceMonitor.Core.dll` | `1b70f8a52a74c702472e275fc594cf1c1727306cced4f90b031d4d21716dc8a` |
+| published `SystemResourceMonitor.Desktop.exe` | `dc4635d1ad774744599740070c89e4597687a5eacb3b1b3eb35f4904f08c3fe1` |
+| published `SystemResourceMonitor.Desktop.dll` | `c548ffd7776d29bb7aae044b089e79edaeac6496856a6a5a49d92743c1511066` |
+| published `SystemResourceMonitor.Core.dll` | `67d9023091eaf991d36c07073714801b0a23d0a2c367196c61c47a6ee562bc2b` |
+| test-host `SystemResourceMonitor.Desktop.TestHost.exe` | `06f60d332dcee81ce56a1534ad5a008c72da083a8f3b8d63d17c0324c9789336` |
+| test-host `SystemResourceMonitor.Desktop.TestHost.dll` | `e7fd934281d0d491d8808504924433e691cfdee58e3dd343b9f7fb32f566d6f0` |
+| test-host `SystemResourceMonitor.Desktop.dll` | `c548ffd7776d29bb7aae044b089e79edaeac6496856a6a5a49d92743c1511066` |
+| test-host `SystemResourceMonitor.Core.dll` | `67d9023091eaf991d36c07073714801b0a23d0a2c367196c61c47a6ee562bc2b` |
 
 The self-contained published folder contains 402 files. No file name matches `testhost`, `tests`, `xunit`, `fixture`, or `testing`.
 
@@ -52,8 +52,8 @@ The commands below replace the private absolute path of the locally installed .N
 | `dotnet build SystemResourceMonitor.slnx -c Release --no-restore` | 0 | No warnings or errors. |
 | `dotnet test --project tests/SystemResourceMonitor.Desktop.Tests/SystemResourceMonitor.Desktop.Tests.csproj -c Release --no-build` | 0 | 44/44 passed, including real HWND/AppBar lifecycle modes. |
 | `dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build` | 0 | 52/52 passed across Desktop and Core tests. |
-| `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true --no-restore` | 0 | Self-contained published folder created. |
-| `git diff --check` | 0 | No whitespace errors; line-ending conversion warnings only. |
+| `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` | 0 | Self-contained published folder created. |
+| `git diff --check HEAD^ HEAD` | 0 | No whitespace errors. |
 
 Permanent coverage includes valid/missing/malformed settings, unknown additive properties, invalid edge shapes and values, byte-preserving malformed backup with collision suffix, read/backup/write failures, atomic replacement retaining the last valid file, ordered saves, exact restart-only failure text, Top/Bottom geometry at 100%/150%/200% DPI and negative origins, ten edge changes without re-registration, failed placement rollback, fresh primary geometry, message classification, notification coalescing, Explorer recovery order and partial failures, failed tray version cleanup, idempotent tray deletion, and the B02 shutdown regressions.
 
