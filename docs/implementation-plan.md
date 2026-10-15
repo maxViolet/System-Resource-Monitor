@@ -37,7 +37,7 @@ Neither Core project depends on Desktop. `system-resources/` owns the existing s
 
 Enforce both Core boundaries at build time. Each Core project targets `net10.0`, does not set `UseWPF` or `UseWindowsForms`, and cannot reference Desktop. Add `Microsoft.CodeAnalysis.BannedApiAnalyzers` to both Core projects, include `BannedSymbols.txt` as an `AdditionalFiles` item, and treat `RS0030` as an error. Ban `System.IO.File`, `System.IO.Directory`, `System.Diagnostics.Process`, `Microsoft.Win32.Registry`, `DllImportAttribute`, and `LibraryImportAttribute` by documentation-comment symbol IDs. An architecture test checks project references and the banned-symbol configuration. At slice 0, verify the check with temporary negative probes for each banned family: each must fail Core compilation with `RS0030`; remove the probes before committing. Review new I/O or interop entry points when dependencies change, since the list is a boundary check rather than a proof against every platform API.
 
-`App.xaml.cs` owns the process-lifetime cancellation source, collector tasks, and deterministic shutdown sequence. Do not add Generic Host to the first release; reconsider it only when a concrete hosted-service requirement appears.
+`App.xaml.cs` owns the deterministic shutdown sequence and, through `ShutdownCoordinator`, the process-lifetime cancellation source. `DesktopStartup` starts the collector tasks and tracks each one with `ShutdownCoordinator.TrackOwner`; a faulted collector run enters failure shutdown ([ADR 0011](adr/0011-exit-when-a-collector-run-faults.md)). Do not add Generic Host to the first release; reconsider it only when a concrete hosted-service requirement appears.
 
 ## Initial model and workflows
 
