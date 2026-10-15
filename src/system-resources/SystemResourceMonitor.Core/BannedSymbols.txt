@@ -4,3 +4,15 @@ T:System.Diagnostics.Process;Core starts no processes; process execution belongs
 T:Microsoft.Win32.Registry;Core does not access the registry; registry access belongs to Desktop adapters
 T:System.Runtime.InteropServices.DllImportAttribute;Core has no native interop; Win32 calls belong to Desktop
 T:System.Runtime.InteropServices.LibraryImportAttribute;Core has no native interop; Win32 calls belong to Desktop
+P:System.DateTime.Now;Core reads time only through TimeProvider
+P:System.DateTime.UtcNow;Core reads time only through TimeProvider
+P:System.DateTimeOffset.Now;Core reads time only through TimeProvider
+P:System.DateTimeOffset.UtcNow;Core reads time only through TimeProvider
+P:System.Environment.TickCount;Core measures elapsed time only through TimeProvider
+P:System.Environment.TickCount64;Core measures elapsed time only through TimeProvider
+T:System.Diagnostics.Stopwatch;Core measures elapsed time only through TimeProvider
+T:System.Threading.Timer;Core creates timers only through TimeProvider.CreateTimer
+M:System.Threading.Tasks.Task.Delay(System.Int32);Core delays only through the Task.Delay overloads that take a TimeProvider
+M:System.Threading.Tasks.Task.Delay(System.Int32,System.Threading.CancellationToken);Core delays only through the Task.Delay overloads that take a TimeProvider
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan);Core delays only through the Task.Delay overloads that take a TimeProvider
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan,System.Threading.CancellationToken);Core delays only through the Task.Delay overloads that take a TimeProvider

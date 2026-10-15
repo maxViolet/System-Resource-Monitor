@@ -4,3 +4,15 @@ T:System.Diagnostics.Process;AI Core starts no processes; execution belongs to q
 T:Microsoft.Win32.Registry;AI Core does not access the registry; registry access belongs to qualified AI adapters under ai-resources
 T:System.Runtime.InteropServices.DllImportAttribute;AI Core has no native interop; native calls belong to qualified AI adapters under ai-resources
 T:System.Runtime.InteropServices.LibraryImportAttribute;AI Core has no native interop; native calls belong to qualified AI adapters under ai-resources
+P:System.DateTime.Now;AI Core reads time only through TimeProvider
+P:System.DateTime.UtcNow;AI Core reads time only through TimeProvider
+P:System.DateTimeOffset.Now;AI Core reads time only through TimeProvider
+P:System.DateTimeOffset.UtcNow;AI Core reads time only through TimeProvider
+P:System.Environment.TickCount;AI Core measures elapsed time only through TimeProvider
+P:System.Environment.TickCount64;AI Core measures elapsed time only through TimeProvider
+T:System.Diagnostics.Stopwatch;AI Core measures elapsed time only through TimeProvider
+T:System.Threading.Timer;AI Core creates timers only through TimeProvider.CreateTimer
+M:System.Threading.Tasks.Task.Delay(System.Int32);AI Core delays only through the Task.Delay overloads that take a TimeProvider
+M:System.Threading.Tasks.Task.Delay(System.Int32,System.Threading.CancellationToken);AI Core delays only through the Task.Delay overloads that take a TimeProvider
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan);AI Core delays only through the Task.Delay overloads that take a TimeProvider
+M:System.Threading.Tasks.Task.Delay(System.TimeSpan,System.Threading.CancellationToken);AI Core delays only through the Task.Delay overloads that take a TimeProvider
