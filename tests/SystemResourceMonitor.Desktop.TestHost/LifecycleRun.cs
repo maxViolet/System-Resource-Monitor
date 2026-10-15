@@ -2,6 +2,7 @@ using System.IO;
 
 using System.Diagnostics;
 using System.Windows;
+using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Bar;
 using SystemResourceMonitor.Desktop.Lifecycle;
@@ -18,14 +19,22 @@ internal sealed class LifecycleRun
     private readonly List<(string Marker, TimeSpan At)> _markers = [];
     private readonly List<string> _failures = [];
     private readonly ISettingsStore _settings;
+    private readonly IMetricSource _cpu;
+    private readonly IMetricSource _ram;
 
-    public LifecycleRun(Func<string, ISettingsStore>? settingsFactory = null)
+    /// <param name="settingsFactory">Creates the settings store in the isolated settings directory.</param>
+    /// <param name="sources">Handle-free metric sources; by default, steady scripted CPU and RAM values.</param>
+    public LifecycleRun(Func<string, ISettingsStore>? settingsFactory = null, (IMetricSource Cpu, IMetricSource Ram)? sources = null)
     {
         Baseline = DesktopProbe.WorkArea();
         Info($"baseline-work-area {Baseline}");
         SettingsDirectory = Path.Combine(Path.GetTempPath(), "SystemResourceMonitor.TestHost", Guid.NewGuid().ToString("N"));
         _settings = settingsFactory?.Invoke(SettingsDirectory) ?? new JsonSettingsStore(SettingsDirectory);
+        (_cpu, _ram) = sources ?? (ScriptedSource.Steady(MetricKind.Cpu), ScriptedSource.Steady(MetricKind.Ram));
     }
+
+    /// <summary>Monotonic time of this run, on the same <see cref="Stopwatch"/> clock as <see cref="TimeProvider.System"/>.</summary>
+    public TimeSpan Now => _clock.Elapsed;
 
     public PixelRect Baseline { get; }
 
@@ -38,8 +47,9 @@ internal sealed class LifecycleRun
     public void Run(Action<BarWindow, ShutdownCoordinator>? afterBarPositioned = null)
     {
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        var lifetime = new CancellationTokenSource();
         var shutdown = new ShutdownCoordinator(
-            new CancellationTokenSource(),
+            lifetime,
             TimeProvider.System,
             code =>
             {
@@ -48,8 +58,15 @@ internal sealed class LifecycleRun
             },
             Record);
         Shutdown = shutdown;
+        var monitor = new MetricMonitor(_cpu, _ram, TimeProvider.System);
 
-        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, Record, bar => afterBarPositioned?.Invoke(bar, shutdown)))
+        void Positioned(BarWindow bar)
+        {
+            bar.MetricsShown += _ => Check(MarkerCount("wait-start") == 0, "metrics were shown after shutdown began");
+            afterBarPositioned?.Invoke(bar, shutdown);
+        }
+
+        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, monitor, lifetime.Token, Record, Positioned))
         {
             app.Startup += async (_, _) => await startup.RunAsync();
             app.Run();

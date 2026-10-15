@@ -23,6 +23,7 @@ public sealed class LifecycleProcessTests
     [InlineData("--settings-backup-failure")]
     [InlineData("--settings-write-failure")]
     [InlineData("--shutdown-during-settings-load")]
+    [InlineData("--metric-display")]
     public async Task TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(string mode)
     {
         var cancellation = TestContext.Current.CancellationToken;
@@ -31,6 +32,20 @@ public sealed class LifecycleProcessTests
         var exitCode = await host.WaitForExitAsync(cancellation);
 
         Assert.True(exitCode == TestHostProgram.Success, $"{mode} exited with {exitCode}.\n{host.Describe()}");
+    }
+
+    [Theory(Timeout = TimeoutMilliseconds)]
+    [InlineData("--metric-freshness", "cpu")]
+    [InlineData("--metric-freshness", "ram")]
+    [InlineData("--native-reads", "10")]
+    public async Task TestHost_metric_mode_passes_its_assertions(string mode, string argument)
+    {
+        var cancellation = TestContext.Current.CancellationToken;
+        using var host = ChildProcess.Start(TestHostExe, mode, argument);
+
+        var exitCode = await host.WaitForExitAsync(cancellation);
+
+        Assert.True(exitCode == TestHostProgram.Success, $"{mode} {argument} exited with {exitCode}.\n{host.Describe()}");
     }
 
     [Fact(Timeout = TimeoutMilliseconds)]

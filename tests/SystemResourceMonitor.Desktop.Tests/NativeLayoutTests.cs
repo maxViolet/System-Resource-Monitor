@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using SystemResourceMonitor.Desktop.Adapters.Metrics;
 using SystemResourceMonitor.Desktop.Bar;
 
 namespace SystemResourceMonitor.Desktop.Tests;
@@ -15,5 +16,7 @@ public sealed class NativeLayoutTests
         Assert.Equal(48, Marshal.SizeOf<NativeMethods.APPBARDATA>());
         Assert.Equal(40, Marshal.SizeOf<NativeMethods.MONITORINFO>());
         Assert.Equal(976, Marshal.SizeOf<NativeMethods.NOTIFYICONDATAW>());
+        Assert.Equal(8, Marshal.SizeOf<MetricNativeMethods.FILETIME>());
+        Assert.Equal(64, Marshal.SizeOf<MetricNativeMethods.MEMORYSTATUSEX>());
     }
 }

@@ -1,9 +1,12 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Globalization;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using System.Windows.Media;
+using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Lifecycle;
 using SystemResourceMonitor.Desktop.Settings;
 using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
@@ -11,14 +14,19 @@ using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// The empty, non-activating AppBar. All HWND, tray, placement, and reconciliation members run on its WPF thread.
+/// The non-activating AppBar with fixed-width CPU and RAM sections. All HWND, tray, placement, and reconciliation members run on its WPF thread.
 /// </summary>
 public sealed class BarWindow : Window, IShutdownBar
 {
     public const int ThicknessDips = 24;
     private const string CallbackMessageName = "SystemResourceMonitor.AppBarCallback";
     private const string TaskbarCreatedMessageName = "TaskbarCreated";
+    private const double SectionFontSize = 12;
+    private const double SectionGapDips = 8;
     private static readonly TimeSpan FullscreenPollInterval = TimeSpan.FromMilliseconds(500);
+    private static readonly FontFamily SectionFont = new("Segoe UI");
+    private static readonly Typeface SectionTypeface = new(SectionFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
+    private static readonly Brush SectionForeground = Frozen(new SolidColorBrush(Color.FromRgb(0xE6, 0xE6, 0xE6)));
 
     private readonly BarEdge _initialEdge;
     private readonly Action<BarEdge> _edgeApplied;
@@ -38,6 +46,8 @@ public sealed class BarWindow : Window, IShutdownBar
     private bool _finalClose;
     private bool _shuttingDown;
     private MenuReconciliationDeferral? _menuDeferral;
+    private readonly TextBlock _cpuSection = CreateSection();
+    private readonly TextBlock _ramSection = CreateSection();
 
     public BarWindow(
         BarEdge initialEdge,
@@ -59,6 +69,14 @@ public sealed class BarWindow : Window, IShutdownBar
         Topmost = true;
         Focusable = false;
         Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E));
+        UseLayoutRounding = true;
+        Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Children = { _cpuSection, _ramSection },
+        };
+        ShowMetrics(DashboardState.Initial);
 
         // Create the handle on the primary monitor, which always contains (0, 0).
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -74,11 +92,21 @@ public sealed class BarWindow : Window, IShutdownBar
 
     public nint Handle => _hwnd;
 
+    /// <summary>The CPU section, for test-host layout probes.</summary>
+    internal TextBlock CpuSection => _cpuSection;
+
+    /// <summary>The RAM section, for test-host layout probes.</summary>
+    internal TextBlock RamSection => _ramSection;
+
+    /// <summary>Raised on the bar's thread after <see cref="ShowMetrics"/> updates the sections.</summary>
+    internal event Action<DashboardState>? MetricsShown;
+
     /// <summary>Registers and positions the AppBar, then adds and versions the tray icon.</summary>
     public void Start()
     {
         _hwnd = new WindowInteropHelper(this).EnsureHandle();
         AddExtendedStyle(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+        FixSectionWidths(VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
         _callbackMessage = RegisterRequiredMessage(CallbackMessageName);
         _taskbarCreatedMessage = RegisterRequiredMessage(TaskbarCreatedMessageName);
@@ -173,6 +201,22 @@ public sealed class BarWindow : Window, IShutdownBar
         return true;
     }
 
+    /// <summary>Updates section text and tooltips only; section widths never depend on the text.</summary>
+    public void ShowMetrics(DashboardState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        Dispatcher.VerifyAccess();
+        Show(_cpuSection, MetricSectionFormat.Format(state.Cpu));
+        Show(_ramSection, MetricSectionFormat.Format(state.Ram));
+        MetricsShown?.Invoke(state);
+
+        static void Show(TextBlock section, MetricSection content)
+        {
+            section.Text = content.Text;
+            section.ToolTip = content.ToolTip;
+        }
+    }
+
     public void ReportStatus(string message)
     {
         if (!Dispatcher.CheckAccess())
@@ -218,6 +262,53 @@ public sealed class BarWindow : Window, IShutdownBar
         }
 
         base.OnClosing(e);
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        FixSectionWidths(newDpi.PixelsPerDip);
+    }
+
+    private static TextBlock CreateSection() => new()
+    {
+        FontFamily = SectionFont,
+        FontSize = SectionFontSize,
+        Foreground = SectionForeground,
+        // Transparent, not null, so hovering anywhere in the fixed-width section shows its tooltip.
+        Background = Brushes.Transparent,
+        Margin = new Thickness(SectionGapDips, 0, 0, 0),
+        VerticalAlignment = VerticalAlignment.Center,
+        TextAlignment = TextAlignment.Left,
+        TextTrimming = TextTrimming.None,
+        TextWrapping = TextWrapping.NoWrap,
+        Focusable = false,
+    };
+
+    /// <summary>Fixes each section to the widest text it can show, rounded up to whole device pixels.</summary>
+    private void FixSectionWidths(double pixelsPerDip)
+    {
+        _cpuSection.Width = WidestCandidate(MetricKind.Cpu, pixelsPerDip);
+        _ramSection.Width = WidestCandidate(MetricKind.Ram, pixelsPerDip);
+    }
+
+    private static double WidestCandidate(MetricKind kind, double pixelsPerDip)
+    {
+        var widest = MetricSectionFormat.WidthCandidates(kind).Max(text => new FormattedText(
+            text,
+            CultureInfo.InvariantCulture,
+            FlowDirection.LeftToRight,
+            SectionTypeface,
+            SectionFontSize,
+            SectionForeground,
+            pixelsPerDip).WidthIncludingTrailingWhitespace);
+        return Math.Ceiling(widest * pixelsPerDip) / pixelsPerDip;
+    }
+
+    private static Brush Frozen(Brush brush)
+    {
+        brush.Freeze();
+        return brush;
     }
 
     private void Reconcile(ReconciliationReason reason)

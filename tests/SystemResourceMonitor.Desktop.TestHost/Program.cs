@@ -15,13 +15,13 @@ namespace SystemResourceMonitor.Desktop.TestHost;
 /// Entry point of the test host. Fault modes compose the production lifecycle with a real AppBar; the published
 /// Desktop app has none of them.
 /// </summary>
-public static class Program
+public static partial class Program
 {
     public const int Success = 0;
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram] | --metric-display [seconds] | --native-reads <seconds>";
 
     [STAThread]
     public static int Main(string[] args)
@@ -49,6 +49,16 @@ public static class Program
                 return SettingsFailure(SettingsFault.Write);
             case ["--shutdown-during-settings-load"]:
                 return ShutdownDuringSettingsLoad();
+            case ["--metric-freshness"] or ["--metric-freshness", "cpu"]:
+                return MetricFreshness(Core.Metrics.MetricKind.Cpu);
+            case ["--metric-freshness", "ram"]:
+                return MetricFreshness(Core.Metrics.MetricKind.Ram);
+            case ["--metric-display"]:
+                return MetricDisplay(TimeSpan.Zero);
+            case ["--metric-display", var seconds] when TryParseSeconds(seconds, out var hold):
+                return MetricDisplay(hold);
+            case ["--native-reads", var seconds] when TryParseSeconds(seconds, out var duration):
+                return NativeReads(duration);
             default:
                 Console.Error.WriteLine(Usage);
                 return InvalidInvocation;
