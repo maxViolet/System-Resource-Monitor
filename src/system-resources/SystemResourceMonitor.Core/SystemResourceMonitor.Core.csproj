@@ -11,4 +11,9 @@
     <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- State tests apply readings to MetricMonitor directly, without the polling loops. -->
+    <InternalsVisibleTo Include="SystemResourceMonitor.Core.Tests" />
+  </ItemGroup>
+
 </Project>

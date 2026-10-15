@@ -26,6 +26,18 @@ public sealed class ArchitectureTests
         "T:Microsoft.Win32.Registry",
         "T:System.Runtime.InteropServices.DllImportAttribute",
         "T:System.Runtime.InteropServices.LibraryImportAttribute",
+        "P:System.DateTime.Now",
+        "P:System.DateTime.UtcNow",
+        "P:System.DateTimeOffset.Now",
+        "P:System.DateTimeOffset.UtcNow",
+        "P:System.Environment.TickCount",
+        "P:System.Environment.TickCount64",
+        "T:System.Diagnostics.Stopwatch",
+        "T:System.Threading.Timer",
+        "M:System.Threading.Tasks.Task.Delay(System.Int32)",
+        "M:System.Threading.Tasks.Task.Delay(System.Int32,System.Threading.CancellationToken)",
+        "M:System.Threading.Tasks.Task.Delay(System.TimeSpan)",
+        "M:System.Threading.Tasks.Task.Delay(System.TimeSpan,System.Threading.CancellationToken)",
     ];
 
     private static readonly string[] EvaluatedProperties =
