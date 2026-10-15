@@ -8,6 +8,30 @@ Glossary for an application that shows the computer's state and the remaining li
 The application's persistent strip on the primary monitor, separate from the Windows taskbar.
 _Avoid_: taskbar widget, taskbar
 
+**Task**:
+An open top-level window that Windows shows as a button on the Windows taskbar.
+_Avoid_: process, application, when meaning one window
+
+**Task button**:
+The bar's control for one task: its icon, trimmed title, and active or flashing state.
+_Avoid_: taskbar button, when meaning the bar's control
+
+**Task strip**:
+The centre part of the bar that holds the task buttons of all tasks on every monitor.
+_Avoid_: taskbar
+
+**Overflow menu**:
+The `»` menu at the end of the task strip that lists the tasks whose task buttons do not fit.
+_Avoid_: hidden tasks
+
+**Clock**:
+The current local time on the right of the bar, in the Windows regional short time format.
+_Avoid_: system clock, when meaning the bar's clock
+
+**Shell indicator**:
+The bar's own volume, network, or battery indicator, shown between the tray and the clock.
+_Avoid_: tray icon, when meaning the bar's own indicator
+
 **System metric**:
 A measured value of CPU, RAM or GPU state together with its measurement time.
 _Avoid_: resource

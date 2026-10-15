@@ -16,7 +16,7 @@ A brick can complete with a documented rejection only when its acceptance criter
 
 ## Stages
 
-Every stage ends in an observable result. Stages 3–4 are independent tracks after the first personal release and may proceed in any order. Stage 5 starts only after B08 and B09 finish.
+Every stage ends in an observable result. Stages 3–4 are independent tracks after the first personal release and may proceed in any order. Stage 5 starts only after B08 and B09 finish. Stage 7 starts after the first personal release; stage 8 starts only after B17 finishes.
 
 | Stage | Observable result |
 |---|---|
@@ -27,6 +27,8 @@ Every stage ends in an observable result. Stages 3–4 are independent tracks af
 | 4. Installation track | Per-user install, optional autostart, upgrade, and uninstall work without elevating the bar. |
 | 5. Temperature track | A safe source is either accepted and exposed as temperature readings, or rejected with evidence; the bar remains unelevated. |
 | 6. Public distribution | A clean-profile package passes the public-release checks and has authenticated payload provenance. |
+| 7. Task strip | The bar shows a task button for each task on every monitor and a clock, while the Windows taskbar stays reachable. |
+| 8. Taskbar replacement | The bar shows every tray icon and its own volume, network, and battery indicators; the Windows taskbar is hidden while the bar runs and restored on every handled exit, or the feasibility gate rejects the phase. |
 
 B01–B07 and B10–B13 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B10, B11) starts after B04 and runs in parallel with B05–B06. B07 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B07. Failure of B04 blocks B05–B07 and B10–B13 pending an explicit placement decision. B08, B09, B14, and B15 never retroactively block an accepted B07 release.
 
@@ -57,8 +59,12 @@ B01–B07 and B10–B13 produce the first personal release ([ADR 0004](../adr/00
 | B15 | [Temperature readings](B15-temperatures/README.md) | Core + Desktop | B14 accepted |
 | **Stage 6 — Public distribution** ||||
 | B16 | [Authenticated public package](B16-public-distribution/README.md) | Release | B07; every feature included in the package |
+| **Stage 7 — Task strip** ||||
+| B17 | [Task strip and clock](B17-task-strip/README.md) | Desktop | B07 |
+| **Stage 8 — Taskbar replacement** ||||
+| B18 | [Own tray, shell indicators, and hidden Windows taskbar](B18-taskbar-replacement/README.md) | Desktop + acceptance | B17 |
 
-`Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B10, B11, or B14 closes that track; B12, B13, or B15 respectively becomes `not applicable`.
+`Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B10, B11, B14, or B18 closes that track; B12, B13, or B15 respectively becomes `not applicable`.
 
 ## Dependency graph
 
@@ -91,6 +97,11 @@ graph LR
   B08 -. if included .-> B16
   B09 -. if included .-> B16
   B15 -. if included .-> B16
+
+  B07 --> B17[B17 task strip]
+  B17 --> B18[B18 taskbar replacement]
+  B17 -. if included .-> B16
+  B18 -. if included .-> B16
 ```
 
 ## Progress
@@ -100,7 +111,7 @@ Update this table when evidence changes a brick's state. Valid states are `plann
 | Brick | Status |
 |---|---|
 | B01 | in progress |
-| B02–B16 | planned |
+| B02–B18 | planned |
 
 ## Brick template
 

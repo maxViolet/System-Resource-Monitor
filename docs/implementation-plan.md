@@ -112,6 +112,7 @@ These slices may proceed in any order after the first release and do not retroac
 - **GPU:** implement adapter selection/correlation and reused PDH queries; use the product-plan GPU acceptance, with unavailable rather than guessed correlation.
 - **Installation/autostart:** implement the product-plan installation and autostart controls independently of GPU. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
 - **Temperatures:** research source/license/driver/Defender behaviour last; never elevate the bar. No acceptable source means no temperatures.
+- **Task strip and taskbar replacement:** follow the product-plan phases, [ADR 0008](adr/0008-replace-taskbar-buttons-in-phases.md), and [ADR 0009](adr/0009-managedshell-for-tasks-and-tray.md). ManagedShell is the only interop dependency besides direct Win32 calls, is referenced only by Desktop, and never registers an AppBar or changes the work area; the bar's own AppBar, fullscreen, and shell-recovery code stay in force. Phase B hides the Windows taskbar only while the bar's tray works and restores it on the handled exit paths in [Settings and lifecycle](#settings-and-lifecycle); abrupt termination is not covered by `finally`, so B18 records and proves a recovery for it. Shell indicators use only the documented APIs in [ADR 0010](adr/0010-own-shell-indicators.md).
 
 Later feature acceptance reruns affected first-release gates, including resource budgets with the enabled feature configuration.
 
@@ -183,4 +184,4 @@ The first personal release may remain unsigned. Do not distribute a build public
 
 ## Out of scope
 
-Multiple bars/non-primary placement, graphs/history/alerts, customizable refresh/fonts/size, browser automation/cookies, undocumented provider endpoints, credential storage, billing balances, interactive sign-in, automatic updates, MSIX/MSI, Authenticode signing for the personal release, localization, telemetry, privileged helpers, and platforms other than Windows 11 x64. Authenticated provenance is required before public distribution as specified above.
+Multiple bars/non-primary placement, task grouping/pinned applications/thumbnails/jump lists/taskbar progress and overlay icons, replacing Explorer as the shell, graphs/history/alerts, customizable refresh/fonts/size, browser automation/cookies, undocumented provider endpoints, credential storage, billing balances, interactive sign-in, automatic updates, MSIX/MSI, Authenticode signing for the personal release, localization, telemetry, privileged helpers, and platforms other than Windows 11 x64. Authenticated provenance is required before public distribution as specified above.
