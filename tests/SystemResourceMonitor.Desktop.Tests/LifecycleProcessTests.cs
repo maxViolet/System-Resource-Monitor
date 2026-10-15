@@ -18,6 +18,7 @@ public sealed class LifecycleProcessTests
     [InlineData("--fail-after-setpos")]
     [InlineData("--bounded-shutdown")]
     [InlineData("--edge-switches")]
+    [InlineData("--fullscreen-reconciliation")]
     [InlineData("--settings-read-failure")]
     [InlineData("--settings-backup-failure")]
     [InlineData("--settings-write-failure")]

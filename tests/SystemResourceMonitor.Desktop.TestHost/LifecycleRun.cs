@@ -76,6 +76,8 @@ internal sealed class LifecycleRun
         }
     }
 
+    public int MarkerCount(string marker) => _markers.Count(recorded => recorded.Marker == marker);
+
     public static void Info(string line) => Console.WriteLine($"info: {line}");
 
     public void CheckPositionedBar(BarWindow bar)

@@ -1,4 +1,9 @@
 using System.IO;
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Interop;
+
+using SystemResourceMonitor.Desktop.Bar;
 
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Lifecycle;
@@ -16,7 +21,7 @@ public static class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load";
 
     [STAThread]
     public static int Main(string[] args)
@@ -34,6 +39,8 @@ public static class Program
                 return HoldBar();
             case ["--edge-switches"]:
                 return EdgeSwitches();
+            case ["--fullscreen-reconciliation"]:
+                return FullscreenReconciliation();
             case ["--settings-read-failure"]:
                 return SettingsFailure(SettingsFault.Read);
             case ["--settings-backup-failure"]:
@@ -114,6 +121,154 @@ public static class Program
             "pending:late-source",
             "exit");
         return run.Finish();
+    }
+
+    private static int FullscreenReconciliation()
+    {
+        var run = new LifecycleRun();
+        run.Run((bar, shutdown) =>
+        {
+            run.CheckPositionedBar(bar);
+            _ = ExerciseAsync();
+
+            async Task ExerciseAsync()
+            {
+                Window? controlled = null;
+                Window? normal = null;
+                Window? maximized = null;
+                try
+                {
+                    var reservedWorkArea = DesktopProbe.WorkArea();
+                    var reservedBounds = bar.ReservedBounds;
+                    var monitorBounds = DesktopProbe.MonitorBounds(bar.Handle);
+                    controlled = new Window
+                    {
+                        WindowStyle = WindowStyle.None,
+                        ResizeMode = ResizeMode.NoResize,
+                        ShowInTaskbar = false,
+                        ShowActivated = true,
+                    };
+                    var controlledHandle = new WindowInteropHelper(controlled).EnsureHandle();
+                    controlled.Show();
+
+                    var lowering = Stopwatch.StartNew();
+                    run.Check(
+                        DesktopProbe.SetForegroundBounds(controlledHandle, monitorBounds),
+                        "the controlled fullscreen window could not become foreground");
+                    run.Check(
+                        await WaitForMarkerAsync(run, "zorder:Lowered", expectedCount: 1, TimeSpan.FromSeconds(1)),
+                        "the bar did not lower within one second");
+                    LifecycleRun.Info($"lower-ms {lowering.Elapsed.TotalMilliseconds:F0}");
+                    run.Check(DesktopProbe.WorkArea() == reservedWorkArea, "fullscreen changed the reserved work area");
+                    run.Check(DesktopProbe.WindowRect(bar.Handle) == reservedBounds, "lowering moved or resized the bar");
+                    run.Check(DesktopProbe.ForegroundWindow() == controlledHandle, "lowering stole foreground focus");
+                    run.Check(
+                        (DesktopProbe.ExtendedStyle(bar.Handle) & DesktopProbe.WS_EX_TOPMOST) == 0,
+                        "the lowered bar remained topmost");
+
+                    var normalBounds = new PixelRect(
+                        monitorBounds.Left + 200,
+                        monitorBounds.Top + 150,
+                        monitorBounds.Right - 200,
+                        monitorBounds.Bottom - 150);
+                    normal = new Window
+                    {
+                        WindowStyle = WindowStyle.SingleBorderWindow,
+                        ResizeMode = ResizeMode.CanResize,
+                        ShowInTaskbar = false,
+                        ShowActivated = true,
+                    };
+                    var normalHandle = new WindowInteropHelper(normal).EnsureHandle();
+                    normal.Show();
+                    var restoring = Stopwatch.StartNew();
+                    run.Check(
+                        DesktopProbe.SetForegroundBounds(normalHandle, normalBounds),
+                        "the separate normal window could not become foreground");
+                    run.Check(
+                        await WaitForMarkerAsync(run, "zorder:Normal", expectedCount: 1, TimeSpan.FromSeconds(1)),
+                        "the bar did not restore within one second after switching to a normal window");
+                    LifecycleRun.Info($"restore-ms {restoring.Elapsed.TotalMilliseconds:F0}");
+                    run.Check(DesktopProbe.WindowRect(controlledHandle) == monitorBounds, "the fullscreen window changed bounds during the switch");
+                    run.Check(DesktopProbe.ForegroundWindow() == normalHandle, "restoration stole foreground focus");
+                    run.Check(
+                        (DesktopProbe.ExtendedStyle(bar.Handle) & DesktopProbe.WS_EX_TOPMOST) != 0,
+                        "the restored bar did not regain topmost z-order");
+
+                    run.Check(
+                        DesktopProbe.SetForegroundBounds(controlledHandle, monitorBounds),
+                        "the still-alive fullscreen window could not become foreground again");
+                    run.Check(
+                        await WaitForMarkerAsync(run, "zorder:Lowered", expectedCount: 2, TimeSpan.FromSeconds(1)),
+                        "the bar did not lower again when returning to fullscreen");
+                    run.Check(DesktopProbe.ForegroundWindow() == controlledHandle, "returning to fullscreen lost foreground focus");
+
+                    run.Check(
+                        DesktopProbe.SetForegroundBounds(normalHandle, normalBounds),
+                        "the normal window could not become foreground after returning from fullscreen");
+                    run.Check(
+                        await WaitForMarkerAsync(run, "zorder:Normal", expectedCount: 2, TimeSpan.FromSeconds(1)),
+                        "the bar did not restore after the second fullscreen departure");
+                    run.Check(DesktopProbe.WorkArea() == reservedWorkArea, "fullscreen cycles changed the reserved work area");
+                    run.Check(DesktopProbe.WindowRect(bar.Handle) == reservedBounds, "fullscreen cycles moved or resized the bar");
+
+                    controlled.Close();
+                    controlled = null;
+                    normal.Close();
+                    normal = null;
+                    var loweredCount = run.MarkerCount("zorder:Lowered");
+                    var indeterminateCount = run.MarkerCount("fullscreen-indeterminate");
+                    maximized = new Window
+                    {
+                        WindowStyle = WindowStyle.SingleBorderWindow,
+                        ResizeMode = ResizeMode.CanResize,
+                        ShowInTaskbar = false,
+                        ShowActivated = true,
+                    };
+                    var maximizedHandle = new WindowInteropHelper(maximized).EnsureHandle();
+                    maximized.Show();
+                    maximized.WindowState = WindowState.Maximized;
+                    await Task.Delay(TimeSpan.FromMilliseconds(50));
+                    run.Check(
+                        DesktopProbe.SetForegroundBounds(maximizedHandle, DesktopProbe.WindowRect(maximizedHandle)),
+                        "the maximized window could not become foreground");
+                    await Task.Delay(TimeSpan.FromMilliseconds(750));
+                    run.Check(run.MarkerCount("zorder:Lowered") == loweredCount, "an ordinary maximized window lowered the bar");
+                    run.Check(
+                        run.MarkerCount("fullscreen-indeterminate") == indeterminateCount,
+                        "the maximized negative case produced only indeterminate observations");
+                    run.Check(DesktopProbe.WorkArea() == reservedWorkArea, "the maximized negative case changed the reservation");
+                }
+                catch (Exception exception)
+                {
+                    run.Check(false, $"fullscreen reconciliation probe failed with {exception.GetType().Name}");
+                }
+                finally
+                {
+                    maximized?.Close();
+                    normal?.Close();
+                    controlled?.Close();
+                    run.Check(DesktopProbe.RequestClose(bar.Handle), "WM_CLOSE was not processed after fullscreen reconciliation");
+                }
+            }
+        });
+
+        run.CheckOrder("bar-positioned", "zorder:Lowered", "zorder:Normal", "remove", "restored");
+        return run.Finish();
+    }
+
+    private static async Task<bool> WaitForMarkerAsync(
+        LifecycleRun run,
+        string marker,
+        int expectedCount,
+        TimeSpan timeout)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (run.MarkerCount(marker) < expectedCount && elapsed.Elapsed < timeout)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20));
+        }
+
+        return run.MarkerCount(marker) >= expectedCount;
     }
     private static int EdgeSwitches()
     {

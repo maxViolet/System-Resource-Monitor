@@ -184,6 +184,114 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
+    public void Explorer_recovery_finishes_AppBar_and_tray_before_selecting_fullscreen_z_order()
+    {
+        var events = new List<string>();
+        var native = new FakeNative(events);
+        var appBar = new AppBarSession(123, 456, native);
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
+        events.Clear();
+        var fullscreen = new FullscreenReconciler(
+            123,
+            new RecordingFullscreenReader(events, FullscreenObservation.Fullscreen),
+            new RecordingZOrderNative(events));
+        var controller = new BarReconciliationController(
+            appBar,
+            new FakeTray(events),
+            fullscreen,
+            () => events.Add("shutdown"),
+            message => events.Add($"status:{message}"),
+            record: null);
+
+        controller.Reconcile(ReconciliationReason.ExplorerRestart, BarEdge.Top);
+
+        Assert.Equal(
+            [
+                "abm-new",
+                "abm-querypos",
+                "abm-setpos",
+                "setwindowpos",
+                "nim-add",
+                "nim-setversion",
+                "snapshot",
+                "zorder:Lowered",
+            ],
+            events);
+    }
+
+    [Fact]
+    public void Failed_AppBar_recovery_blocks_fullscreen_until_a_placement_re_registers()
+    {
+        var events = new List<string>();
+        var native = new FakeNative(events);
+        var appBar = new AppBarSession(123, 456, native);
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
+        native.RejectAllRegistrations = true;
+        events.Clear();
+        var fullscreen = new FullscreenReconciler(
+            123,
+            new RecordingFullscreenReader(events, FullscreenObservation.Fullscreen),
+            new RecordingZOrderNative(events));
+        var controller = new BarReconciliationController(
+            appBar,
+            new FakeTray(events),
+            fullscreen,
+            () => events.Add("shutdown"),
+            message => events.Add($"status:{message}"),
+            record: null);
+
+        controller.Reconcile(ReconciliationReason.ExplorerRestart, BarEdge.Top);
+        controller.Reconcile(ReconciliationReason.Fullscreen, BarEdge.Top);
+        controller.Reconcile(ReconciliationReason.Fullscreen, BarEdge.Top);
+
+        Assert.False(controller.IsAppBarReady);
+        Assert.DoesNotContain("snapshot", events);
+        Assert.DoesNotContain(events, item => item.StartsWith("zorder:", StringComparison.Ordinal));
+
+        native.RejectAllRegistrations = false;
+        events.Clear();
+        controller.Reconcile(ReconciliationReason.Placement | ReconciliationReason.Fullscreen, BarEdge.Top);
+
+        Assert.True(controller.IsAppBarReady);
+        Assert.Equal(
+            ["abm-new", "abm-querypos", "abm-setpos", "setwindowpos", "snapshot", "zorder:Lowered"],
+            events);
+    }
+
+    [Fact]
+    public void Failed_tray_recovery_requests_shutdown_without_selecting_z_order()
+    {
+        var events = new List<string>();
+        var native = new FakeNative(events);
+        var appBar = new AppBarSession(123, 456, native);
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        native.ExplorerRestarted();
+        events.Clear();
+        var fullscreen = new FullscreenReconciler(
+            123,
+            new RecordingFullscreenReader(events, FullscreenObservation.Fullscreen),
+            new RecordingZOrderNative(events));
+        var controller = new BarReconciliationController(
+            appBar,
+            new FakeTray(events) { FailRecreate = true },
+            fullscreen,
+            () => events.Add("shutdown"),
+            message => events.Add($"status:{message}"),
+            record: null);
+
+        controller.Reconcile(ReconciliationReason.ExplorerRestart, BarEdge.Top);
+
+        Assert.Contains("shutdown", events);
+        Assert.DoesNotContain("snapshot", events);
+        Assert.DoesNotContain(events, item => item.StartsWith("zorder:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Placement_reads_fresh_primary_monitor_geometry_and_DPI_each_time()
     {
         var native = new FakeNative();
@@ -200,7 +308,7 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
-    public void Shell_messages_route_display_DPI_AppBar_and_Explorer_without_a_fullscreen_transition()
+    public void Shell_messages_route_display_DPI_AppBar_Explorer_and_fullscreen_triggers()
     {
         const uint appBarCallback = 0xC123;
         const uint taskbarCreated = 0xC124;
@@ -209,7 +317,7 @@ public sealed class AppBarSessionTests
         Assert.Equal(ReconciliationReason.Placement, ShellMessageClassifier.Classify((int)appBarCallback, (nint)NativeMethods.ABN_POSCHANGED, appBarCallback, taskbarCreated));
         Assert.Equal(ReconciliationReason.Placement, ShellMessageClassifier.Classify((int)appBarCallback, (nint)NativeMethods.ABN_STATECHANGE, appBarCallback, taskbarCreated));
         Assert.Equal(ReconciliationReason.ExplorerRestart, ShellMessageClassifier.Classify((int)taskbarCreated, 0, appBarCallback, taskbarCreated));
-        Assert.Equal(ReconciliationReason.None, ShellMessageClassifier.Classify((int)appBarCallback, (nint)NativeMethods.ABN_FULLSCREENAPP, appBarCallback, taskbarCreated));
+        Assert.Equal(ReconciliationReason.Fullscreen, ShellMessageClassifier.Classify((int)appBarCallback, (nint)NativeMethods.ABN_FULLSCREENAPP, appBarCallback, taskbarCreated));
     }
 
     [Fact]
@@ -225,17 +333,25 @@ public sealed class AppBarSessionTests
             {
                 coordinator!.Request(ReconciliationReason.Placement);
                 coordinator.Request(ReconciliationReason.ExplorerRestart);
+                coordinator.Request(ReconciliationReason.Fullscreen);
             }
         });
 
         coordinator.Request(ReconciliationReason.Placement);
         coordinator.Request(ReconciliationReason.Placement);
+        coordinator.Request(ReconciliationReason.Fullscreen);
         Assert.Single(scheduled);
         scheduled.Dequeue()();
 
-        Assert.Equal([ReconciliationReason.Placement, ReconciliationReason.Placement | ReconciliationReason.ExplorerRestart], passes);
+        Assert.Equal(
+            [
+                ReconciliationReason.Placement | ReconciliationReason.Fullscreen,
+                ReconciliationReason.Placement | ReconciliationReason.ExplorerRestart | ReconciliationReason.Fullscreen,
+            ],
+            passes);
         Assert.Empty(scheduled);
     }
+
 
     [Fact]
     public void Tray_deletion_is_idempotent()
@@ -351,6 +467,25 @@ public sealed class AppBarSessionTests
                 throw new InvalidOperationException("setwindowpos");
             }
         }
+    }
+
+
+    private sealed class RecordingFullscreenReader(
+        List<string> events,
+        params FullscreenObservation[] observations) : IFullscreenStateReader
+    {
+        private readonly Queue<FullscreenObservation> _observations = new(observations);
+
+        public FullscreenObservation Observe(nint barWindow)
+        {
+            events.Add("snapshot");
+            return _observations.Dequeue();
+        }
+    }
+
+    private sealed class RecordingZOrderNative(List<string> events) : IBarZOrderNativeApi
+    {
+        public void Apply(nint hwnd, BarZOrderState state) => events.Add($"zorder:{state}");
     }
 
     private sealed class FakeTray(List<string> events) : ITrayIcon

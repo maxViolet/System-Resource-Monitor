@@ -1,6 +1,6 @@
 # B04 implementation plan for coding agents
 
-Status: planned. This package implements [B04 — Fullscreen reconciliation and placement gate](../B04-placement-gate.md). The [product-plan placement gate](../../plan.md#1-validate-placement-first), [AppBar and shell behaviour](../../implementation-plan.md#appbar-and-shell-behaviour), [first-release desktop gate](../../implementation-plan.md#first-release-acceptance-gates), [ADR 0003](../../adr/0003-keep-appbar-registered-during-fullscreen.md), [ADR 0009](../../adr/0009-exit-when-tray-recovery-fails.md), and [B03 handoff](../B03-shell-position-recovery/plan.md#boundary-for-b04) govern ambiguity. B03 must be accepted before B04 implementation begins.
+Status: planned. This package implements [B04 — Fullscreen reconciliation and placement gate](../B04-placement-gate.md). The [product-plan placement gate](../../plan.md#1-validate-placement-first), [AppBar and shell behaviour](../../implementation-plan.md#appbar-and-shell-behaviour), [first-release desktop gate](../../implementation-plan.md#first-release-acceptance-gates), [ADR 0003](../../adr/0003-keep-appbar-registered-during-fullscreen.md), [ADR 0009](../../adr/0009-exit-when-tray-recovery-fails.md), and [B03 handoff](../B03-shell-position-recovery/plan.md#boundary-for-b04) govern ambiguity. B03 acceptance remains a prerequisite for B04 acceptance.
 
 ## Outcome and handoff
 
@@ -12,14 +12,16 @@ B04 is the final gate before B05, B10, and B11. Automated tests cannot accept it
 
 Complete these steps in order. Keep the solution buildable after each implementation step. Record outcomes in a dated report under `docs/acceptance/`; distinguish automated tests, Windows integration, and manual published-app observations.
 
+Implementation exception, approved 2026-10-15: the available Windows desktop has one display, so B03's primary-monitor-change scenario remains unverified. B04 code and deterministic tests may proceed against the reviewed B03 implementation, but neither B03 nor B04 may be marked accepted and no dependent brick is unblocked until the omitted two-monitor scenario and every other required desktop check pass. Record the limitation in B04 evidence; this exception changes implementation order only, not product behavior or acceptance criteria.
+
 ### 1. Verify the B03 handoff and shared clock
 
-- Require an accepted B03 report with direct evidence for its tray, edge, Explorer, display/DPI, primary-monitor, auto-hidden taskbar, focus, and stale-reservation checks. Rerun the B02 start/exit and handled-startup-failure checks during B04 rather than inheriting their results.
+- Require an accepted B03 report with direct evidence for its tray, edge, Explorer, display/DPI, primary-monitor, auto-hidden taskbar, focus, and stale-reservation checks before accepting B04. Under the approved implementation exception, inspect the existing B03 report, retain every unverified scenario as open, and do not treat code or automated checks as acceptance.
 - Use B02's accepted [2026-10-14 report](../../acceptance/2026-10-14-B02-empty-appbar-lifecycle.md) as the lifecycle baseline. Its second-process file-system trace recorded zero settings-directory operations. The shared investigation started at **2026-10-14 12:18 UTC+05:00** and reaches its two-working-day deadline at **2026-10-16 12:18 UTC+05:00**.
-- Inspect the accepted B03 dispatcher-owned placement/recovery path, its `ABN_FULLSCREENAPP` hook point, normal z-order behavior, AppBar callback lifetime, tray recovery result, and shutdown ownership. Capture the Windows build, display topology, primary monitor, resolution/scale, taskbar state, baseline work areas, and a foreground application used for focus checks. Identify the exact source commit and published/test-host artifacts used for the B04 baseline.
+- Inspect the reviewed B03 dispatcher-owned placement/recovery path, its `ABN_FULLSCREENAPP` hook point, normal z-order behavior, AppBar callback lifetime, tray recovery result, and shutdown ownership. Capture the Windows build, display topology, primary monitor, resolution/scale, taskbar state, baseline work areas, and a foreground application used for focus checks. Identify the exact source commit and published/test-host artifacts used for the B04 baseline.
 - At the shared deadline, if a blocking placement failure remains in B03–B04, record it, mark B05 blocked, and request the explicit non-reserving-placement-or-suspension decision. Do not implement a fallback or change ADR 0001 without a new decision. B10 and B11 also remain gated by B04 acceptance.
 
-**Gate:** B03 is accepted before code work; the B04 report identifies the accepted B02 and B03 source/evidence and the one shared deadline. If B03 is not accepted, leave B04 unaccepted and record the blocker.
+**Gate:** B04 acceptance requires accepted B03 evidence and identification of the accepted B02 and B03 source/evidence and the one shared deadline. The approved one-display exception permits code work while B03 remains open; leave B03 and B04 unaccepted, keep dependent bricks gated, and record the blocker.
 
 ### 2. Classify active primary-monitor fullscreen
 

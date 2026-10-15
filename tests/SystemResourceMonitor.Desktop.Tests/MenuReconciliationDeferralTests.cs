@@ -25,13 +25,17 @@ public sealed class MenuReconciliationDeferralTests
         scheduled.Dequeue()();
         coordinator.Request(ReconciliationReason.Placement);
         scheduled.Dequeue()();
+        coordinator.Request(ReconciliationReason.Fullscreen);
+        scheduled.Dequeue()();
         Assert.Empty(passes);
 
         menuOpen = false;
         deferral.MenuClosed();
         scheduled.Dequeue()();
 
-        Assert.Equal([ReconciliationReason.ExplorerRestart | ReconciliationReason.Placement], passes);
+        Assert.Equal(
+            [ReconciliationReason.ExplorerRestart | ReconciliationReason.Placement | ReconciliationReason.Fullscreen],
+            passes);
         Assert.Empty(scheduled);
     }
 

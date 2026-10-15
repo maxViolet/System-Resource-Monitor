@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using System.Windows.Media;
 using SystemResourceMonitor.Desktop.Lifecycle;
 using SystemResourceMonitor.Desktop.Settings;
@@ -17,6 +18,7 @@ public sealed class BarWindow : Window, IShutdownBar
     public const int ThicknessDips = 24;
     private const string CallbackMessageName = "SystemResourceMonitor.AppBarCallback";
     private const string TaskbarCreatedMessageName = "TaskbarCreated";
+    private static readonly TimeSpan FullscreenPollInterval = TimeSpan.FromMilliseconds(500);
 
     private readonly BarEdge _initialEdge;
     private readonly Action<BarEdge> _edgeApplied;
@@ -27,6 +29,9 @@ public sealed class BarWindow : Window, IShutdownBar
     private AppBarSession? _appBar;
     private ITrayIcon? _tray;
     private ReconciliationCoordinator? _reconciliation;
+    private BarReconciliationController? _barReconciliation;
+    private FullscreenReconciler? _fullscreen;
+    private DispatcherTimer? _fullscreenTimer;
     private nint _hwnd;
     private uint _callbackMessage;
     private uint _taskbarCreatedMessage;
@@ -82,6 +87,10 @@ public sealed class BarWindow : Window, IShutdownBar
         source.AddHook(_hook);
 
         _appBar = new AppBarSession(_hwnd, _callbackMessage, new Win32AppBarNativeApi());
+        _fullscreen = new FullscreenReconciler(
+            _hwnd,
+            new Win32FullscreenStateReader(),
+            new Win32BarZOrderNativeApi());
         _reconciliation = new ReconciliationCoordinator(
             action => Dispatcher.BeginInvoke(action),
             Reconcile);
@@ -98,6 +107,20 @@ public sealed class BarWindow : Window, IShutdownBar
             new TrayMenuOwner(new Win32TrayMenuNativeApi()));
         _tray.SetAppliedEdge(_initialEdge);
         _tray.Start();
+        _barReconciliation = new BarReconciliationController(
+            _appBar,
+            _tray,
+            _fullscreen,
+            _shellIntegrationFailed,
+            ReportStatus,
+            _record);
+        _fullscreenTimer = new DispatcherTimer(DispatcherPriority.Background, Dispatcher)
+        {
+            Interval = FullscreenPollInterval,
+        };
+        _fullscreenTimer.Tick += OnFullscreenTimerTick;
+        _fullscreenTimer.Start();
+        _reconciliation.Request(ReconciliationReason.Fullscreen);
     }
 
     /// <summary>Applies an edge transaction and persists only a successfully applied edge.</summary>
@@ -115,7 +138,7 @@ public sealed class BarWindow : Window, IShutdownBar
             return false;
         }
 
-        if (_appBar.AppliedEdge == edge)
+        if (_appBar.AppliedEdge == edge && _barReconciliation!.IsAppBarReady)
         {
             return true;
         }
@@ -123,6 +146,10 @@ public sealed class BarWindow : Window, IShutdownBar
         try
         {
             _appBar.Place(edge);
+            if (_barReconciliation!.PlacementSucceeded())
+            {
+                _reconciliation!.Request(ReconciliationReason.Fullscreen);
+            }
         }
         catch (Exception exception)
         {
@@ -170,6 +197,7 @@ public sealed class BarWindow : Window, IShutdownBar
     public void RemoveAppBar()
     {
         _shuttingDown = true;
+        _fullscreenTimer?.Stop();
         _appBar?.Remove();
     }
 
@@ -194,7 +222,7 @@ public sealed class BarWindow : Window, IShutdownBar
 
     private void Reconcile(ReconciliationReason reason)
     {
-        if (_shuttingDown || _appBar is null || _tray is null)
+        if (_shuttingDown || _barReconciliation is null)
         {
             return;
         }
@@ -204,34 +232,14 @@ public sealed class BarWindow : Window, IShutdownBar
             return;
         }
 
-        if ((reason & ReconciliationReason.ExplorerRestart) != 0)
-        {
-            var result = ShellRecovery.Recover(_appBar, _tray, AppliedEdge);
-            _record?.Invoke($"recovery-appbar:{(result.AppBarRecovered ? "success" : "failure")}");
-            _record?.Invoke($"recovery-tray:{(result.TrayRecovered ? "success" : "failure")}");
-            // Recreated menu resources initialize their checks from the last applied edge.
-            switch (result.NextAction)
-            {
-                case ShellRecoveryAction.FailureShutdown:
-                    _shellIntegrationFailed();
-                    break;
-                case ShellRecoveryAction.ReportAppBarFailure:
-                    ReportStatus("Shell recovery failed.");
-                    break;
-            }
+        _barReconciliation.Reconcile(reason, AppliedEdge);
+    }
 
-            return;
-        }
-
-        try
+    private void OnFullscreenTimerTick(object? sender, EventArgs e)
+    {
+        if (!_shuttingDown)
         {
-            _appBar.Place(AppliedEdge);
-            _record?.Invoke("reconciled");
-        }
-        catch (Exception exception)
-        {
-            _record?.Invoke($"reconciliation-failed:{exception.GetType().Name}");
-            ReportStatus("The bar could not reconcile its position.");
+            _reconciliation?.Request(ReconciliationReason.Fullscreen);
         }
     }
 
@@ -280,7 +288,6 @@ public sealed class BarWindow : Window, IShutdownBar
         _reconciliation?.Request(reason);
         if ((uint)msg == _taskbarCreatedMessage || (uint)msg == _callbackMessage)
         {
-            // Fullscreen is intentionally classified as no B03 transition, but the AppBar callback is handled.
             handled = true;
         }
 
