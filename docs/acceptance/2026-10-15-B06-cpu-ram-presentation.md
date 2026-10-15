@@ -2,7 +2,7 @@
 
 Brick: [B06 — CPU/RAM sources and bar presentation](../bricks/B06-cpu-ram-presentation.md). Package plan: [B06 plan](../bricks/B06-cpu-ram-presentation/plan.md).
 
-Status: in progress. Criteria 1 and 2 pass. Criteria 3–5 are partial: their automated test-host checks pass on a real HWND/AppBar at 100% scaling, but automated success alone does not close them. Published-app tooltip hover, 150% and 200% scaling, a visual observation of expiry, and published-app tray and edge interaction are unverified. B06 is not done.
+Status: in progress. Criteria 1, 2, and 5 pass. Criteria 3 and 4 are partial: 150% and 200% scaling, the tooltip of a `—` section, and a visual observation of expiry are unverified. B06 is not done.
 
 ## Prerequisite
 
@@ -141,20 +141,49 @@ Production `--metric-display`, `--metric-freshness`, and the other `LifecyclePro
 | `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` | 0 | Self-contained folder produced. |
 | `git diff --check` | 0 | No whitespace errors. |
 
+## Committed-head runs
+
+These runs used commit `fbdc8f0`, which merges `main` into `806a9f5` without changing code. They ran on the real desktop at 100% scaling.
+
+| Command | Exit code | Result |
+|---|---|---|
+| `dotnet test --project tests/SystemResourceMonitor.Desktop.Tests/SystemResourceMonitor.Desktop.Tests.csproj -c Release --no-build -- --filter-class SystemResourceMonitor.Desktop.Tests.LifecycleProcessTests`, three consecutive runs | 0 each | 14/14 in every run. |
+| `dotnet test --project tests/SystemResourceMonitor.Desktop.Tests/SystemResourceMonitor.Desktop.Tests.csproj -c Release --no-build` | 0 | 125/125. |
+| `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` | 0 | Self-contained folder produced. |
+
+Earlier runs of the same `LifecycleProcessTests` failed 1 of 14, 1 of 14, and 3 of 14 with `work area at exit … differs from baseline` and no `restored` marker. During those runs, another session's `SystemResourceMonitor.Desktop.exe` held an AppBar on the same desktop, and the baseline work area alternated between `(0, 0, 1920, 1168)` and `(0, 0, 1920, 1144)`, a difference of one 24 px bar. After that process exited, the work area was `(0, 0, 1920, 1168)` and every run passed.
+
+| Artifact from `fbdc8f0` | SHA-256 |
+|---|---|
+| published `SystemResourceMonitor.Desktop.exe` | `e6759b1b2b1d3ada28d8e8947d1476d2c72ba8e97cf0498d13c11e34d5b4ef22` |
+| published `SystemResourceMonitor.Desktop.dll` | `1a4b63b11a78e24a088d9abd3ce3a9613fde44a0b465dfe0afc17980596815c8` |
+| published `SystemResourceMonitor.Core.dll` | `1f860444e2490c294d8663d042a4dbba852aecba563e70600f45d254993af899` |
+
+### Published app, manual checks
+
+The user ran the published app from `fbdc8f0` on 2026-10-15 and reported each check. The work area was read with `SPI_GETWORKAREA`.
+
+| Check | Result |
+|---|---|
+| Start | Pass. The process responded, and the work area changed from `(0, 0, 1920, 1168)` to `(0, 0, 1920, 1144)`. |
+| `CPU n%` and `RAM n%` sections update about every 2 seconds | Pass, observed by the user. |
+| RAM tooltip shows `RAM x.x / y.y GiB used`, and the bar does not take foreground | Pass, observed by the user. |
+| Tray menu opens; Position change moves the bar while CPU and RAM keep updating | Pass, observed by the user. Afterwards the work area was `(0, 24, 1920, 1168)`, a top strip. |
+| Tray Exit removes the strip | Pass. The process exited, and the work area returned to `(0, 0, 1920, 1168)`. |
+
 ## Acceptance criteria
 
 | Criterion | Result |
 |---|---|
 | 1. CPU arithmetic, first sample, reset, and invalid deltas have deterministic tests | Pass. |
 | 2. Windows integration checks exercise both native wrappers and their failure paths | Pass, with the `GetSystemTimes` failure path covered by a fake as described above. |
-| 3. Actual bar shows fixed-width text, RAM GiB details, and unavailable states; fixed and unclipped at 100%, 150%, and 200% | Partial. 100% passes programmatically in the test host. Not verified: 150% and 200%, cropped screenshots per scale, and tooltip appearance on the published app. |
+| 3. Actual bar shows fixed-width text, RAM GiB details, and unavailable states; fixed and unclipped at 100%, 150%, and 200% | Partial. 100% passes programmatically in the test host, and the published app shows the sections and the RAM GiB tooltip. Not verified: 150% and 200%, cropped screenshots per scale, and the tooltip of a `—` section on the published app. |
 | 4. Fault injection visibly expires one reading within 0.5 s while the other keeps updating | Partial. The automated timing passes (2 ms and 8 ms). Not verified: a person observing the expiry on screen. |
-| 5. Published app stays responsive during desktop and measurement runs | Partial. Exit responded in 337 ms with monitoring active, and test-host edge switches and exit passed with monitoring active. Not verified: published-app tray menu, edge switch, and hover tooltips. |
+| 5. Published app stays responsive during desktop and measurement runs | Pass for desktop runs. Exit responded in 337 ms with monitoring active, test-host edge switches and exit passed, and the published app's tray menu, Position change, RAM tooltip, and Exit worked with monitoring active. The 30-minute `--native-reads` responsiveness gate belongs to B07. |
 
 ## Unverified
 
-- Tooltip hover on the published app. One automated hover attempt found no tooltip window, because a fullscreen video was in the foreground and the bar was correctly lowered behind it. The attempt left foreground focus unchanged. No conclusion about tooltip behavior follows from it. Hover over the RAM section and over a `—` section, then confirm that the tooltip appears and that the bar does not take foreground.
+- Tooltip of a `—` section. Hover over it during `--metric-display 3` and confirm that the explanation appears and that the bar does not take foreground.
 - 150% and 200% scaling: `--metric-display 3` and cropped bar screenshots at each scale.
 - Visual observation of `--metric-freshness`.
-- Published-app tray menu and edge switch while monitoring is active.
-- After the review and architect-review fixes: `LifecycleProcessTests`, including `--metric-display` with per-monitor DPI measurement, `--metric-freshness` with frame-based observation, and the shutdown text snapshot. Also the full ten-run stability gate and new artifact hashes.
+- The full ten-run stability gate at `fbdc8f0`, and test-host artifact hashes from that commit.
