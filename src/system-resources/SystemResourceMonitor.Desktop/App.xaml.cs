@@ -36,7 +36,7 @@ public partial class App : Application
                 "SystemResourceMonitor");
             var settings = new JsonSettingsStore(settingsDirectory);
             var monitor = new MetricMonitor(new SystemTimesCpuSource(), new GlobalMemoryRamSource(), TimeProvider.System);
-            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher, monitor, _lifetime.Token);
+            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher, monitor);
             await _startup.RunAsync();
         }
         catch (Exception)

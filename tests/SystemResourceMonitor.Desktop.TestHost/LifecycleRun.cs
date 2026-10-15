@@ -2,6 +2,7 @@ using System.IO;
 
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Bar;
@@ -21,6 +22,8 @@ internal sealed class LifecycleRun
     private readonly ISettingsStore _settings;
     private readonly IMetricSource _cpu;
     private readonly IMetricSource _ram;
+    private BarWindow? _bar;
+    private string? _textAtShutdown;
 
     /// <param name="settingsFactory">Creates the settings store in the isolated settings directory.</param>
     /// <param name="sources">Handle-free metric sources; by default, steady scripted CPU and RAM values.</param>
@@ -47,9 +50,8 @@ internal sealed class LifecycleRun
     public void Run(Action<BarWindow, ShutdownCoordinator>? afterBarPositioned = null)
     {
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        var lifetime = new CancellationTokenSource();
         var shutdown = new ShutdownCoordinator(
-            lifetime,
+            new CancellationTokenSource(),
             TimeProvider.System,
             code =>
             {
@@ -62,11 +64,11 @@ internal sealed class LifecycleRun
 
         void Positioned(BarWindow bar)
         {
-            bar.MetricsShown += _ => Check(MarkerCount("wait-start") == 0, "metrics were shown after shutdown began");
+            _bar = bar;
             afterBarPositioned?.Invoke(bar, shutdown);
         }
 
-        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, monitor, lifetime.Token, Record, Positioned))
+        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, monitor, Record, Positioned))
         {
             app.Startup += async (_, _) => await startup.RunAsync();
             app.Run();
@@ -82,6 +84,17 @@ internal sealed class LifecycleRun
         _markers.Add((marker, _clock.Elapsed));
         Console.WriteLine(marker);
 
+        // The coordinator records both markers on the bar's thread. Sources change their values on every read, so a
+        // state published during the bounded wait would change the rendered text between them.
+        if (marker == "wait-start" && _bar is not null)
+        {
+            _textAtShutdown = SectionTexts(_bar);
+        }
+        else if (marker == "exit" && _bar is not null)
+        {
+            Check(SectionTexts(_bar) == _textAtShutdown, "metrics were shown after shutdown began");
+        }
+
         if (marker == "remove")
         {
             var workArea = DesktopProbe.WorkArea();
@@ -94,6 +107,18 @@ internal sealed class LifecycleRun
     }
 
     public int MarkerCount(string marker) => _markers.Count(recorded => recorded.Marker == marker);
+
+    /// <summary>Finds the CPU and RAM sections in the bar's content, the way any visual-tree observer would.</summary>
+    public static (TextBlock Cpu, TextBlock Ram) Sections(BarWindow bar) =>
+        bar.Content is StackPanel { Children: [TextBlock cpu, TextBlock ram] }
+            ? (cpu, ram)
+            : throw new InvalidOperationException("The bar content is not the two metric sections.");
+
+    private static string SectionTexts(BarWindow bar)
+    {
+        var (cpu, ram) = Sections(bar);
+        return $"{cpu.Text} | {ram.Text}";
+    }
 
     public static void Info(string line) => Console.WriteLine($"info: {line}");
 

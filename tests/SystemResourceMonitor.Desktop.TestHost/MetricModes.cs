@@ -31,7 +31,6 @@ public static partial class Program
         var run = new LifecycleRun(sources: blocked == MetricKind.Cpu ? (blockedSource, otherSource) : (otherSource, blockedSource));
         var otherChanges = new List<TimeSpan>();
         var blockedChanges = 0;
-        long? lastSuccess = null;
         TimeSpan? expiryOffset = null;
         TimeSpan? expiredAt = null;
 
@@ -42,40 +41,36 @@ public static partial class Program
             var otherSection = Section(bar, other);
             var blockedText = blockedSection.Text;
             var otherText = otherSection.Text;
-            bar.MetricsShown += state =>
+
+            // Observe the rendered text once per frame, without a hook in the bar. The deadline starts at the blocked
+            // source's last successful return, which the monitor stamps immediately afterwards.
+            void OnRendering(object? sender, EventArgs e)
             {
-                if (Reading(state, blocked) is AvailableMetric available)
+                var now = Stopwatch.GetTimestamp();
+                if (blockedSection.Text != blockedText)
                 {
-                    lastSuccess = available.Timestamp;
+                    blockedText = blockedSection.Text;
+                    blockedChanges++;
+                    run.Record($"shown:{blocked}:{blockedText}");
+                    if (expiryOffset is null && blockedText.EndsWith(MetricSectionFormat.Unavailable, StringComparison.Ordinal) && blockedSource.LastSuccess is { } last)
+                    {
+                        expiryOffset = Stopwatch.GetElapsedTime(last, now) - MetricMonitor.ExpiryAge;
+                        expiredAt = run.Now;
+                        run.Check(
+                            blockedSection.ToolTip as string == "No update for 6 seconds.",
+                            $"the expired {blocked} tooltip is '{blockedSection.ToolTip}'");
+                    }
                 }
 
-                bar.Dispatcher.BeginInvoke(DispatcherPriority.Render, () =>
+                if (otherSection.Text != otherText)
                 {
-                    var now = Stopwatch.GetTimestamp();
-                    if (blockedSection.Text != blockedText)
-                    {
-                        blockedText = blockedSection.Text;
-                        blockedChanges++;
-                        run.Record($"shown:{blocked}:{blockedText}");
-                        if (expiryOffset is null && blockedText.EndsWith(MetricSectionFormat.Unavailable, StringComparison.Ordinal) && lastSuccess is { } last)
-                        {
-                            expiryOffset = Stopwatch.GetElapsedTime(last, now) - MetricMonitor.ExpiryAge;
-                            expiredAt = run.Now;
-                            run.Check(
-                                blockedSection.ToolTip as string == "No update for 6 seconds.",
-                                $"the expired {blocked} tooltip is '{blockedSection.ToolTip}'");
-                        }
-                    }
+                    otherText = otherSection.Text;
+                    otherChanges.Add(run.Now);
+                    run.Record($"shown:{other}:{otherText}");
+                }
+            }
 
-                    if (otherSection.Text != otherText)
-                    {
-                        otherText = otherSection.Text;
-                        otherChanges.Add(run.Now);
-                        run.Record($"shown:{other}:{otherText}");
-                    }
-                });
-            };
-
+            CompositionTarget.Rendering += OnRendering;
             _ = ObserveAsync();
 
             async Task ObserveAsync()
@@ -97,6 +92,7 @@ public static partial class Program
                 }
                 finally
                 {
+                    CompositionTarget.Rendering -= OnRendering;
                     run.Check(DesktopProbe.RequestClose(bar.Handle), "WM_CLOSE was not processed after the freshness probe");
                 }
             }
@@ -147,8 +143,8 @@ public static partial class Program
                 try
                 {
                     var dpi = VisualTreeHelper.GetDpi(bar);
-                    var cpuWidth = bar.CpuSection.Width;
-                    var ramWidth = bar.RamSection.Width;
+                    var cpuWidth = Section(bar, MetricKind.Cpu).Width;
+                    var ramWidth = Section(bar, MetricKind.Ram).Width;
                     LifecycleRun.Info($"dpi-scale {dpi.DpiScaleX.ToString("P0", CultureInfo.InvariantCulture)}");
                     LifecycleRun.Info($"section-widths CPU {cpuWidth:F2} DIP, RAM {ramWidth:F2} DIP; bar height {bar.ActualHeight:F2} DIP");
                     foreach (var (name, state) in DisplayStates())
@@ -157,8 +153,8 @@ public static partial class Program
                         bar.UpdateLayout();
                         await bar.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ContextIdle);
                         run.Record($"display:{name}");
-                        CheckSection(run, bar, bar.CpuSection, cpuWidth, name);
-                        CheckSection(run, bar, bar.RamSection, ramWidth, name);
+                        CheckSection(run, bar, Section(bar, MetricKind.Cpu), cpuWidth, name);
+                        CheckSection(run, bar, Section(bar, MetricKind.Ram), ramWidth, name);
                         run.CheckPositionedBar(bar);
                         await Task.Delay(hold);
                     }
@@ -292,9 +288,7 @@ public static partial class Program
         run.Check(right <= bar.ActualWidth, $"{state}: '{section.Text}' ends outside the bar");
     }
 
-    private static TextBlock Section(BarWindow bar, MetricKind kind) => kind == MetricKind.Cpu ? bar.CpuSection : bar.RamSection;
-
-    private static MetricReading Reading(DashboardState state, MetricKind kind) => kind == MetricKind.Cpu ? state.Cpu : state.Ram;
+    private static TextBlock Section(BarWindow bar, MetricKind kind) => kind == MetricKind.Cpu ? LifecycleRun.Sections(bar).Cpu : LifecycleRun.Sections(bar).Ram;
 
     private static bool TryParseSeconds(string text, out TimeSpan duration)
     {

@@ -7,8 +7,8 @@ namespace SystemResourceMonitor.Desktop.Lifecycle;
 
 /// <summary>
 /// Startup order: acquire the per-session guard synchronously, load settings off the WPF thread, create the bar and
-/// tray on the owning dispatcher, then start metric monitoring until <paramref name="lifetime"/> is cancelled. Any
-/// owner failure enters the shared shutdown coordinator.
+/// tray on the owning dispatcher, then start metric monitoring until shutdown cancels its lifetime. Any owner failure
+/// enters the shared shutdown coordinator.
 /// </summary>
 public sealed class DesktopStartup(
     string guardName,
@@ -16,7 +16,6 @@ public sealed class DesktopStartup(
     ISettingsStore settingsStore,
     Dispatcher dispatcher,
     MetricMonitor monitor,
-    CancellationToken lifetime,
     Action<string>? record = null,
     Action<BarWindow>? afterBarPositioned = null) : IDisposable
 {
@@ -97,20 +96,12 @@ public sealed class DesktopStartup(
     /// </summary>
     private void StartMetrics(BarWindow bar)
     {
-        Action<Action> post = action => bar.Dispatcher.BeginInvoke(action);
-        var relay = new MetricRelay(post, state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
+        var relay = new MetricRelay(
+            action => bar.Dispatcher.BeginInvoke(action),
+            state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
         monitor.Changed += (_, state) => relay.OnChanged(state);
         bar.ShowMetrics(monitor.Current);
-        var run = monitor.RunAsync(lifetime);
-        shutdown.Track("metric-monitor", run);
-        MetricRunFailure.Observe(
-            run,
-            post,
-            exception =>
-            {
-                record?.Invoke($"metrics-failed:{exception.GetType().Name}");
-                _ = shutdown.ShutdownAsync(ExitCodes.Failure);
-            });
+        shutdown.TrackOwner("metric-monitor", monitor.RunAsync(shutdown.Lifetime));
         record?.Invoke("metrics-started");
     }
 

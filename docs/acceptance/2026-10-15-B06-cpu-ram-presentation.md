@@ -35,7 +35,7 @@ The baseline ran at `189cfb0` before any B06 change.
 
 - Core `CpuTimes` and `CpuLoadCalculator` turn successive `GetSystemTimes` counters into load samples. The first read is `NotYetSampled`. A lower counter, a zero or overflowing `ΔKernel + ΔUser`, or idle greater than the total rebases and returns `Invalid`.
 - Desktop `Adapters/Metrics` holds `Win32SystemTimesApi` and `Win32MemoryStatusApi` (`LibraryImport`, `SetLastError = true`, `BOOL` checked, no handles or native memory), `SystemTimesCpuSource`, and `GlobalMemoryRamSource`. A failed read is `ReadFailed` and leaves the CPU baseline unchanged. RAM rejects `total == 0` and `available > total` as `Invalid` before subtraction.
-- `DesktopStartup` takes the `MetricMonitor` and lifetime token. After `bar-positioned`, it subscribes to `Changed`, shows `Current`, tracks `RunAsync` as `metric-monitor`, and records `metrics-started`. `MetricRelay` stores the latest state and posts one dispatcher action while none is pending. That action shows the state through `ShutdownCoordinator.TryPublish`.
+- `DesktopStartup` takes the `MetricMonitor`. After `bar-positioned`, it subscribes to `Changed`, shows `Current`, runs the monitor until `ShutdownCoordinator.Lifetime` is cancelled, tracks the run as owner work `metric-monitor`, and records `metrics-started`. `MetricRelay` stores the latest state and posts one dispatcher action while none is pending. That action shows the state through `ShutdownCoordinator.TryPublish`.
 - `BarWindow` shows two left-aligned Segoe UI 12 DIP sections on the `#1E1E1E` strip. Each section's width is fixed to its widest candidate (`0%`…`100%` and `—`), measured with `FormattedText` at the window's `PixelsPerDip`, rounded up to whole device pixels, and recomputed in `OnDpiChanged`. `MetricSectionFormat` produces the text and tooltips with invariant culture.
 - The test host adds `--metric-freshness [cpu|ram]`, `--metric-display [seconds]`, and `--native-reads <seconds>`, with handle-free scripted sources. Every test-host lifecycle mode now fails if metrics are shown after `wait-start`.
 
@@ -113,6 +113,34 @@ The artifact hashes, the ten-run result, and the 201-test solution run above com
 | `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` | 0 | Self-contained folder produced. |
 | `git diff --check` | 0 | No whitespace errors; new files have no trailing whitespace. |
 
+## Architect-review fixes
+
+These changes supersede the `MetricRunFailure` fix above:
+
+- `ShutdownCoordinator.TrackOwner(operation, task)` tracks owner work. When that work faults, it records `owner-failed:<operation>:<type>` and starts failure shutdown on the caller's UI context. Completion or cancellation is not a failure. `DesktopStartup` calls `TrackOwner("metric-monitor", …)`. `MetricRunFailure` and its tests are removed. `ShutdownCoordinatorTests` covers the same cases: a faulted owner, and a real `MetricMonitor` whose `Changed` handler throws, both exit with `Failure`. A completed or cancelled owner, and a monitor run that shutdown cancels, are not failures.
+- `ShutdownCoordinator.Lifetime` exposes the token of the cancellation source that the coordinator owns. `DesktopStartup` no longer takes a separate lifetime token.
+
+### Artifact hygiene: diagnostic hooks
+
+`BarWindow` no longer has a test-only member. The `MetricsShown` event is removed, and the CPU and RAM sections are private fields again. The test host reads what it needs from outside the production code:
+
+- **Sections:** `LifecycleRun.Sections` finds the two `TextBlock` sections in the bar's content, as any visual-tree observer can.
+- **Freshness timing:** `--metric-freshness` reads the section text once per frame through `CompositionTarget.Rendering`. It starts the deadline from the timestamp at which the scripted source last returned a sample. The monitor stamps that reading immediately afterwards, so the deadline can start early only by the time the monitor takes to stamp the reading, far less than the 0.5 s tolerance.
+- **No publication after shutdown:** every lifecycle mode snapshots the section text at `wait-start` and fails if the text differs at `exit`. The default scripted sources alternate between two values, so a state published during the bounded wait would change the text.
+
+Production `--metric-display`, `--metric-freshness`, and the other `LifecycleProcessTests` were not rerun after these changes, because the desktop was in use.
+
+| Command | Exit code | Result |
+|---|---|---|
+| `dotnet test --project tests/SystemResourceMonitor.Core.Tests/SystemResourceMonitor.Core.Tests.csproj -c Release --no-build` | 0 | 81/81. |
+| `dotnet test --project tests/SystemResourceMonitor.Desktop.Tests/SystemResourceMonitor.Desktop.Tests.csproj -c Release --no-build -- --filter-not-class "*LifecycleProcessTests"` | 0 | 111/111. |
+| `ShutdownCoordinatorTests`, ten consecutive runs | 0 each | 11/11 in every run. |
+| `dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode` | 0 | Restored from lock files. |
+| `dotnet build SystemResourceMonitor.slnx -c Release --no-restore` | 0 | 0 warnings, 0 errors. |
+| `dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build -- --filter-not-class "*LifecycleProcessTests"` | 0 | 192/192. |
+| `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` | 0 | Self-contained folder produced. |
+| `git diff --check` | 0 | No whitespace errors. |
+
 ## Acceptance criteria
 
 | Criterion | Result |
@@ -129,4 +157,4 @@ The artifact hashes, the ten-run result, and the 201-test solution run above com
 - 150% and 200% scaling: `--metric-display 3` and cropped bar screenshots at each scale.
 - Visual observation of `--metric-freshness`.
 - Published-app tray menu and edge switch while monitoring is active.
-- After the review fixes: `LifecycleProcessTests`, including `--metric-display` with per-monitor DPI measurement, the full ten-run stability gate, and new artifact hashes.
+- After the review and architect-review fixes: `LifecycleProcessTests`, including `--metric-display` with per-monitor DPI measurement, `--metric-freshness` with frame-based observation, and the shutdown text snapshot. Also the full ten-run stability gate and new artifact hashes.

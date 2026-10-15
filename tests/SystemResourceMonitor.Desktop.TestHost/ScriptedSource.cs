@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using SystemResourceMonitor.Core.Metrics;
 
 namespace SystemResourceMonitor.Desktop.TestHost;
@@ -10,8 +11,15 @@ internal sealed class ScriptedSource(MetricKind kind, Func<int, MetricSample?> s
 {
     private const ulong Gib = 1UL << 30;
     private int _reads;
+    private long _lastSuccess;
 
     public MetricKind Kind => kind;
+
+    /// <summary>
+    /// The <see cref="Stopwatch"/> timestamp of the last returned sample, taken just before the monitor stamps it, or
+    /// <see langword="null"/> before the first.
+    /// </summary>
+    public long? LastSuccess => Interlocked.Read(ref _lastSuccess) is var last and not 0 ? last : null;
 
     public MetricSample Read()
     {
@@ -21,12 +29,12 @@ internal sealed class ScriptedSource(MetricKind kind, Func<int, MetricSample?> s
             Thread.Sleep(Timeout.Infinite);
         }
 
+        Interlocked.Exchange(ref _lastSuccess, Stopwatch.GetTimestamp());
         return sample!;
     }
 
-    public static ScriptedSource Steady(MetricKind kind) => new(kind, _ => kind == MetricKind.Cpu
-        ? new MeasuredSample(12)
-        : new MeasuredRamSample(10 * Gib + Gib / 4, 16 * Gib));
+    /// <summary>Alternates between two values, so every accepted read changes the rendered text.</summary>
+    public static ScriptedSource Steady(MetricKind kind) => new(kind, read => Measured(kind, read % 2 == 0 ? 12 : 64));
 
     /// <summary>A sample of <paramref name="kind"/> at <paramref name="percentage"/>, with 16 GiB total for RAM.</summary>
     public static MetricSample Measured(MetricKind kind, double percentage) => kind == MetricKind.Cpu

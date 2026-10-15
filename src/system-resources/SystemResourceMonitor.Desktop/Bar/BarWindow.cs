@@ -46,6 +46,8 @@ public sealed class BarWindow : Window, IShutdownBar
     private bool _finalClose;
     private bool _shuttingDown;
     private MenuReconciliationDeferral? _menuDeferral;
+    private readonly TextBlock _cpuSection = CreateSection();
+    private readonly TextBlock _ramSection = CreateSection();
 
     public BarWindow(
         BarEdge initialEdge,
@@ -72,7 +74,7 @@ public sealed class BarWindow : Window, IShutdownBar
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { CpuSection, RamSection },
+            Children = { _cpuSection, _ramSection },
         };
         ShowMetrics(DashboardState.Initial);
 
@@ -89,15 +91,6 @@ public sealed class BarWindow : Window, IShutdownBar
     public BarEdge AppliedEdge => _appBar?.AppliedEdge ?? _initialEdge;
 
     public nint Handle => _hwnd;
-
-    /// <summary>The CPU section; internal for test-host layout probes.</summary>
-    internal TextBlock CpuSection { get; } = CreateSection();
-
-    /// <summary>The RAM section; internal for test-host layout probes.</summary>
-    internal TextBlock RamSection { get; } = CreateSection();
-
-    /// <summary>Raised on the bar's thread after <see cref="ShowMetrics"/> updates the sections.</summary>
-    internal event Action<DashboardState>? MetricsShown;
 
     /// <summary>Registers and positions the AppBar, then adds and versions the tray icon.</summary>
     public void Start()
@@ -204,9 +197,8 @@ public sealed class BarWindow : Window, IShutdownBar
     {
         ArgumentNullException.ThrowIfNull(state);
         Dispatcher.VerifyAccess();
-        Show(CpuSection, MetricSectionFormat.Format(state.Cpu));
-        Show(RamSection, MetricSectionFormat.Format(state.Ram));
-        MetricsShown?.Invoke(state);
+        Show(_cpuSection, MetricSectionFormat.Format(state.Cpu));
+        Show(_ramSection, MetricSectionFormat.Format(state.Ram));
 
         static void Show(TextBlock section, MetricSection content)
         {
@@ -286,8 +278,8 @@ public sealed class BarWindow : Window, IShutdownBar
     /// <summary>Fixes each section to the widest text it can show, rounded up to whole device pixels.</summary>
     private void FixSectionWidths(double pixelsPerDip)
     {
-        CpuSection.Width = WidestCandidate(MetricKind.Cpu, pixelsPerDip);
-        RamSection.Width = WidestCandidate(MetricKind.Ram, pixelsPerDip);
+        _cpuSection.Width = WidestCandidate(MetricKind.Cpu, pixelsPerDip);
+        _ramSection.Width = WidestCandidate(MetricKind.Ram, pixelsPerDip);
     }
 
     private static double WidestCandidate(MetricKind kind, double pixelsPerDip)

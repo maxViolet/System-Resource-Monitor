@@ -40,7 +40,21 @@ public sealed class ShutdownCoordinator(
     private IShutdownBar? _bar;
     private bool _stopping;
 
+    /// <summary>Cancelled when shutdown starts; owners run their work until then.</summary>
+    public CancellationToken Lifetime => lifetime.Token;
+
     public void Attach(IShutdownBar bar) => _bar = bar;
+
+    /// <summary>
+    /// Tracks work an owner depends on for the app's lifetime. If it faults, the fault is recorded and failure
+    /// shutdown starts on the caller's synchronization context; completion or cancellation is not a failure.
+    /// Call it on the UI thread.
+    /// </summary>
+    public void TrackOwner(string operation, Task task)
+    {
+        Track(operation, task);
+        _ = ObserveOwnerAsync(operation, task);
+    }
 
     /// <summary>
     /// Adds work to the bounded shutdown wait. Its completion or fault is observed whenever it happens.
@@ -140,6 +154,23 @@ public sealed class ShutdownCoordinator(
             record?.Invoke("exit");
             exit(exitCode);
             _completed.SetResult();
+        }
+    }
+
+    private async Task ObserveOwnerAsync(string operation, Task task)
+    {
+        try
+        {
+            // Resumes on the captured UI context, where shutdown must run.
+            await task;
+        }
+        catch (OperationCanceledException) when (task.IsCanceled)
+        {
+        }
+        catch (Exception exception)
+        {
+            record?.Invoke($"owner-failed:{operation}:{exception.GetType().Name}");
+            _ = ShutdownAsync(ExitCodes.Failure);
         }
     }
 
