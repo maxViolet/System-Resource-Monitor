@@ -10,6 +10,7 @@ internal enum ReconciliationReason
     None = 0,
     Placement = 1,
     ExplorerRestart = 2,
+    Fullscreen = 4,
 }
 
 internal static class ShellMessageClassifier
@@ -26,7 +27,7 @@ internal static class ShellMessageClassifier
             return (uint)wParam switch
             {
                 ABN_STATECHANGE or ABN_POSCHANGED => ReconciliationReason.Placement,
-                ABN_FULLSCREENAPP => ReconciliationReason.None,
+                ABN_FULLSCREENAPP => ReconciliationReason.Fullscreen,
                 _ => ReconciliationReason.None,
             };
         }
@@ -169,5 +170,108 @@ internal static class ShellRecovery
         }
 
         return new ShellRecoveryResult(appBarRecovered, trayRecovered);
+    }
+}
+
+/// <summary>
+/// Owns AppBar recovery readiness and the required placement/recovery-before-z-order ordering.
+/// The caller serializes passes through <see cref="ReconciliationCoordinator"/>.
+/// </summary>
+internal sealed class BarReconciliationController(
+    AppBarSession appBar,
+    ITrayIcon tray,
+    FullscreenReconciler fullscreen,
+    Action shellIntegrationFailed,
+    Action<string> reportStatus,
+    Action<string>? record)
+{
+    private bool _appBarReady = true;
+    private bool _zOrderFailureReported;
+
+    public bool IsAppBarReady => _appBarReady;
+
+    /// <summary>Records a successful edge-placement transaction and reports whether it restored lost registration.</summary>
+    public bool PlacementSucceeded()
+    {
+        var recoveredRegistration = !_appBarReady;
+        _appBarReady = true;
+        if (recoveredRegistration)
+        {
+            fullscreen.InvalidateZOrder();
+        }
+
+        return recoveredRegistration;
+    }
+
+    public void Reconcile(ReconciliationReason reason, BarEdge appliedEdge)
+    {
+        if ((reason & ReconciliationReason.ExplorerRestart) != 0)
+        {
+            var result = ShellRecovery.Recover(appBar, tray, appliedEdge);
+            record?.Invoke($"recovery-appbar:{(result.AppBarRecovered ? "success" : "failure")}");
+            record?.Invoke($"recovery-tray:{(result.TrayRecovered ? "success" : "failure")}");
+            _appBarReady = result.AppBarRecovered;
+            switch (result.NextAction)
+            {
+                case ShellRecoveryAction.FailureShutdown:
+                    shellIntegrationFailed();
+                    return;
+                case ShellRecoveryAction.ReportAppBarFailure:
+                    reportStatus("Shell recovery failed.");
+                    return;
+            }
+
+            fullscreen.InvalidateZOrder();
+        }
+        else if ((reason & ReconciliationReason.Placement) != 0)
+        {
+            try
+            {
+                appBar.Place(appliedEdge);
+                _ = PlacementSucceeded();
+                record?.Invoke("reconciled");
+            }
+            catch (Exception exception)
+            {
+                record?.Invoke($"reconciliation-failed:{exception.GetType().Name}");
+                reportStatus("The bar could not reconcile its position.");
+                return;
+            }
+        }
+
+        if (_appBarReady)
+        {
+            ReconcileFullscreen();
+        }
+    }
+
+    private void ReconcileFullscreen()
+    {
+        try
+        {
+            var wasKnown = fullscreen.IsZOrderKnown;
+            var previous = fullscreen.AppliedState;
+            var observation = fullscreen.Reconcile();
+            if (observation == FullscreenObservation.Indeterminate)
+            {
+                record?.Invoke("fullscreen-indeterminate");
+                return;
+            }
+
+            _zOrderFailureReported = false;
+            if (!wasKnown || previous != fullscreen.AppliedState)
+            {
+                record?.Invoke($"zorder:{fullscreen.AppliedState}");
+            }
+        }
+        catch (Exception exception)
+        {
+            record?.Invoke($"zorder-failed:{exception.GetType().Name}");
+            if (!_zOrderFailureReported)
+            {
+                _zOrderFailureReported = true;
+                reportStatus("The bar could not reconcile fullscreen.");
+            }
+        }
     }
 }

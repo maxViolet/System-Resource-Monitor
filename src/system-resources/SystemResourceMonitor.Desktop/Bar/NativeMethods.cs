@@ -25,15 +25,21 @@ internal static partial class NativeMethods
     internal const int WM_USER = 0x0400;
     internal const int WM_APP = 0x8000;
     internal const nint MA_NOACTIVATE = 3;
+    internal const uint GA_ROOT = 2;
 
     internal const int GWL_EXSTYLE = -20;
     internal const nint WS_EX_TOOLWINDOW = 0x00000080;
     internal const nint WS_EX_NOACTIVATE = 0x08000000;
     internal const uint WS_POPUP = 0x80000000;
 
+    internal const uint SWP_NOSIZE = 0x0001;
+    internal const uint SWP_NOMOVE = 0x0002;
     internal const uint SWP_NOZORDER = 0x0004;
     internal const uint SWP_NOACTIVATE = 0x0010;
+    internal const nint HWND_TOPMOST = -1;
+    internal const nint HWND_BOTTOM = 1;
 
+    internal const uint MONITOR_DEFAULTTONULL = 0x0;
     internal const uint MONITOR_DEFAULTTOPRIMARY = 0x1;
     internal const int UserDefaultDpi = 96;
 
@@ -188,6 +194,36 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll")]
     internal static partial nint GetForegroundWindow();
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetAncestor(nint hwnd, uint gaFlags);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindow(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWindowVisible(nint hwnd);
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint MonitorFromWindow(nint hwnd, uint dwFlags);
+
+    [LibraryImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool GetWindowRect(nint hwnd, out PixelRect lpRect);
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetShellWindow();
+
+    [LibraryImport("user32.dll")]
+    internal static partial nint GetDesktopWindow();
+
+    [LibraryImport("user32.dll")]
+    internal static partial uint GetWindowThreadProcessId(nint hwnd, out uint processId);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", SetLastError = true)]
+    internal static unsafe partial int GetClassName(nint hwnd, char* className, int maxCount);
 
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
