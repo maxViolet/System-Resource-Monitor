@@ -15,6 +15,10 @@ public static class MetricSectionFormat
     public const string Unavailable = "—";
     private const double BytesPerGib = 1UL << 30;
 
+    // Derived from the monitor's expiry age, so the tooltip cannot state a different age.
+    private static readonly string ExpiredExplanation =
+        string.Create(CultureInfo.InvariantCulture, $"No update for {MetricMonitor.ExpiryAge.TotalSeconds:0} seconds.");
+
     public static MetricSection Format(MetricReading reading)
     {
         ArgumentNullException.ThrowIfNull(reading);
@@ -54,7 +58,7 @@ public static class MetricSectionFormat
     internal static string Explain(UnavailabilityReason reason) => reason switch
     {
         UnavailabilityReason.NotYetSampled => "Waiting for the first measurement.",
-        UnavailabilityReason.Expired => "No update for 6 seconds.",
+        UnavailabilityReason.Expired => ExpiredExplanation,
         UnavailabilityReason.Invalid => "Windows returned an inconsistent measurement.",
         UnavailabilityReason.ReadFailed => "Windows did not return a measurement.",
         _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Undefined unavailability reason."),

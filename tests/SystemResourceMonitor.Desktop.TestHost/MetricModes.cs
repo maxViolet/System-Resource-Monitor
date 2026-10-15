@@ -230,9 +230,10 @@ public static partial class Program
             var elapsed = Stopwatch.GetElapsedTime(started);
             calls++;
             failed += succeeded ? 0 : 1;
-            maximum = elapsed > maximum ? elapsed : maximum;
-            run = elapsed > interval ? run + 1 : 0;
-            overruns += elapsed > interval ? 1 : 0;
+            maximum = TimeSpan.FromTicks(Math.Max(maximum.Ticks, elapsed.Ticks));
+            var overran = elapsed > interval;
+            run = overran ? run + 1 : 0;
+            overruns += overran ? 1 : 0;
             longest = Math.Max(longest, run);
 
             due += interval;

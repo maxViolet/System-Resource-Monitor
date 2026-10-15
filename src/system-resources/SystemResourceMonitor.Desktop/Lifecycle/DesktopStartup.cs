@@ -97,16 +97,15 @@ public sealed class DesktopStartup(
     /// </summary>
     private void StartMetrics(BarWindow bar)
     {
-        var relay = new MetricRelay(
-            action => bar.Dispatcher.BeginInvoke(action),
-            state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
+        Action<Action> post = action => bar.Dispatcher.BeginInvoke(action);
+        var relay = new MetricRelay(post, state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
         monitor.Changed += (_, state) => relay.OnChanged(state);
         bar.ShowMetrics(monitor.Current);
         var run = monitor.RunAsync(lifetime);
         shutdown.Track("metric-monitor", run);
         MetricRunFailure.Observe(
             run,
-            action => bar.Dispatcher.BeginInvoke(action),
+            post,
             exception =>
             {
                 record?.Invoke($"metrics-failed:{exception.GetType().Name}");
