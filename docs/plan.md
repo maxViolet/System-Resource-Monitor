@@ -56,8 +56,17 @@ Add install/uninstall scripts and an optional per-user `HKCU` Run entry independ
 
 Research temperature sources after the preceding delivery work. Record source, license, driver requirements, privileges, and Defender results. Reject a source requiring elevation of the bar or triggering antivirus warnings; absence of temperatures is acceptable. A privileged helper requires a separate future decision and is not authorized by this plan.
 
+### Task strip and taskbar replacement
+
+Replace the Windows taskbar in two phases while Explorer remains the shell ([ADR 0008](adr/0008-replace-taskbar-buttons-in-phases.md)); take tasks and tray icons from ManagedShell in Desktop only ([ADR 0009](adr/0009-managedshell-for-tasks-and-tray.md)); draw own volume, network, and battery indicators ([ADR 0010](adr/0010-own-shell-indicators.md)).
+
+- **Phase A:** the bar shows CPU/RAM and limit sections on the left, the task strip in the centre, and the clock on the right. The task strip shows one task button per task on every monitor, with icon, trimmed title, active and flashing states; click activates or minimizes, middle click asks to close. Task buttons with a title are 48–160 DIP wide; when 48 DIP does not fit, they become 32 DIP icon-only buttons, and tasks that still do not fit move to the overflow menu. The clock shows the time in the Windows regional short time format and the full date in its tooltip. The Windows taskbar is not hidden.
+- **Phase B:** a Windows 11 feasibility gate first proves that the bar's tray receives every icon of applications already running; otherwise phase B is rejected and the Windows taskbar stays. After the gate, the bar shows the tray (up to 6 icons, the rest in the tray overflow menu), the shell indicators, and the clock, then hides the Windows taskbar. It shows the Windows taskbar again when the tray fails and restores it on every handled exit; after abrupt termination, a recorded recovery restores it. The Windows taskbar is never hidden while the bar's tray does not work.
+
+Task grouping, pinned applications, thumbnails, jump lists, taskbar progress and overlay icons, and a calendar are not part of either phase.
+
 ## Release rule
 
-The first personal release requires stages 1–3 and all first-release gates in the implementation plan. Both provider qualifications must close as accepted or rejected; each accepted provider must pass its stage 3 acceptance, and its adapter is enabled during every first-release gate. A rejected provider does not block the release. Exceeding a budget blocks release. GPU, installation/autostart, and temperatures cannot block it. Tests alone never prove desktop acceptance.
+The first personal release requires stages 1–3 and all first-release gates in the implementation plan. Both provider qualifications must close as accepted or rejected; each accepted provider must pass its stage 3 acceptance, and its adapter is enabled during every first-release gate. A rejected provider does not block the release. Exceeding a budget blocks release. GPU, installation/autostart, temperatures, and the task strip and taskbar replacement cannot block it. Tests alone never prove desktop acceptance.
 
 Public distribution is prohibited until the clean Windows 11 profile, no-client-authorization, no-UAC, Defender, and artifact-hygiene checks pass and the distribution has authenticated provenance. Publish a signed manifest listing SHA-256 for every payload file and the source commit; publish the verification key or its fingerprint through an independently authenticated channel and verify the signature and every payload hash before release. A checksum posted beside the download without a trusted signature does not meet this gate. Signing is not required for the personal release.
