@@ -2,7 +2,7 @@
 
 Brick: [B06 — CPU/RAM sources and bar presentation](../bricks/B06-cpu-ram-presentation.md). Package plan: [B06 plan](../bricks/B06-cpu-ram-presentation/plan.md).
 
-Status: in progress. Criteria 1, 2, and 5 pass. Criteria 3 and 4 are partial: 150% and 200% scaling, the tooltip of a `—` section, and a visual observation of expiry are unverified. B06 is not done.
+Status: done by user decision on 2026-10-15. Criteria 1, 2, and 5 pass. Criteria 3 and 4 are partial, and their remaining checks are waived: 150% and 200% scaling, the tooltip of a `—` section, and a visual observation of expiry are unverified.
 
 ## Prerequisite
 

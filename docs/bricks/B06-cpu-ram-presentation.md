@@ -23,11 +23,11 @@ Marshal collector results to the WPF dispatcher before updating UI-bound state. 
 
 ## Acceptance criteria
 
-- [ ] CPU delta arithmetic, first-sample behavior, counter reset, and invalid-delta behavior have deterministic tests
-- [ ] Windows integration checks exercise both production native wrappers and their failure paths
-- [ ] The actual bar displays fixed-width CPU/RAM text, RAM GiB details, and explanatory unavailable states; at 100%, 150%, and 200% scaling the sections stay fixed and unclipped for 0%, 100%, and unavailable
-- [ ] Fault injection visibly expires one reading within 0.5 seconds of its six-second deadline while the other keeps updating
-- [ ] The published app remains responsive throughout desktop and measurement runs
+- [x] CPU delta arithmetic, first-sample behavior, counter reset, and invalid-delta behavior have deterministic tests
+- [x] Windows integration checks exercise both production native wrappers and their failure paths
+- [ ] The actual bar displays fixed-width CPU/RAM text, RAM GiB details, and explanatory unavailable states; at 100%, 150%, and 200% scaling the sections stay fixed and unclipped for 0%, 100%, and unavailable. Waived by the user on 2026-10-15 (150%/200% scaling, the tooltip on a `—` section, and on-screen observation of expiry were not run).
+- [ ] Fault injection visibly expires one reading within 0.5 seconds of its six-second deadline while the other keeps updating. Waived by the user on 2026-10-15 (150%/200% scaling, the tooltip on a `—` section, and on-screen observation of expiry were not run).
+- [x] The published app remains responsive throughout desktop and measurement runs
 
 ## Out of scope
 
