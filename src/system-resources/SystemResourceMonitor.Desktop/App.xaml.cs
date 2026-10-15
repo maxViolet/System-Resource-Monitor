@@ -1,6 +1,8 @@
 using System.IO;
 
 using System.Windows;
+using SystemResourceMonitor.Core.Metrics;
+using SystemResourceMonitor.Desktop.Adapters.Metrics;
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Lifecycle;
 namespace SystemResourceMonitor.Desktop;
@@ -33,7 +35,8 @@ public partial class App : Application
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "SystemResourceMonitor");
             var settings = new JsonSettingsStore(settingsDirectory);
-            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher);
+            var monitor = new MetricMonitor(new SystemTimesCpuSource(), new GlobalMemoryRamSource(), TimeProvider.System);
+            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher, monitor);
             await _startup.RunAsync();
         }
         catch (Exception)

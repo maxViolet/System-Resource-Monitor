@@ -1,18 +1,21 @@
 using System.Windows.Threading;
+using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Bar;
 using SystemResourceMonitor.Desktop.Settings;
 
 namespace SystemResourceMonitor.Desktop.Lifecycle;
 
 /// <summary>
-/// Startup order: acquire the per-session guard synchronously, load settings off the WPF thread, then create the bar
-/// and tray on the owning dispatcher. Any owner failure enters the shared shutdown coordinator.
+/// Startup order: acquire the per-session guard synchronously, load settings off the WPF thread, create the bar and
+/// tray on the owning dispatcher, then start metric monitoring until shutdown cancels its lifetime. Any owner failure
+/// enters the shared shutdown coordinator.
 /// </summary>
 public sealed class DesktopStartup(
     string guardName,
     ShutdownCoordinator shutdown,
     ISettingsStore settingsStore,
     Dispatcher dispatcher,
+    MetricMonitor monitor,
     Action<string>? record = null,
     Action<BarWindow>? afterBarPositioned = null) : IDisposable
 {
@@ -82,7 +85,24 @@ public sealed class DesktopStartup(
             bar.ReportStatus(LoadIssueMessage(issue));
         }
 
+        StartMetrics(bar);
         afterBarPositioned?.Invoke(bar);
+    }
+
+    /// <summary>
+    /// Starts collectors after the guard, settings, and AppBar. Every state reaches the bar through the dispatcher and
+    /// <see cref="ShutdownCoordinator.TryPublish"/>, so nothing is shown once shutdown begins. A faulted monitor run
+    /// enters failure shutdown, because stale readings must not stay on the bar as fresh.
+    /// </summary>
+    private void StartMetrics(BarWindow bar)
+    {
+        var relay = new MetricRelay(
+            action => bar.Dispatcher.BeginInvoke(action),
+            state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
+        monitor.Changed += (_, state) => relay.OnChanged(state);
+        bar.ShowMetrics(monitor.Current);
+        shutdown.TrackOwner("metric-monitor", monitor.RunAsync(shutdown.Lifetime));
+        record?.Invoke("metrics-started");
     }
 
     private static string LoadIssueMessage(SettingsLoadIssue issue) => issue switch
