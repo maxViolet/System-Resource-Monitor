@@ -43,7 +43,7 @@ Enforce both Core boundaries at build time. Each Core project targets `net10.0`,
 
 - `MetricReading` is an explicit union:
   - `AvailableMetric` contains kind, finite percentage in `0..100`, UTC `MeasuredAt`, a monotonic timestamp from `TimeProvider.GetTimestamp()`, and optional RAM used/total bytes;
-  - `UnavailableMetric` contains kind and one reason: `NotYetSampled`, `Expired`, `Invalid`, or `ReadFailed`.
+  - `UnavailableMetric` contains kind and one reason: `NotYetSampled`, `Expired`, `Invalid`, or `ReadFailed`. GPU readings may also carry `NoDiscreteAdapter`, `AmbiguousAdapter`, or `Uncorrelated` ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md)).
 - System metric state belongs to the system Core; subscription limit snapshots and their policy belong to the AI Core. Desktop composes the displayed dashboard state and marshals one UI change notification for updates.
 - Source ports read CPU and RAM independently. One failure cannot stop the other source's acquisition or expiry.
 - Inject `TimeProvider`; use UTC only for display and evidence, and monotonic timestamps for age and deadlines. Do not wrap it in `IClock`.
@@ -109,7 +109,7 @@ Run accuracy, resource, artifact, provider, and real-desktop gates on the exact 
 
 These slices may proceed in any order after the first release and do not retroactively block it.
 
-- **GPU:** implement adapter selection/correlation and reused PDH queries; use the product-plan GPU acceptance, with unavailable rather than guessed correlation.
+- **GPU:** implement discrete-adapter selection with DXCore, LUID correlation, and one reused PDH query ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md)); use the product-plan GPU acceptance, with unavailable rather than guessed selection or correlation. Unlike the first-release readers, the GPU reader owns a long-lived PDH query handle; it closes the handle only when no read is pending and otherwise leaves it to process exit.
 - **Installation/autostart:** implement the product-plan installation and autostart controls independently of GPU. Preserve settings during upgrade and make uninstall's settings-retention choice explicit.
 - **Temperatures:** research source/license/driver/Defender behaviour last; never elevate the bar. No acceptable source means no temperatures.
 - **Task strip and taskbar replacement:** follow the product-plan phases, [ADR 0008](adr/0008-replace-taskbar-buttons-in-phases.md), and [ADR 0009](adr/0009-managedshell-for-tasks-and-tray.md). ManagedShell is the only interop dependency besides direct Win32 calls, is referenced only by Desktop, and never registers an AppBar or changes the work area; the bar's own AppBar, fullscreen, and shell-recovery code stay in force. Phase B hides the Windows taskbar only while the bar's tray works and restores it on the handled exit paths in [Settings and lifecycle](#settings-and-lifecycle); abrupt termination is not covered by `finally`, so B18 records and proves a recovery for it. Shell indicators use only the documented APIs in [ADR 0010](adr/0010-own-shell-indicators.md).
