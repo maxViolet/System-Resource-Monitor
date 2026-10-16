@@ -46,6 +46,6 @@
 ## Validation
 
 - Run targeted tests first: `dotnet test --project <test project> -c Release`.
-- Before handoff, run the commands from ADR 0005 when applicable: `dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode`, `dotnet build SystemResourceMonitor.slnx -c Release --no-restore`, `dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build`, and `git diff --check`. Add `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` when the change affects the published app.
+- Before handoff, run the commands from the [implementation plan](docs/implementation-plan.md#automated-verification-and-handoff) when applicable (ADR 0005 explains the runtime and test-runner flags): `dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode`, `dotnet build SystemResourceMonitor.slnx -c Release --no-restore`, `dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build`, and `git diff --check`. Add `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` when the change affects the published app.
 - Automated checks do not close Windows desktop or resource gates. Run the scenarios a brick names on Windows 11 and record the evidence under `docs/acceptance/`.
 - Report unavailable or blocked validation as unverified; never report it as passed.
