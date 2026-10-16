@@ -21,7 +21,7 @@ public static partial class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram] | --metric-display [seconds] | --native-reads <seconds>";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram|gpu] | --metric-display [seconds] | --native-reads <seconds> | --gpu-probe | --gpu-correlation <seconds>";
 
     [STAThread]
     public static int Main(string[] args)
@@ -55,12 +55,18 @@ public static partial class Program
                 return MetricFreshness(Core.Metrics.MetricKind.Cpu);
             case ["--metric-freshness", "ram"]:
                 return MetricFreshness(Core.Metrics.MetricKind.Ram);
+            case ["--metric-freshness", "gpu"]:
+                return MetricFreshness(Core.Metrics.MetricKind.Gpu);
             case ["--metric-display"]:
                 return MetricDisplay(TimeSpan.Zero);
             case ["--metric-display", var seconds] when TryParseSeconds(seconds, out var hold):
                 return MetricDisplay(hold);
             case ["--native-reads", var seconds] when TryParseSeconds(seconds, out var duration):
                 return NativeReads(duration);
+            case ["--gpu-probe"]:
+                return GpuProbe();
+            case ["--gpu-correlation", var seconds] when TryParseSeconds(seconds, out var gpuDuration):
+                return GpuCorrelation(gpuDuration);
             default:
                 Console.Error.WriteLine(Usage);
                 return InvalidInvocation;

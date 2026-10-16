@@ -5,6 +5,7 @@ public enum MetricKind
 {
     Cpu,
     Ram,
+    Gpu,
 }
 
 /// <summary>Why a metric has no trustworthy current value. Unavailable is never shown as zero.</summary>
@@ -21,7 +22,16 @@ public enum UnavailabilityReason
 
     /// <summary>The source could not read a value.</summary>
     ReadFailed,
+    NoDiscreteAdapter,
+    AmbiguousAdapter,
+    Uncorrelated,
 }
+
+/// <summary>The Windows adapter identity used to correlate GPU counters.</summary>
+public readonly record struct AdapterLuid(uint LowPart, int HighPart);
+
+/// <summary>A selected discrete GPU adapter.</summary>
+public sealed record GpuAdapter(string Description, AdapterLuid Luid);
 
 /// <summary>Physical memory in use and in total, in bytes.</summary>
 public readonly record struct RamBytes(ulong UsedBytes, ulong TotalBytes);
@@ -50,13 +60,14 @@ public abstract record MetricReading
 /// </summary>
 public sealed record AvailableMetric : MetricReading
 {
-    private AvailableMetric(MetricKind kind, double percentage, DateTimeOffset measuredAt, long timestamp, RamBytes? ramBytes)
+    private AvailableMetric(MetricKind kind, double percentage, DateTimeOffset measuredAt, long timestamp, RamBytes? ramBytes, GpuAdapter? gpuAdapter)
         : base(kind)
     {
         Percentage = percentage;
         MeasuredAt = measuredAt;
         Timestamp = timestamp;
         RamBytes = ramBytes;
+        GpuAdapter = gpuAdapter;
     }
 
     /// <summary>A finite value from 0 through 100 inclusive; 0 is a valid measurement.</summary>
@@ -70,6 +81,9 @@ public sealed record AvailableMetric : MetricReading
 
     /// <summary>Used and total physical memory; present for RAM and absent for CPU.</summary>
     public RamBytes? RamBytes { get; }
+
+    /// <summary>The adapter for a GPU measurement; absent for CPU and RAM.</summary>
+    public GpuAdapter? GpuAdapter { get; }
 
     /// <summary>
     /// Validates a source sample stamped at <paramref name="measuredAt"/> and <paramref name="timestamp"/>.
@@ -92,12 +106,17 @@ public sealed record AvailableMetric : MetricReading
 
         return (kind, sample) switch
         {
-            (_, SampleUnavailable unavailable) => new UnavailableMetric(kind, unavailable.Reason),
+            (MetricKind.Gpu, GpuUnavailableSample gpuUnavailable) => new UnavailableMetric(kind, gpuUnavailable.Reason),
+            (MetricKind.Gpu, MeasuredGpuSample { Adapter: { } adapter, Percentage: var gpuPercentage })
+                when double.IsFinite(gpuPercentage) && gpuPercentage is >= 0 and <= 100
+                => new AvailableMetric(kind, gpuPercentage, measuredAt, timestamp, null, adapter),
+            (_, SampleUnavailable unavailable) when unavailable.Reason is UnavailabilityReason.NotYetSampled or UnavailabilityReason.Invalid or UnavailabilityReason.ReadFailed
+                => new UnavailableMetric(kind, unavailable.Reason),
             (MetricKind.Cpu, MeasuredSample { Percentage: var percentage }) when double.IsFinite(percentage) && percentage is >= 0 and <= 100
-                => new AvailableMetric(kind, percentage, measuredAt, timestamp, null),
+                => new AvailableMetric(kind, percentage, measuredAt, timestamp, null, null),
             (MetricKind.Ram, MeasuredRamSample { TotalBytes: > 0 } ram) when ram.UsedBytes <= ram.TotalBytes
                 => new AvailableMetric(kind, (double)ram.UsedBytes / ram.TotalBytes * 100, measuredAt, timestamp,
-                    new RamBytes(ram.UsedBytes, ram.TotalBytes)),
+                    new RamBytes(ram.UsedBytes, ram.TotalBytes), null),
             _ => new UnavailableMetric(kind, UnavailabilityReason.Invalid),
         };
     }
@@ -109,7 +128,7 @@ public sealed record UnavailableMetric : MetricReading
     public UnavailableMetric(MetricKind kind, UnavailabilityReason reason)
         : base(kind)
     {
-        if (!Enum.IsDefined(reason))
+        if (!Enum.IsDefined(reason) || (kind != MetricKind.Gpu && reason is UnavailabilityReason.NoDiscreteAdapter or UnavailabilityReason.AmbiguousAdapter or UnavailabilityReason.Uncorrelated))
         {
             throw new ArgumentOutOfRangeException(nameof(reason), reason, "Undefined unavailability reason.");
         }

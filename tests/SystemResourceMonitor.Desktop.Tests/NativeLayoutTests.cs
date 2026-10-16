@@ -18,5 +18,8 @@ public sealed class NativeLayoutTests
         Assert.Equal(976, Marshal.SizeOf<NativeMethods.NOTIFYICONDATAW>());
         Assert.Equal(8, Marshal.SizeOf<MetricNativeMethods.FILETIME>());
         Assert.Equal(64, Marshal.SizeOf<MetricNativeMethods.MEMORYSTATUSEX>());
+        Assert.Equal(8, Marshal.SizeOf<NativeLuid>());
+        Assert.Equal(16, Marshal.SizeOf<PdhFmtCounterValue>());
+        Assert.Equal(24, Marshal.SizeOf<PdhFmtCounterValueItem>());
     }
 }

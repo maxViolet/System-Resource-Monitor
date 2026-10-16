@@ -154,7 +154,7 @@ public sealed class ShutdownCoordinatorTests
     {
         var exited = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var shutdown = new ShutdownCoordinator(new CancellationTokenSource(), _time, exited.SetResult);
-        var monitor = new MetricMonitor(new SteadySource(MetricKind.Cpu), new SteadySource(MetricKind.Ram), TimeProvider.System);
+        var monitor = new MetricMonitor(new SteadySource(MetricKind.Cpu), new SteadySource(MetricKind.Ram), new SteadySource(MetricKind.Gpu), TimeProvider.System);
         monitor.Changed += (_, _) => throw new InvalidOperationException("Injected handler failure.");
 
         shutdown.TrackOwner("metric-monitor", monitor.RunAsync(shutdown.Lifetime));
@@ -175,7 +175,7 @@ public sealed class ShutdownCoordinatorTests
                 recorded.Add(marker);
             }
         });
-        var monitor = new MetricMonitor(new SteadySource(MetricKind.Cpu), new SteadySource(MetricKind.Ram), TimeProvider.System);
+        var monitor = new MetricMonitor(new SteadySource(MetricKind.Cpu), new SteadySource(MetricKind.Ram), new SteadySource(MetricKind.Gpu), TimeProvider.System);
         var run = monitor.RunAsync(shutdown.Lifetime);
         shutdown.TrackOwner("metric-monitor", run);
 
@@ -193,7 +193,12 @@ public sealed class ShutdownCoordinatorTests
     {
         public MetricKind Kind => kind;
 
-        public MetricSample Read() => kind == MetricKind.Cpu ? new MeasuredSample(12) : new MeasuredRamSample(1, 2);
+        public MetricSample Read() => kind switch
+        {
+            MetricKind.Cpu => new MeasuredSample(12),
+            MetricKind.Ram => new MeasuredRamSample(1, 2),
+            _ => new SampleUnavailable(UnavailabilityReason.NotYetSampled),
+        };
     }
 
     private sealed class FakeBar(List<string> events, bool removalFails = false) : IShutdownBar

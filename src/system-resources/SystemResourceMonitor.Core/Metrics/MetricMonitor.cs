@@ -1,7 +1,7 @@
 namespace SystemResourceMonitor.Core.Metrics;
 
 /// <summary>
-/// Polls the CPU and RAM sources independently and owns the current <see cref="DashboardState"/>.
+/// Polls the CPU, RAM, and GPU sources independently and owns the current <see cref="DashboardState"/>.
 /// </summary>
 /// <remarks>
 /// Each source is read every <see cref="PollInterval"/> on a thread-pool worker, never with two reads of one source
@@ -15,11 +15,9 @@ public sealed class MetricMonitor
     public static readonly TimeSpan ExpiryAge = TimeSpan.FromSeconds(6);
 
     private readonly Lock _gate = new();
-    private readonly IMetricSource _cpu;
-    private readonly IMetricSource _ram;
+    private readonly IMetricSource[] _sources;
     private readonly TimeProvider _time;
-    private readonly ITimer _cpuExpiry;
-    private readonly ITimer _ramExpiry;
+    private readonly ITimer[] _expiryTimers;
     private DashboardState _current = DashboardState.Initial;
     private readonly TaskCompletionSource _expiryFailure = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CancellationTokenSource? _lifetimeSource;
@@ -27,10 +25,11 @@ public sealed class MetricMonitor
     private bool _started;
     private bool _stopped;
 
-    public MetricMonitor(IMetricSource cpu, IMetricSource ram, TimeProvider time)
+    public MetricMonitor(IMetricSource cpu, IMetricSource ram, IMetricSource gpu, TimeProvider time)
     {
         ArgumentNullException.ThrowIfNull(cpu);
         ArgumentNullException.ThrowIfNull(ram);
+        ArgumentNullException.ThrowIfNull(gpu);
         ArgumentNullException.ThrowIfNull(time);
         if (cpu.Kind != MetricKind.Cpu)
         {
@@ -42,11 +41,16 @@ public sealed class MetricMonitor
             throw new ArgumentException("The RAM source must report MetricKind.Ram.", nameof(ram));
         }
 
-        _cpu = cpu;
-        _ram = ram;
+        if (gpu.Kind != MetricKind.Gpu)
+        {
+            throw new ArgumentException("The GPU source must report MetricKind.Gpu.", nameof(gpu));
+        }
+
+        _sources = [cpu, ram, gpu];
         _time = time;
-        _cpuExpiry = time.CreateTimer(Expire, MetricKind.Cpu, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _ramExpiry = time.CreateTimer(Expire, MetricKind.Ram, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _expiryTimers = Enum.GetValues<MetricKind>()
+            .Select(kind => time.CreateTimer(Expire, kind, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan))
+            .ToArray();
     }
 
     /// <summary>
@@ -69,9 +73,9 @@ public sealed class MetricMonitor
     }
 
     /// <summary>
-    /// Polls both sources until <paramref name="cancellationToken"/> is cancelled, then completes without throwing.
+    /// Polls all sources until <paramref name="cancellationToken"/> is cancelled, then completes without throwing.
     /// After cancellation no read starts, a pending read's late result is discarded, and no expiry is published; a
-    /// pending synchronous read is not interrupted. Any other failure stops both loops and faults the returned task.
+    /// pending synchronous read is not interrupted. Any other failure stops all loops and faults the returned task.
     /// The monitor runs once; a second call throws <see cref="InvalidOperationException"/>.
     /// </summary>
     public Task RunAsync(CancellationToken cancellationToken)
@@ -101,7 +105,7 @@ public sealed class MetricMonitor
         try
         {
             using var stop = lifetime.Token.Register(Stop);
-            Task[] loops = [PollAsync(_cpu, lifetime.Token), PollAsync(_ram, lifetime.Token)];
+            Task[] loops = _sources.Select(source => PollAsync(source, lifetime.Token)).ToArray();
             var first = await Task.WhenAny([.. loops, _expiryFailure.Task]).ConfigureAwait(false);
             if (first.IsFaulted)
             {
@@ -189,6 +193,14 @@ public sealed class MetricMonitor
             }
 
             var previous = _current.Get(kind);
+            var adapter = kind == MetricKind.Gpu
+                ? sample switch
+                {
+                    MeasuredGpuSample measured => measured.Adapter,
+                    GpuUnavailableSample unavailable => unavailable.Adapter,
+                    _ => _current.GpuAdapter,
+                }
+                : null;
             switch (reading)
             {
                 case AvailableMetric available:
@@ -196,26 +208,29 @@ public sealed class MetricMonitor
                     // limit when applied expires at once instead of through a zero-delay timer.
                     var remaining = RemainingAge(available);
                     ExpiryTimer(kind).Change(remaining > TimeSpan.Zero ? remaining : Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                    Publish(available);
+                    Publish(available, kind, adapter);
                     if (remaining <= TimeSpan.Zero)
                     {
-                        Publish(new UnavailableMetric(kind, UnavailabilityReason.Expired));
+                        Publish(new UnavailableMetric(kind, UnavailabilityReason.Expired), kind, _current.GpuAdapter);
                     }
 
                     break;
-                case UnavailableMetric { Reason: UnavailabilityReason.Invalid }:
+                case UnavailableMetric { Reason: UnavailabilityReason.Invalid or UnavailabilityReason.NoDiscreteAdapter
+                    or UnavailabilityReason.AmbiguousAdapter or UnavailabilityReason.Uncorrelated } invalid:
                     ExpiryTimer(kind).Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                    if (previous is not UnavailableMetric { Reason: UnavailabilityReason.Invalid })
+                    if (previous is not UnavailableMetric invalidCurrent || invalidCurrent.Reason != invalid.Reason
+                        || (kind == MetricKind.Gpu && _current.GpuAdapter != adapter))
                     {
-                        Publish(reading);
+                        Publish(reading, kind, adapter);
                     }
 
                     break;
                 case UnavailableMetric unavailable:
                     // A failed or unsampled read keeps an available reading and its original deadline.
-                    if (previous is UnavailableMetric current && current.Reason != unavailable.Reason)
+                    if (previous is UnavailableMetric current && (current.Reason != unavailable.Reason
+                        || (kind == MetricKind.Gpu && _current.GpuAdapter != adapter)))
                     {
-                        Publish(reading);
+                        Publish(reading, kind, adapter);
                     }
 
                     break;
@@ -243,7 +258,7 @@ public sealed class MetricMonitor
 
             try
             {
-                Publish(new UnavailableMetric(kind, UnavailabilityReason.Expired));
+                Publish(new UnavailableMetric(kind, UnavailabilityReason.Expired), kind, _current.GpuAdapter);
             }
             catch (Exception exception)
             {
@@ -260,8 +275,10 @@ public sealed class MetricMonitor
         lock (_gate)
         {
             _stopped = true;
-            _cpuExpiry.Dispose();
-            _ramExpiry.Dispose();
+            foreach (var timer in _expiryTimers)
+            {
+                timer.Dispose();
+            }
         }
     }
 
@@ -273,11 +290,11 @@ public sealed class MetricMonitor
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
-    private ITimer ExpiryTimer(MetricKind kind) => kind == MetricKind.Cpu ? _cpuExpiry : _ramExpiry;
+    private ITimer ExpiryTimer(MetricKind kind) => _expiryTimers[(int)kind];
 
-    private void Publish(MetricReading reading)
+    private void Publish(MetricReading reading, MetricKind kind, GpuAdapter? adapter)
     {
-        _current = _current.With(reading);
+        _current = kind == MetricKind.Gpu ? _current.WithGpu(reading, adapter) : _current.With(reading);
         Changed?.Invoke(this, _current);
     }
 }

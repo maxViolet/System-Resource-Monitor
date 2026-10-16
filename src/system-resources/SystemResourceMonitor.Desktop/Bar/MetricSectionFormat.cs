@@ -19,7 +19,7 @@ public static class MetricSectionFormat
     private static readonly string ExpiredExplanation =
         string.Create(CultureInfo.InvariantCulture, $"No update for {MetricMonitor.ExpiryAge.TotalSeconds:0} seconds.");
 
-    public static MetricSection Format(MetricReading reading)
+    public static MetricSection Format(MetricReading reading, GpuAdapter? gpuAdapter = null)
     {
         ArgumentNullException.ThrowIfNull(reading);
         var label = Label(reading.Kind);
@@ -27,10 +27,12 @@ public static class MetricSectionFormat
         {
             AvailableMetric available => new MetricSection(
                 string.Create(CultureInfo.InvariantCulture, $"{label} {Math.Round(available.Percentage, MidpointRounding.AwayFromZero):0}%"),
-                available.RamBytes is { } bytes
+                available.Kind == MetricKind.Gpu ? Description(gpuAdapter ?? available.GpuAdapter)
+                    : available.RamBytes is { } bytes
                     ? string.Create(CultureInfo.InvariantCulture, $"RAM {bytes.UsedBytes / BytesPerGib:0.0} / {bytes.TotalBytes / BytesPerGib:0.0} GiB used")
                     : null),
-            UnavailableMetric unavailable => new MetricSection($"{label} {Unavailable}", Explain(unavailable.Reason)),
+            UnavailableMetric unavailable => new MetricSection($"{label} {Unavailable}", Explain(unavailable.Reason,
+                unavailable.Kind == MetricKind.Gpu ? gpuAdapter : null)),
             _ => throw new ArgumentOutOfRangeException(nameof(reading), reading, "Unknown metric reading."),
         };
     }
@@ -51,16 +53,31 @@ public static class MetricSectionFormat
     {
         MetricKind.Cpu => "CPU",
         MetricKind.Ram => "RAM",
+        MetricKind.Gpu => "GPU",
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Undefined metric kind."),
     };
 
     /// <summary>The safe tooltip for <paramref name="reason"/>; an undefined reason throws.</summary>
-    internal static string Explain(UnavailabilityReason reason) => reason switch
+    internal static string Explain(UnavailabilityReason reason, GpuAdapter? adapter = null)
     {
-        UnavailabilityReason.NotYetSampled => "Waiting for the first measurement.",
-        UnavailabilityReason.Expired => ExpiredExplanation,
-        UnavailabilityReason.Invalid => "Windows returned an inconsistent measurement.",
-        UnavailabilityReason.ReadFailed => "Windows did not return a measurement.",
-        _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Undefined unavailability reason."),
-    };
+        var explanation = reason switch
+        {
+            UnavailabilityReason.NoDiscreteAdapter => "No discrete GPU found.",
+            UnavailabilityReason.AmbiguousAdapter => "More than one discrete GPU found; none is chosen.",
+            UnavailabilityReason.Uncorrelated => $"{Description(adapter) ?? "GPU"}: GPU counters could not be matched to this adapter.",
+            UnavailabilityReason.NotYetSampled => "Waiting for the first measurement.",
+            UnavailabilityReason.Expired => ExpiredExplanation,
+            UnavailabilityReason.Invalid => "Windows returned an inconsistent measurement.",
+            UnavailabilityReason.ReadFailed => "Windows did not return a measurement.",
+            _ => throw new ArgumentOutOfRangeException(nameof(reason), reason, "Undefined reason."),
+        };
+        return adapter is not null && reason is UnavailabilityReason.NotYetSampled or UnavailabilityReason.Expired
+            or UnavailabilityReason.Invalid or UnavailabilityReason.ReadFailed
+            ? $"{Description(adapter)}: {explanation}"
+            : explanation;
+    }
+
+    private static string? Description(GpuAdapter? adapter) => adapter is null
+        ? null
+        : adapter.Description.Length <= 64 ? adapter.Description : adapter.Description[..64];
 }
