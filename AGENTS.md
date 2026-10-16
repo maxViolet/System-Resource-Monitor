@@ -20,6 +20,12 @@
 - Do not commit, push, merge, or create a PR unless the user explicitly asks.
 - Use one worktree and branch per terminal or agent.
 
+## Herdr
+
+- When the agent runs inside a Herdr pane (`HERDR_ENV=1`), read and follow `HERDR.md`. Outside Herdr, skip it.
+
+@HERDR.md
+
 ## Branch names
 
 - `<TYPE>-<NNN>-<short-kebab-name>`, for example `DOC-002-pr-and-commit-writing`. Types:
