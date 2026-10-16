@@ -17,6 +17,7 @@ public sealed class LifecycleProcessTests
     [Theory(Timeout = TimeoutMilliseconds)]
     [InlineData("--fail-after-setpos")]
     [InlineData("--bounded-shutdown")]
+    [InlineData("--faulted-metric-run")]
     [InlineData("--edge-switches")]
     [InlineData("--fullscreen-reconciliation")]
     [InlineData("--settings-read-failure")]
