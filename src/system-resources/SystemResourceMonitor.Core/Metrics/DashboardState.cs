@@ -26,7 +26,7 @@ public sealed record DashboardState
     /// <summary>The adapter from the latest GPU sample, retained after its reading expires.</summary>
     public GpuAdapter? GpuAdapter { get; }
 
-    /// <summary>Returns a state with the reading of <paramref name="reading"/>'s kind replaced and the other unchanged.</summary>
+    /// <summary>Replaces a CPU or RAM reading. Use <see cref="WithGpu"/> for GPU so its adapter is explicit.</summary>
     public DashboardState With(MetricReading reading)
     {
         ArgumentNullException.ThrowIfNull(reading);
@@ -34,7 +34,7 @@ public sealed record DashboardState
         {
             MetricKind.Cpu => new DashboardState(reading, Ram, Gpu, GpuAdapter),
             MetricKind.Ram => new DashboardState(Cpu, reading, Gpu, GpuAdapter),
-            MetricKind.Gpu => WithGpu(reading, GpuAdapter),
+            MetricKind.Gpu => throw new ArgumentException("Use WithGpu to provide the GPU adapter.", nameof(reading)),
             _ => throw new ArgumentOutOfRangeException(nameof(reading), reading.Kind, "Undefined metric kind."),
         };
     }
@@ -47,7 +47,7 @@ public sealed record DashboardState
             throw new ArgumentException("The reading must be for GPU.", nameof(reading));
         }
 
-        return new DashboardState(Cpu, Ram, reading, adapter ?? (reading as AvailableMetric)?.GpuAdapter);
+        return new DashboardState(Cpu, Ram, reading, adapter);
     }
 
     internal MetricReading Get(MetricKind kind) => kind switch

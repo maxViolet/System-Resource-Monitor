@@ -31,14 +31,51 @@ public sealed class GpuMetricSourceTests
     [Fact]
     public void Source_changes_all_skipped_samples_from_not_yet_sampled_to_invalid()
     {
-        var source = new GpuLoadSource(new FakeAdapters([Candidate]), new FakeCounters
+        var adapters = new FakeAdapters([Candidate]);
+        var source = new GpuLoadSource(adapters, new FakeCounters
         {
             Items = [new("pid_1_luid_0x00000014_0x0000000a_phys_0_eng_1_engtype_3D", 0, false)],
         });
 
         Assert.Equal(UnavailabilityReason.NotYetSampled, Assert.IsType<GpuUnavailableSample>(source.Read()).Reason);
         Assert.Equal(UnavailabilityReason.Invalid, Assert.IsType<GpuUnavailableSample>(source.Read()).Reason);
+        adapters.Stale = true;
+        Assert.Equal(UnavailabilityReason.NotYetSampled, Assert.IsType<GpuUnavailableSample>(source.Read()).Reason);
         source.Dispose();
+    }
+
+    [Fact]
+    public void Diagnostics_include_other_adapter_instances_only_when_requested()
+    {
+        var items = new GpuCounterItem[]
+        {
+            new("pid_1_luid_0x00000014_0x0000000a_phys_0_eng_1_engtype_3D", 42, true),
+            new("pid_2_luid_0x00000014_0x0000000b_phys_0_eng_1_engtype_3D", 20, true),
+        };
+        using var production = new GpuLoadSource(new FakeAdapters([Candidate]), new FakeCounters { Items = items });
+        _ = production.Read();
+        Assert.Null(production.LastDiagnostic);
+
+        using var diagnostic = new GpuLoadSource(new FakeAdapters([Candidate]), new FakeCounters { Items = items }, captureDiagnostics: true);
+        Assert.IsType<MeasuredGpuSample>(diagnostic.Read());
+        Assert.Equal(2, Assert.IsType<GpuReadDiagnostic>(diagnostic.LastDiagnostic).ObservedInstances.Count);
+    }
+
+    [Fact]
+    public void Failed_reenumeration_retries_even_when_the_replacement_list_is_not_stale()
+    {
+        var adapters = new FakeAdapters([Candidate]);
+        using var source = new GpuLoadSource(adapters, new FakeCounters());
+        Assert.IsType<MeasuredGpuSample>(source.Read());
+
+        adapters.Stale = true;
+        adapters.ThrowOnEnumerate = true;
+        Assert.Equal(UnavailabilityReason.ReadFailed, Assert.IsType<GpuUnavailableSample>(source.Read()).Reason);
+
+        adapters.Stale = false;
+        adapters.ThrowOnEnumerate = false;
+        Assert.IsType<MeasuredGpuSample>(source.Read());
+        Assert.Equal(3, adapters.Enumerations);
     }
 
     [Fact]
@@ -54,7 +91,7 @@ public sealed class GpuMetricSourceTests
     }
 
     [Fact]
-    public async Task Dispose_during_read_closes_counter_after_read()
+    public async Task Dispose_during_read_leaves_counter_for_process_exit()
     {
         var counters = new FakeCounters { Block = new ManualResetEventSlim(false) };
         var source = new GpuLoadSource(new FakeAdapters([Candidate]), counters);
@@ -64,7 +101,9 @@ public sealed class GpuMetricSourceTests
         Assert.Equal(0, counters.Disposals);
         counters.Block.Set();
         _ = await read.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
-        Assert.Equal(1, counters.Disposals);
+        Assert.Equal(0, counters.Disposals);
+        source.Dispose();
+        Assert.Equal(0, counters.Disposals);
     }
 
     private sealed class FakeAdapters(IReadOnlyList<GpuAdapterCandidate> candidates) : IGpuAdapterApi

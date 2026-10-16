@@ -13,17 +13,18 @@ internal interface IGpuCounterApi : IDisposable
     bool TryCollect(out IReadOnlyList<GpuCounterItem> items, out int status);
 }
 
-internal sealed record GpuReadDiagnostic(GpuAdapter? Adapter, MetricSample Sample, IReadOnlyList<GpuEngineInstance> CountedInstances, int UnparseableCount);
+internal readonly record struct GpuObservedEngine(GpuEngineInstance Instance, double Value);
+internal sealed record GpuReadDiagnostic(GpuAdapter? Adapter, IReadOnlyList<GpuObservedEngine> ObservedInstances, int UnparseableCount);
 
-internal sealed class GpuLoadSource(IGpuAdapterApi adapters, IGpuCounterApi counters) : IMetricSource, IDisposable
+internal sealed class GpuLoadSource(IGpuAdapterApi adapters, IGpuCounterApi counters, bool captureDiagnostics = false) : IMetricSource, IDisposable
 {
-    private readonly object _gate = new();
     private bool _hasAdapterList;
+    private bool _hasCollectedBeforeLastResult;
     private GpuAdapterSelection? _selection;
-    internal GpuReadDiagnostic? LastDiagnostic { get; private set; }
-    // 0 = active, 1 = read in progress, 2 = disposed, 3 = disposed while a read was in progress.
+    // 0 = active, 1 = reading, 2 = disposed, 3 = disposed while reading; leave handles for process exit.
     private int _state;
 
+    internal GpuReadDiagnostic? LastDiagnostic { get; private set; }
     public MetricKind Kind => MetricKind.Gpu;
 
     public MetricSample Read()
@@ -31,97 +32,77 @@ internal sealed class GpuLoadSource(IGpuAdapterApi adapters, IGpuCounterApi coun
         LastDiagnostic = null;
         if (Interlocked.CompareExchange(ref _state, 1, 0) != 0)
         {
-            var disposed = ReadFailed(_selection?.Adapter);
-            LastDiagnostic = new GpuReadDiagnostic(_selection?.Adapter, disposed, [], 0);
-            return disposed;
+            return Record(ReadFailed(_selection?.Adapter));
         }
 
         try
         {
-            GpuAdapterSelection selection;
-            try
+            if (!_hasAdapterList || adapters.IsStale())
             {
-                lock (_gate)
-                {
-                    if (!_hasAdapterList || adapters.IsStale())
-                    {
-                        _selection = GpuAdapterSelector.Select(adapters.Enumerate());
-                        _hasAdapterList = true;
-                    }
-
-                    selection = _selection!;
-                }
-            }
-            catch (Exception)
-            {
-                var failed = ReadFailed(_selection?.Adapter);
-                LastDiagnostic = new GpuReadDiagnostic(_selection?.Adapter, failed, [], 0);
-                return failed;
+                _hasAdapterList = false;
+                _hasCollectedBeforeLastResult = false;
+                _selection = GpuAdapterSelector.Select(adapters.Enumerate());
+                _hasAdapterList = true;
             }
 
-            if (selection.Adapter is null)
+            var selected = _selection!.Adapter;
+            if (selected is null)
             {
-                var unavailable = new GpuUnavailableSample(null, selection.Reason!.Value);
-                LastDiagnostic = new GpuReadDiagnostic(null, unavailable, [], 0);
-                return unavailable;
+                return Record(new GpuUnavailableSample(null, _selection.Reason!.Value));
             }
 
-            IReadOnlyList<GpuCounterItem> items;
-            try
+            if (!counters.TryCollect(out var items, out _))
             {
-                if (!counters.TryCollect(out items, out _))
-                {
-                    var failed = ReadFailed(selection.Adapter);
-                    LastDiagnostic = new GpuReadDiagnostic(selection.Adapter, failed, [], 0);
-                    return failed;
-                }
-            }
-            catch (Exception)
-            {
-                var failed = ReadFailed(selection.Adapter);
-                LastDiagnostic = new GpuReadDiagnostic(selection.Adapter, failed, [], 0);
-                return failed;
+                return Record(ReadFailed(selected));
             }
 
-            try
+            var sample = GpuLoadCalculator.Calculate(selected, items);
+            if (sample is SampleUnavailable { Reason: UnavailabilityReason.NotYetSampled })
             {
-                var result = GpuLoadCalculator.Calculate(selection.Adapter, items);
-                if (result is SampleUnavailable { Reason: UnavailabilityReason.NotYetSampled } && _hasCollectedBeforeLastResult)
-                {
-                    result = new GpuUnavailableSample(selection.Adapter, UnavailabilityReason.Invalid);
-                }
+                sample = new GpuUnavailableSample(selected,
+                    _hasCollectedBeforeLastResult ? UnavailabilityReason.Invalid : UnavailabilityReason.NotYetSampled);
+            }
 
-                _hasCollectedBeforeLastResult = true;
-                var final = result is SampleUnavailable { Reason: UnavailabilityReason.NotYetSampled }
-                    ? new GpuUnavailableSample(selection.Adapter, UnavailabilityReason.NotYetSampled)
-                    : result;
-                var parsed = items.Select(item => (Item: item, Instance: GpuEngineInstance.TryParse(item.InstanceName, out var instance)
-                    ? instance : (GpuEngineInstance?)null)).ToArray();
-                LastDiagnostic = new GpuReadDiagnostic(selection.Adapter, final,
-                    parsed.Where(entry => entry.Item.IsValid && entry.Instance is { Engine: not GpuEngineType.Other, PhysicalIndex: 0 } instance
-                        && instance.Luid == selection.Adapter.Luid).Select(entry => entry.Instance!.Value).ToArray(),
-                    parsed.Count(entry => entry.Instance is null));
-                return final;
-            }
-            catch (Exception)
-            {
-                var failed = ReadFailed(selection.Adapter);
-                LastDiagnostic = new GpuReadDiagnostic(selection.Adapter, failed, [], 0);
-                return failed;
-            }
+            _hasCollectedBeforeLastResult = true;
+            return Record(sample, items);
+        }
+        catch (Exception)
+        {
+            return Record(ReadFailed(_selection?.Adapter));
         }
         finally
         {
-            if (Interlocked.CompareExchange(ref _state, 0, 1) == 3)
-            {
-                counters.Dispose();
-                adapters.Dispose();
-                Interlocked.Exchange(ref _state, 2);
-            }
+            _ = Interlocked.CompareExchange(ref _state, 0, 1);
         }
     }
 
-    private bool _hasCollectedBeforeLastResult;
+    private MetricSample Record(MetricSample sample, IReadOnlyList<GpuCounterItem>? items = null)
+    {
+        if (!captureDiagnostics)
+        {
+            return sample;
+        }
+
+        var observed = new List<GpuObservedEngine>();
+        var unparseable = 0;
+        if (items is not null)
+        {
+            foreach (var item in items)
+            {
+                if (!GpuEngineInstance.TryParse(item.InstanceName, out var instance))
+                {
+                    unparseable++;
+                }
+                else if (item.IsValid && instance.Engine != GpuEngineType.Other)
+                {
+                    observed.Add(new GpuObservedEngine(instance, item.Value));
+                }
+            }
+        }
+
+        LastDiagnostic = new GpuReadDiagnostic(_selection?.Adapter, observed, unparseable);
+        return sample;
+    }
 
     private static MetricSample ReadFailed(GpuAdapter? adapter) => adapter is null
         ? new SampleUnavailable(UnavailabilityReason.ReadFailed)
@@ -129,14 +110,26 @@ internal sealed class GpuLoadSource(IGpuAdapterApi adapters, IGpuCounterApi coun
 
     public void Dispose()
     {
-        if (Interlocked.CompareExchange(ref _state, 2, 0) == 0)
+        while (true)
         {
-            counters.Dispose();
-            adapters.Dispose();
-        }
-        else
-        {
-            _ = Interlocked.CompareExchange(ref _state, 3, 1);
+            var state = Volatile.Read(ref _state);
+            if (state is 2 or 3)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(ref _state, state == 0 ? 2 : 3, state) != state)
+            {
+                continue;
+            }
+
+            if (state == 0)
+            {
+                counters.Dispose();
+                adapters.Dispose();
+            }
+
+            return;
         }
     }
 }

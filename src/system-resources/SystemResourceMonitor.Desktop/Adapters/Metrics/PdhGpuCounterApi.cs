@@ -53,7 +53,8 @@ internal sealed partial class PdhGpuCounterApi : IGpuCounterApi
             _bufferBytes = bytes;
         }
 
-        result = PdhGetFormattedCounterArrayW(_counter, PdhFmtDouble | PdhFmtNoCap100, ref _bufferBytes, ref count, _buffer);
+        var returnedBytes = _bufferBytes;
+        result = PdhGetFormattedCounterArrayW(_counter, PdhFmtDouble | PdhFmtNoCap100, ref returnedBytes, ref count, _buffer);
         if (result != 0)
         {
             status = unchecked((int)result);

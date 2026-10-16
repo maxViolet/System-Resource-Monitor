@@ -31,12 +31,11 @@ public enum GpuEngineType
     Other,
 }
 
-public readonly record struct GpuEngineInstance(AdapterLuid Luid, int PhysicalIndex, int EngineIndex, GpuEngineType Engine)
+public readonly partial record struct GpuEngineInstance(AdapterLuid Luid, int PhysicalIndex, int EngineIndex, GpuEngineType Engine)
 {
-    public string EngineTypeName { get; init; } = string.Empty;
-    private static readonly Regex Pattern = new(
-        "^pid_[0-9]+_luid_0x(?<high>[0-9a-f]{8})_0x(?<low>[0-9a-f]{8})_phys_(?<physical>[0-9]+)_eng_(?<index>[0-9]+)_engtype_(?<engine>.+)$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    [GeneratedRegex("^pid_[0-9]+_luid_0x(?<high>[0-9a-f]{8})_0x(?<low>[0-9a-f]{8})_phys_(?<physical>[0-9]+)_eng_(?<index>[0-9]+)_engtype_(?<engine>.+)$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex InstancePattern();
 
     public static bool TryParse(string instanceName, out GpuEngineInstance instance)
     {
@@ -46,7 +45,7 @@ public readonly record struct GpuEngineInstance(AdapterLuid Luid, int PhysicalIn
             return false;
         }
 
-        var match = Pattern.Match(instanceName);
+        var match = InstancePattern().Match(instanceName);
         if (!match.Success
             || !uint.TryParse(match.Groups["low"].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var low)
             || !int.TryParse(match.Groups["high"].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var high)
@@ -63,7 +62,7 @@ public readonly record struct GpuEngineInstance(AdapterLuid Luid, int PhysicalIn
             : engineName.StartsWith("video", StringComparison.OrdinalIgnoreCase) ? GpuEngineType.Video
             : GpuEngineType.Other;
 
-        instance = new GpuEngineInstance(new AdapterLuid(low, high), physical, index, engine) { EngineTypeName = engineName };
+        instance = new GpuEngineInstance(new AdapterLuid(low, high), physical, index, engine);
         return true;
     }
 }

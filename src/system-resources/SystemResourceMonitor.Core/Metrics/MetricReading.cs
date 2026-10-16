@@ -60,14 +60,13 @@ public abstract record MetricReading
 /// </summary>
 public sealed record AvailableMetric : MetricReading
 {
-    private AvailableMetric(MetricKind kind, double percentage, DateTimeOffset measuredAt, long timestamp, RamBytes? ramBytes, GpuAdapter? gpuAdapter)
+    private AvailableMetric(MetricKind kind, double percentage, DateTimeOffset measuredAt, long timestamp, RamBytes? ramBytes)
         : base(kind)
     {
         Percentage = percentage;
         MeasuredAt = measuredAt;
         Timestamp = timestamp;
         RamBytes = ramBytes;
-        GpuAdapter = gpuAdapter;
     }
 
     /// <summary>A finite value from 0 through 100 inclusive; 0 is a valid measurement.</summary>
@@ -81,9 +80,6 @@ public sealed record AvailableMetric : MetricReading
 
     /// <summary>Used and total physical memory; present for RAM and absent for CPU.</summary>
     public RamBytes? RamBytes { get; }
-
-    /// <summary>The adapter for a GPU measurement; absent for CPU and RAM.</summary>
-    public GpuAdapter? GpuAdapter { get; }
 
     /// <summary>
     /// Validates a source sample stamped at <paramref name="measuredAt"/> and <paramref name="timestamp"/>.
@@ -107,16 +103,16 @@ public sealed record AvailableMetric : MetricReading
         return (kind, sample) switch
         {
             (MetricKind.Gpu, GpuUnavailableSample gpuUnavailable) => new UnavailableMetric(kind, gpuUnavailable.Reason),
-            (MetricKind.Gpu, MeasuredGpuSample { Adapter: { } adapter, Percentage: var gpuPercentage })
+            (MetricKind.Gpu, MeasuredGpuSample { Adapter: not null, Percentage: var gpuPercentage })
                 when double.IsFinite(gpuPercentage) && gpuPercentage is >= 0 and <= 100
-                => new AvailableMetric(kind, gpuPercentage, measuredAt, timestamp, null, adapter),
+                => new AvailableMetric(kind, gpuPercentage, measuredAt, timestamp, null),
             (_, SampleUnavailable unavailable) when unavailable.Reason is UnavailabilityReason.NotYetSampled or UnavailabilityReason.Invalid or UnavailabilityReason.ReadFailed
                 => new UnavailableMetric(kind, unavailable.Reason),
             (MetricKind.Cpu, MeasuredSample { Percentage: var percentage }) when double.IsFinite(percentage) && percentage is >= 0 and <= 100
-                => new AvailableMetric(kind, percentage, measuredAt, timestamp, null, null),
+                => new AvailableMetric(kind, percentage, measuredAt, timestamp, null),
             (MetricKind.Ram, MeasuredRamSample { TotalBytes: > 0 } ram) when ram.UsedBytes <= ram.TotalBytes
                 => new AvailableMetric(kind, (double)ram.UsedBytes / ram.TotalBytes * 100, measuredAt, timestamp,
-                    new RamBytes(ram.UsedBytes, ram.TotalBytes), null),
+                    new RamBytes(ram.UsedBytes, ram.TotalBytes)),
             _ => new UnavailableMetric(kind, UnavailabilityReason.Invalid),
         };
     }

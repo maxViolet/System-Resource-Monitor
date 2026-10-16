@@ -105,9 +105,10 @@ public static partial class Program
 
     private static int GpuCorrelation(TimeSpan duration)
     {
-        using var source = new GpuLoadSource(new DxCoreAdapterApi(), new PdhGpuCounterApi());
+        using var source = new GpuLoadSource(new DxCoreAdapterApi(), new PdhGpuCounterApi(), captureDiagnostics: true);
         var clock = Stopwatch.StartNew();
         var reads = 0;
+        var measuredReads = 0;
         var failures = 0;
         var consecutiveOverruns = 0;
         var longestOverrunRun = 0;
@@ -116,6 +117,7 @@ public static partial class Program
         {
             var started = Stopwatch.GetTimestamp();
             var sample = source.Read();
+            if (sample is MeasuredGpuSample) measuredReads++;
             var elapsed = Stopwatch.GetElapsedTime(started);
             maximumRead = elapsed > maximumRead ? elapsed : maximumRead;
             consecutiveOverruns = elapsed > MetricMonitor.PollInterval ? consecutiveOverruns + 1 : 0;
@@ -131,10 +133,28 @@ public static partial class Program
             }
             else if (selected is not null)
             {
-                foreach (var instance in diagnostic.CountedInstances)
+                var selectedInstances = diagnostic.ObservedInstances
+                    .Where(observed => observed.Instance.Luid == selected.Luid).ToArray();
+                foreach (var observed in selectedInstances)
                 {
-                    Console.WriteLine($"counted-instance luid={Luid(instance.Luid)} physical={instance.PhysicalIndex} engine={instance.Engine} index={instance.EngineIndex}");
-                    if (instance.Luid != selected.Luid || instance.PhysicalIndex != 0) failures++;
+                    var instance = observed.Instance;
+                    Console.WriteLine($"selected-instance luid={Luid(instance.Luid)} physical={instance.PhysicalIndex} engine={instance.Engine} index={instance.EngineIndex} value={observed.Value:F3}");
+                    if (instance.PhysicalIndex != 0) failures++;
+                }
+
+                if (sample is MeasuredGpuSample measured)
+                {
+                    if (selectedInstances.Length == 0)
+                    {
+                        failures++;
+                    }
+                    else
+                    {
+                        var recomputed = Math.Min(100, selectedInstances
+                            .GroupBy(observed => (observed.Instance.Engine, observed.Instance.EngineIndex))
+                            .Max(group => group.Sum(observed => observed.Value)));
+                        if (Math.Abs(recomputed - measured.Percentage) > 0.0001) failures++;
+                    }
                 }
             }
             else
@@ -145,8 +165,8 @@ public static partial class Program
             Thread.Sleep(MetricMonitor.PollInterval);
         }
 
-        Console.WriteLine($"summary reads={reads} correlation-failures={failures} max-read-ms={maximumRead.TotalMilliseconds:F3} consecutive-overrun-run={longestOverrunRun}");
-        return reads > 0 && failures == 0 ? Success : AssertionFailed;
+        Console.WriteLine($"summary reads={reads} measured-reads={measuredReads} correlation-failures={failures} max-read-ms={maximumRead.TotalMilliseconds:F3} consecutive-overrun-run={longestOverrunRun}");
+        return measuredReads > 0 && failures == 0 ? Success : AssertionFailed;
     }
 
     private static string Luid(AdapterLuid luid) => $"{unchecked((uint)luid.HighPart):x8}:{luid.LowPart:x8}";

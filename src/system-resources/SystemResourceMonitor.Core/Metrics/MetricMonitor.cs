@@ -227,7 +227,13 @@ public sealed class MetricMonitor
                     break;
                 case UnavailableMetric unavailable:
                     // A failed or unsampled read keeps an available reading and its original deadline.
-                    if (previous is UnavailableMetric current && (current.Reason != unavailable.Reason
+                    // A newly selected adapter cannot keep the old adapter's available value.
+                    if (kind == MetricKind.Gpu && previous is AvailableMetric && _current.GpuAdapter != adapter)
+                    {
+                        ExpiryTimer(kind).Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                        Publish(reading, kind, adapter);
+                    }
+                    else if (previous is UnavailableMetric current && (current.Reason != unavailable.Reason
                         || (kind == MetricKind.Gpu && _current.GpuAdapter != adapter)))
                     {
                         Publish(reading, kind, adapter);

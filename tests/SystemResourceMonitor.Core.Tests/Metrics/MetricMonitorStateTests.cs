@@ -53,6 +53,23 @@ public sealed class MetricMonitorStateTests
         Assert.Same(adapter, _monitor.Current.GpuAdapter);
     }
 
+    [Fact]
+    public void Gpu_adapter_change_discards_the_previous_adapters_available_value()
+    {
+        var previous = new GpuAdapter("Previous", new AdapterLuid(1, 2));
+        var current = new GpuAdapter("Current", new AdapterLuid(3, 4));
+        _monitor.Apply(MetricKind.Gpu, new MeasuredGpuSample(previous, 42), _time.GetUtcNow(), _time.GetTimestamp());
+
+        _monitor.Apply(MetricKind.Gpu, new GpuUnavailableSample(current, UnavailabilityReason.ReadFailed),
+            _time.GetUtcNow(), _time.GetTimestamp());
+
+        Assert.Equal(UnavailabilityReason.ReadFailed, Assert.IsType<UnavailableMetric>(_monitor.Current.Gpu).Reason);
+        Assert.Same(current, _monitor.Current.GpuAdapter);
+        _time.Advance(MetricMonitor.ExpiryAge);
+        Assert.Equal(UnavailabilityReason.ReadFailed, Assert.IsType<UnavailableMetric>(_monitor.Current.Gpu).Reason);
+        Assert.Equal(2, _recorder.All.Count);
+    }
+
     [Theory]
     [InlineData(3)]
     [InlineData(-3)]

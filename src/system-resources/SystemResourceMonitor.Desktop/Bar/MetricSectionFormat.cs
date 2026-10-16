@@ -27,7 +27,7 @@ public static class MetricSectionFormat
         {
             AvailableMetric available => new MetricSection(
                 string.Create(CultureInfo.InvariantCulture, $"{label} {Math.Round(available.Percentage, MidpointRounding.AwayFromZero):0}%"),
-                available.Kind == MetricKind.Gpu ? Description(gpuAdapter ?? available.GpuAdapter)
+                available.Kind == MetricKind.Gpu ? Description(gpuAdapter)
                     : available.RamBytes is { } bytes
                     ? string.Create(CultureInfo.InvariantCulture, $"RAM {bytes.UsedBytes / BytesPerGib:0.0} / {bytes.TotalBytes / BytesPerGib:0.0} GiB used")
                     : null),

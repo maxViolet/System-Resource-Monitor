@@ -43,7 +43,8 @@ internal sealed partial class DxCoreAdapterApi : IGpuAdapterApi, IDisposable
                     new AdapterLuid(luid.LowPart, luid.HighPart),
                     ReadProperty<byte>(adapter, DxCoreAdapterProperty.IsHardware) != 0,
                     ReadProperty<byte>(adapter, DxCoreAdapterProperty.IsIntegrated) != 0,
-                    ReadProperty<byte>(adapter, DxCoreAdapterProperty.IsDetachable) != 0));
+                    adapter.IsPropertySupported(DxCoreAdapterProperty.IsDetachable)
+                        && ReadProperty<byte>(adapter, DxCoreAdapterProperty.IsDetachable) != 0));
             }
             finally
             {
