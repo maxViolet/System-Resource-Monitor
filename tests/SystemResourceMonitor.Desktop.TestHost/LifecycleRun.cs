@@ -25,14 +25,14 @@ internal sealed class LifecycleRun
 
     /// <param name="settingsFactory">Creates the settings store in the isolated settings directory.</param>
     /// <param name="sources">Handle-free metric sources; by default, steady scripted CPU and RAM values.</param>
-    public LifecycleRun(Func<string, ISettingsStore>? settingsFactory = null, (IMetricSource Cpu, IMetricSource Ram)? sources = null)
+    public LifecycleRun(Func<string, ISettingsStore>? settingsFactory = null, (IMetricSource Cpu, IMetricSource Ram, IMetricSource Gpu)? sources = null)
     {
         Baseline = DesktopProbe.WorkArea();
         Info($"baseline-work-area {Baseline}");
         SettingsDirectory = Path.Combine(Path.GetTempPath(), "SystemResourceMonitor.TestHost", Guid.NewGuid().ToString("N"));
         _settings = settingsFactory?.Invoke(SettingsDirectory) ?? new JsonSettingsStore(SettingsDirectory);
-        var (cpu, ram) = sources ?? (ScriptedSource.Steady(MetricKind.Cpu), ScriptedSource.Steady(MetricKind.Ram));
-        Monitor = new MetricMonitor(cpu, ram, TimeProvider.System);
+        var (cpu, ram, gpu) = sources ?? (ScriptedSource.Steady(MetricKind.Cpu), ScriptedSource.Steady(MetricKind.Ram), ScriptedSource.Steady(MetricKind.Gpu));
+        Monitor = new MetricMonitor(cpu, ram, gpu, TimeProvider.System);
     }
 
     /// <summary>Monotonic time of this run, on the same <see cref="Stopwatch"/> clock as <see cref="TimeProvider.System"/>.</summary>
@@ -110,15 +110,15 @@ internal sealed class LifecycleRun
     public int MarkerCount(string marker) => _markers.Count(recorded => recorded.Marker == marker);
 
     /// <summary>Finds the CPU and RAM sections in the bar's content, the way any visual-tree observer would.</summary>
-    public static (TextBlock Cpu, TextBlock Ram) Sections(BarWindow bar) =>
-        bar.Content is StackPanel { Children: [TextBlock cpu, TextBlock ram] }
-            ? (cpu, ram)
-            : throw new InvalidOperationException("The bar content is not the two metric sections.");
+    public static (TextBlock Cpu, TextBlock Ram, TextBlock Gpu) Sections(BarWindow bar) =>
+        bar.Content is StackPanel { Children: [TextBlock cpu, TextBlock ram, TextBlock gpu] }
+            ? (cpu, ram, gpu)
+            : throw new InvalidOperationException("The bar content is not the three metric sections.");
 
     private static string SectionTexts(BarWindow bar)
     {
-        var (cpu, ram) = Sections(bar);
-        return $"{cpu.Text} | {ram.Text}";
+        var (cpu, ram, gpu) = Sections(bar);
+        return $"{cpu.Text} | {ram.Text} | {gpu.Text}";
     }
 
     public static void Info(string line) => Console.WriteLine($"info: {line}");

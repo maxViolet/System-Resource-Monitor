@@ -3,7 +3,7 @@ using SystemResourceMonitor.Core.Metrics;
 namespace SystemResourceMonitor.Core.Tests.Metrics;
 
 /// <summary>
-/// Runs both polling loops against controllable sources and fake time. Before each move of fake time, a test waits with
+/// Runs all polling loops against controllable sources and fake time. Before each move of fake time, a test waits with
 /// explicit signals until the loops have published and armed their next timers, and it never moves past a due timer
 /// without waiting for that timer's effects.
 /// </summary>
@@ -15,6 +15,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
     private readonly ObservedTimeProvider _time = new();
     private readonly FakeMetricSource _cpu = new(MetricKind.Cpu, Samples.Cpu);
     private readonly FakeMetricSource _ram = new(MetricKind.Ram, Samples.Ram);
+    private readonly FakeMetricSource _gpu = new(MetricKind.Gpu, Samples.Gpu);
     private readonly CancellationTokenSource _cancellation = new();
     private readonly MetricMonitor _monitor;
     private readonly PublicationRecorder _recorder;
@@ -22,7 +23,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
 
     public MetricMonitorPollingTests()
     {
-        _monitor = new MetricMonitor(_cpu, _ram, _time);
+        _monitor = new MetricMonitor(_cpu, _ram, _gpu, _time);
         _recorder = new PublicationRecorder(_monitor);
     }
 
@@ -31,6 +32,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
         _cancellation.Cancel();
         _cpu.Release();
         _ram.Release();
+        _gpu.Release();
         _cancellation.Dispose();
     }
 
@@ -48,7 +50,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
             _time.Advance(OneTick);
             _recorder.WaitFor(MetricKind.Cpu, poll);
             _recorder.WaitFor(MetricKind.Ram, poll);
-            _time.WaitForArmed(Seconds(2 * poll), 2);
+            _time.WaitForArmed(Seconds(2 * poll), 3);
         }
 
         Assert.Equal([0, 2, 4, 6], MeasuredSeconds(MetricKind.Cpu));
@@ -70,11 +72,11 @@ public sealed class MetricMonitorPollingTests : IDisposable
         _time.Advance(Poll);
         blocked.WaitForReads(2);
         _recorder.WaitFor(other, 2);
-        _time.WaitForArmed(Seconds(4), 1);
+        _time.WaitForArmed(Seconds(4), 2);
 
         _time.Advance(Poll);
         _recorder.WaitFor(other, 3);
-        _time.WaitForArmed(Seconds(6), 2);
+        _time.WaitForArmed(Seconds(6), 3);
 
         _time.Advance(Poll - OneTick);
         Assert.IsType<AvailableMetric>(_monitor.Current.Get(blockedKind));
@@ -82,7 +84,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
         _time.Advance(OneTick);
         _recorder.WaitFor(blockedKind, IsExpired, $"{blockedKind} expiry");
         _recorder.WaitFor(other, 4);
-        _time.WaitForArmed(Seconds(8), 1);
+        _time.WaitForArmed(Seconds(8), 2);
 
         _time.Advance(Poll);
         _recorder.WaitFor(other, 5);
@@ -102,16 +104,16 @@ public sealed class MetricMonitorPollingTests : IDisposable
         _time.Advance(Poll);
         _cpu.WaitForReads(2);
         _recorder.WaitFor(MetricKind.Ram, 2);
-        _time.WaitForArmed(Seconds(4), 1);
+        _time.WaitForArmed(Seconds(4), 2);
 
         _time.Advance(Poll);
         _recorder.WaitFor(MetricKind.Ram, 3);
-        _time.WaitForArmed(Seconds(6), 2);
+        _time.WaitForArmed(Seconds(6), 3);
 
         _time.Advance(Poll);
         _recorder.WaitFor(MetricKind.Cpu, IsExpired, "CPU expiry");
         _recorder.WaitFor(MetricKind.Ram, 4);
-        _time.WaitForArmed(Seconds(8), 1);
+        _time.WaitForArmed(Seconds(8), 2);
 
         _time.Advance(Seconds(1));
         Assert.Equal(2, _cpu.Reads);
@@ -123,7 +125,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
 
         _time.Advance(Seconds(1));
         _recorder.WaitFor(MetricKind.Ram, 5);
-        _time.WaitForArmed(Seconds(10), 1);
+        _time.WaitForArmed(Seconds(10), 2);
         Assert.Equal(3, _cpu.Reads);
 
         _time.Advance(Seconds(1));
@@ -151,9 +153,9 @@ public sealed class MetricMonitorPollingTests : IDisposable
         // A loop arms its next delay only after applying its read's result; both expiry timers are due at 6 s.
         _time.Advance(Poll);
         blocked.WaitForReads(2);
-        _time.WaitForArmed(Seconds(4), 1);
+        _time.WaitForArmed(Seconds(4), 2);
         _time.Advance(Poll);
-        _time.WaitForArmed(Seconds(6), 3);
+        _time.WaitForArmed(Seconds(6), 4);
 
         _time.Advance(Poll - OneTick);
         Assert.IsType<AvailableMetric>(_monitor.Current.Get(blockedKind));
@@ -209,7 +211,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
         {
             _time.Advance(Poll);
             _recorder.WaitFor(MetricKind.Ram, seconds / 2 + 1);
-            _time.WaitForArmed(Seconds(seconds + 2), seconds == 4 ? 3 : 2);
+            _time.WaitForArmed(Seconds(seconds + 2), seconds == 4 ? 4 : 3);
             Assert.Same(first, _monitor.Current.Cpu);
             Assert.Single(_recorder.Of(MetricKind.Cpu));
         }
@@ -217,10 +219,10 @@ public sealed class MetricMonitorPollingTests : IDisposable
         // At 6 s, expiry and the next failed read race; either order ends as Expired then ReadFailed by 8 s.
         _time.Advance(Poll);
         _recorder.WaitFor(MetricKind.Ram, 4);
-        _time.WaitForArmed(Seconds(8), 2);
+        _time.WaitForArmed(Seconds(8), 3);
         _time.Advance(Poll);
         _recorder.WaitFor(MetricKind.Ram, 5);
-        _time.WaitForArmed(Seconds(10), 2);
+        _time.WaitForArmed(Seconds(10), 3);
 
         Assert.Equal(5, _cpu.Reads);
         Assert.Equal(
@@ -236,7 +238,7 @@ public sealed class MetricMonitorPollingTests : IDisposable
         _time.Advance(Poll);
         _cpu.WaitForReads(2);
         _recorder.WaitFor(MetricKind.Ram, 2);
-        _time.WaitForArmed(Seconds(4), 1);
+        _time.WaitForArmed(Seconds(4), 2);
 
         await _cancellation.CancelAsync();
         await _run!.WaitAsync(Waits.Timeout, TestContext.Current.CancellationToken);
@@ -301,6 +303,6 @@ public sealed class MetricMonitorPollingTests : IDisposable
         _run = _monitor.RunAsync(_cancellation.Token);
         _recorder.WaitFor(MetricKind.Cpu, 1);
         _recorder.WaitFor(MetricKind.Ram, 1);
-        _time.WaitForArmed(Poll, 2);
+        _time.WaitForArmed(Poll, 3);
     }
 }

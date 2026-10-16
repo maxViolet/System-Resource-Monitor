@@ -14,8 +14,7 @@ public interface IMetricSource
 }
 
 /// <summary>
-/// The result of one <see cref="IMetricSource.Read"/>: exactly one of <see cref="MeasuredSample"/>,
-/// <see cref="MeasuredRamSample"/>, or <see cref="SampleUnavailable"/>. A sample carries no time; a sample whose shape does
+/// The result of one <see cref="IMetricSource.Read"/>. A sample carries no time; a sample whose shape does
 /// not match the source's kind is <see cref="UnavailabilityReason.Invalid"/>.
 /// </summary>
 public abstract record MetricSample
@@ -30,6 +29,35 @@ public sealed record MeasuredSample(double Percentage) : MetricSample;
 
 /// <summary>Used and total physical memory; Core computes the percentage from these bytes.</summary>
 public sealed record MeasuredRamSample(ulong UsedBytes, ulong TotalBytes) : MetricSample;
+
+/// <summary>A GPU load percentage correlated to one discrete adapter.</summary>
+public sealed record MeasuredGpuSample(GpuAdapter Adapter, double Percentage) : MetricSample;
+
+/// <summary>A GPU reading unavailable for an adapter-specific reason.</summary>
+public sealed record GpuUnavailableSample : MetricSample
+{
+    public GpuUnavailableSample(GpuAdapter? adapter, UnavailabilityReason reason)
+    {
+        if (reason is not (UnavailabilityReason.NotYetSampled or UnavailabilityReason.Invalid or UnavailabilityReason.ReadFailed
+            or UnavailabilityReason.NoDiscreteAdapter or UnavailabilityReason.AmbiguousAdapter or UnavailabilityReason.Uncorrelated))
+        {
+            throw new ArgumentOutOfRangeException(nameof(reason), reason, "A GPU source cannot report Expired.");
+        }
+
+        if ((adapter is null && reason is not (UnavailabilityReason.NoDiscreteAdapter or UnavailabilityReason.AmbiguousAdapter))
+            || (adapter is not null && reason is (UnavailabilityReason.NoDiscreteAdapter or UnavailabilityReason.AmbiguousAdapter)))
+        {
+            throw new ArgumentException("Only no-discrete and ambiguous-adapter results omit the adapter.", nameof(adapter));
+        }
+
+        Adapter = adapter;
+        Reason = reason;
+    }
+
+    public GpuAdapter? Adapter { get; }
+
+    public UnavailabilityReason Reason { get; }
+}
 
 /// <summary>
 /// No measurement: <see cref="UnavailabilityReason.NotYetSampled"/> (for example, the CPU first sample),

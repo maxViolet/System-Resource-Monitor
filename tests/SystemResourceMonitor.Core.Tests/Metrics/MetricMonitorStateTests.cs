@@ -15,7 +15,8 @@ public sealed class MetricMonitorStateTests
     public MetricMonitorStateTests()
     {
         _monitor = new MetricMonitor(
-            new FakeMetricSource(MetricKind.Cpu, Samples.Cpu), new FakeMetricSource(MetricKind.Ram, Samples.Ram), _time);
+            new FakeMetricSource(MetricKind.Cpu, Samples.Cpu), new FakeMetricSource(MetricKind.Ram, Samples.Ram),
+            new FakeMetricSource(MetricKind.Gpu, Samples.Gpu), _time);
         _recorder = new PublicationRecorder(_monitor);
     }
 
@@ -39,6 +40,36 @@ public sealed class MetricMonitorStateTests
         Assert.Same(DashboardState.Initial.Get(Samples.Other(kind)), Current(Samples.Other(kind)));
     }
 
+    [Fact]
+    public void Gpu_adapter_identity_survives_expiry_for_its_tooltip()
+    {
+        var adapter = new GpuAdapter("Discrete GPU", new AdapterLuid(1, 2));
+        _monitor.Apply(MetricKind.Gpu, new MeasuredGpuSample(adapter, 42), _time.GetUtcNow(), _time.GetTimestamp());
+
+        Assert.Same(adapter, _monitor.Current.GpuAdapter);
+        _time.Advance(MetricMonitor.ExpiryAge);
+
+        Assert.Equal(UnavailabilityReason.Expired, Assert.IsType<UnavailableMetric>(_monitor.Current.Gpu).Reason);
+        Assert.Same(adapter, _monitor.Current.GpuAdapter);
+    }
+
+    [Fact]
+    public void Gpu_adapter_change_discards_the_previous_adapters_available_value()
+    {
+        var previous = new GpuAdapter("Previous", new AdapterLuid(1, 2));
+        var current = new GpuAdapter("Current", new AdapterLuid(3, 4));
+        _monitor.Apply(MetricKind.Gpu, new MeasuredGpuSample(previous, 42), _time.GetUtcNow(), _time.GetTimestamp());
+
+        _monitor.Apply(MetricKind.Gpu, new GpuUnavailableSample(current, UnavailabilityReason.ReadFailed),
+            _time.GetUtcNow(), _time.GetTimestamp());
+
+        Assert.Equal(UnavailabilityReason.ReadFailed, Assert.IsType<UnavailableMetric>(_monitor.Current.Gpu).Reason);
+        Assert.Same(current, _monitor.Current.GpuAdapter);
+        _time.Advance(MetricMonitor.ExpiryAge);
+        Assert.Equal(UnavailabilityReason.ReadFailed, Assert.IsType<UnavailableMetric>(_monitor.Current.Gpu).Reason);
+        Assert.Equal(2, _recorder.All.Count);
+    }
+
     [Theory]
     [InlineData(3)]
     [InlineData(-3)]
@@ -46,7 +77,8 @@ public sealed class MetricMonitorStateTests
     {
         var time = new SplitClockTimeProvider();
         var monitor = new MetricMonitor(
-            new FakeMetricSource(MetricKind.Cpu, Samples.Cpu), new FakeMetricSource(MetricKind.Ram, Samples.Ram), time);
+            new FakeMetricSource(MetricKind.Cpu, Samples.Cpu), new FakeMetricSource(MetricKind.Ram, Samples.Ram),
+            new FakeMetricSource(MetricKind.Gpu, Samples.Gpu), time);
         var recorder = new PublicationRecorder(monitor);
         monitor.Apply(MetricKind.Cpu, Samples.Cpu, time.GetUtcNow(), time.GetTimestamp());
         var reading = Assert.IsType<AvailableMetric>(monitor.Current.Cpu);
@@ -195,8 +227,9 @@ public sealed class MetricMonitorStateTests
         var cpu = new FakeMetricSource(MetricKind.Cpu, Samples.Cpu);
         var ram = new FakeMetricSource(MetricKind.Ram, Samples.Ram);
 
-        Assert.Throws<ArgumentException>(() => new MetricMonitor(ram, ram, _time));
-        Assert.Throws<ArgumentException>(() => new MetricMonitor(cpu, cpu, _time));
+        var gpu = new FakeMetricSource(MetricKind.Gpu, Samples.Gpu);
+        Assert.Throws<ArgumentException>(() => new MetricMonitor(ram, ram, gpu, _time));
+        Assert.Throws<ArgumentException>(() => new MetricMonitor(cpu, cpu, gpu, _time));
     }
 
     private MetricReading Current(MetricKind kind) => _monitor.Current.Get(kind);

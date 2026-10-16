@@ -16,6 +16,7 @@ public partial class App : Application
     // Not disposed: work still pending at the shutdown deadline may hold its token.
     private readonly CancellationTokenSource _lifetime = new();
     private DesktopStartup? _startup;
+    private GpuLoadSource? _gpu;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -35,8 +36,10 @@ public partial class App : Application
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "SystemResourceMonitor");
             var settings = new JsonSettingsStore(settingsDirectory);
-            var monitor = new MetricMonitor(new SystemTimesCpuSource(), new GlobalMemoryRamSource(), TimeProvider.System);
-            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher, monitor);
+            _gpu = new GpuLoadSource(new DxCoreAdapterApi(), new PdhGpuCounterApi());
+            var monitor = new MetricMonitor(new SystemTimesCpuSource(), new GlobalMemoryRamSource(), _gpu, TimeProvider.System);
+            _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher, monitor,
+                afterMetricRun: _gpu.Dispose);
             await _startup.RunAsync();
         }
         catch (Exception)
