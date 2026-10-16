@@ -20,8 +20,6 @@ internal sealed class LifecycleRun
     private readonly List<(string Marker, TimeSpan At)> _markers = [];
     private readonly List<string> _failures = [];
     private readonly ISettingsStore _settings;
-    private readonly IMetricSource _cpu;
-    private readonly IMetricSource _ram;
     private BarWindow? _bar;
     private string? _textAtShutdown;
 
@@ -33,7 +31,8 @@ internal sealed class LifecycleRun
         Info($"baseline-work-area {Baseline}");
         SettingsDirectory = Path.Combine(Path.GetTempPath(), "SystemResourceMonitor.TestHost", Guid.NewGuid().ToString("N"));
         _settings = settingsFactory?.Invoke(SettingsDirectory) ?? new JsonSettingsStore(SettingsDirectory);
-        (_cpu, _ram) = sources ?? (ScriptedSource.Steady(MetricKind.Cpu), ScriptedSource.Steady(MetricKind.Ram));
+        var (cpu, ram) = sources ?? (ScriptedSource.Steady(MetricKind.Cpu), ScriptedSource.Steady(MetricKind.Ram));
+        Monitor = new MetricMonitor(cpu, ram, TimeProvider.System);
     }
 
     /// <summary>Monotonic time of this run, on the same <see cref="Stopwatch"/> clock as <see cref="TimeProvider.System"/>.</summary>
@@ -46,6 +45,9 @@ internal sealed class LifecycleRun
     public ShutdownCoordinator? Shutdown { get; private set; }
 
     public int? ExitCode { get; private set; }
+
+    /// <summary>The production metric monitor that <see cref="Run"/> starts.</summary>
+    public MetricMonitor Monitor { get; }
 
     public void Run(Action<BarWindow, ShutdownCoordinator>? afterBarPositioned = null)
     {
@@ -60,7 +62,6 @@ internal sealed class LifecycleRun
             },
             Record);
         Shutdown = shutdown;
-        var monitor = new MetricMonitor(_cpu, _ram, TimeProvider.System);
 
         void Positioned(BarWindow bar)
         {
@@ -68,7 +69,7 @@ internal sealed class LifecycleRun
             afterBarPositioned?.Invoke(bar, shutdown);
         }
 
-        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, monitor, Record, Positioned))
+        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, Monitor, Record, Positioned))
         {
             app.Startup += async (_, _) => await startup.RunAsync();
             app.Run();
