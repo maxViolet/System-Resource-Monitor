@@ -29,11 +29,12 @@ public enum GpuEngineType
     Copy,
     Video,
     Other,
+    Unspecified,
 }
 
 public readonly partial record struct GpuEngineInstance(AdapterLuid Luid, int PhysicalIndex, int EngineIndex, GpuEngineType Engine)
 {
-    [GeneratedRegex("^pid_[0-9]+_luid_0x(?<high>[0-9a-f]{8})_0x(?<low>[0-9a-f]{8})_phys_(?<physical>[0-9]+)_eng_(?<index>[0-9]+)_engtype_(?<engine>.+)$",
+    [GeneratedRegex("^pid_[0-9]+_luid_0x(?<high>[0-9a-f]{8})_0x(?<low>[0-9a-f]{8})_phys_(?<physical>[0-9]+)_eng_(?<index>[0-9]+)_engtype_(?<engine>.*)$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex InstancePattern();
 
@@ -56,7 +57,8 @@ public readonly partial record struct GpuEngineInstance(AdapterLuid Luid, int Ph
         }
 
         var engineName = match.Groups["engine"].Value;
-        var engine = engineName.StartsWith("3d", StringComparison.OrdinalIgnoreCase) ? GpuEngineType.ThreeD
+        var engine = engineName.Length == 0 ? GpuEngineType.Unspecified
+            : engineName.StartsWith("3d", StringComparison.OrdinalIgnoreCase) ? GpuEngineType.ThreeD
             : engineName.StartsWith("compute", StringComparison.OrdinalIgnoreCase) ? GpuEngineType.Compute
             : engineName.StartsWith("copy", StringComparison.OrdinalIgnoreCase) ? GpuEngineType.Copy
             : engineName.StartsWith("video", StringComparison.OrdinalIgnoreCase) ? GpuEngineType.Video
@@ -92,6 +94,11 @@ public static class GpuLoadCalculator
             }
 
             if (parsed.PhysicalIndex != 0)
+            {
+                return new GpuUnavailableSample(selected, UnavailabilityReason.Uncorrelated);
+            }
+
+            if (parsed.Engine == GpuEngineType.Unspecified)
             {
                 return new GpuUnavailableSample(selected, UnavailabilityReason.Uncorrelated);
             }

@@ -49,6 +49,7 @@ public sealed class GpuMetricSourceTests
     {
         var items = new GpuCounterItem[]
         {
+            new("pid_3_luid_0x00000000_0x00000001_phys_0_eng_1_engtype_", 0, true),
             new("pid_1_luid_0x00000014_0x0000000a_phys_0_eng_1_engtype_3D", 42, true),
             new("pid_2_luid_0x00000014_0x0000000b_phys_0_eng_1_engtype_3D", 20, true),
         };
@@ -58,7 +59,7 @@ public sealed class GpuMetricSourceTests
 
         using var diagnostic = new GpuLoadSource(new FakeAdapters([Candidate]), new FakeCounters { Items = items }, captureDiagnostics: true);
         Assert.IsType<MeasuredGpuSample>(diagnostic.Read());
-        Assert.Equal(2, Assert.IsType<GpuReadDiagnostic>(diagnostic.LastDiagnostic).ObservedInstances.Count);
+        Assert.Equal(3, Assert.IsType<GpuReadDiagnostic>(diagnostic.LastDiagnostic).ObservedInstances.Count);
     }
 
     [Fact]

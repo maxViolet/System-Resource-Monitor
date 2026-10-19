@@ -5,7 +5,7 @@
 | **Area** | Core + Desktop |
 | **Depends on** | B07 |
 | **Unblocks** | B14; optionally B16 |
-| **Sources** | [Product plan — GPU](../plan.md#gpu), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0012](../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Sources** | [Product plan — GPU](../plan.md#gpu), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0012](../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), [ADR 0013](../adr/0013-foreign-empty-gpu-engine-instances.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 
