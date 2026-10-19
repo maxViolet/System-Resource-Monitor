@@ -7,6 +7,8 @@
     <UseWPF>true</UseWPF>
     <!-- The bar's DPI awareness comes from the process, so the host uses the production manifest. -->
     <ApplicationManifest>..\..\src\system-resources\SystemResourceMonitor.Desktop\app.manifest</ApplicationManifest>
+    <!-- The tray loads its icon from the executable, so the host embeds the production icon. -->
+    <ApplicationIcon>..\..\src\system-resources\SystemResourceMonitor.Desktop\Assets\app.ico</ApplicationIcon>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 

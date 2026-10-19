@@ -243,10 +243,17 @@ internal sealed class NativeTrayIcon : ITrayIcon
 
     private void CreateResources()
     {
-        _icon = LoadIcon(0, IDI_APPLICATION);
+        // The SDK embeds ApplicationIcon in the executable under IDI_APPLICATION; load its small size.
+        _icon = LoadImage(
+            GetModuleHandle(0),
+            IDI_APPLICATION,
+            IMAGE_ICON,
+            GetSystemMetrics(SM_CXSMICON),
+            GetSystemMetrics(SM_CYSMICON),
+            LR_SHARED);
         if (_icon == 0)
         {
-            throw new Win32Exception(Marshal.GetLastPInvokeError(), "LoadIcon failed for the tray icon.");
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "LoadImage failed for the tray icon.");
         }
 
         _menu = CreatePopupMenu();
@@ -288,7 +295,7 @@ internal sealed class NativeTrayIcon : ITrayIcon
         _menu = 0;
         _positionMenu = 0;
         _positionMenuAttached = false;
-        _icon = 0; // IDI_APPLICATION is shared and must not be destroyed.
+        _icon = 0; // LR_SHARED icons are owned by the system and must not be destroyed.
     }
 
     private void SetChecked(uint command, bool isChecked)
