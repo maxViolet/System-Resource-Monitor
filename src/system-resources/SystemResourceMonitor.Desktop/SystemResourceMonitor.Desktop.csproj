@@ -5,6 +5,8 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Regenerate with Assets\generate-icon.py. The tray loads it from the executable. -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- LibraryImport generates blittable marshalling stubs. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
