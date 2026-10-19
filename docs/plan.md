@@ -1,6 +1,6 @@
 # Plan: System Resource Monitor
 
-Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md), first-release scope in [ADR 0004](adr/0004-subscription-limits-in-first-release.md), tray-menu focus in [ADR 0008](adr/0008-tray-menu-foreground-owner.md), exit on failed tray recovery in [ADR 0009](adr/0009-exit-when-tray-recovery-fails.md), and discrete GPU selection in [ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
+Terms are defined in [CONTEXT.md](../CONTEXT.md). Placement is recorded in [ADR 0001](adr/0001-separate-windows-appbar.md); architecture in [ADR 0002](adr/0002-appbar-first-cpu-ram-release.md), fullscreen behaviour in [ADR 0003](adr/0003-keep-appbar-registered-during-fullscreen.md), first-release scope in [ADR 0004](adr/0004-subscription-limits-in-first-release.md), tray-menu focus in [ADR 0008](adr/0008-tray-menu-foreground-owner.md), exit on failed tray recovery in [ADR 0009](adr/0009-exit-when-tray-recovery-fails.md), and discrete GPU selection and counter correlation in [ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md) and [ADR 0013](adr/0013-foreign-empty-gpu-engine-instances.md). Delivery details and measurable gates are in the [implementation plan](implementation-plan.md); assignable stages and bricks are in the [delivery roadmap](bricks/README.md).
 
 ## Product and first release
 
@@ -46,7 +46,7 @@ The following work may proceed in any order after the first release. None can re
 
 ### GPU
 
-Show load only for the discrete adapter, never for an integrated one ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md)). With no discrete adapter or more than one, GPU load is unavailable. Correlate the selected adapter's counters reliably; otherwise show unavailable. Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance.
+Show load only for the discrete adapter, never for an integrated one ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md)). With no discrete adapter or more than one, GPU load is unavailable. Correlate the selected adapter's counters reliably; structurally valid empty-engine instances from foreign LUIDs are ignored, while ambiguous identity or an empty engine on the selected LUID makes the reading unavailable ([ADR 0013](adr/0013-foreign-empty-gpu-engine-instances.md)). Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance.
 
 ### Installation and autostart
 

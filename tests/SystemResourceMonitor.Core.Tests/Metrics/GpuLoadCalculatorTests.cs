@@ -33,6 +33,8 @@ public sealed class GpuLoadCalculatorTests
         Assert.Equal(GpuEngineType.Compute, parsed.Engine);
         Assert.True(GpuEngineInstance.TryParse(Name("OtherEngine"), out parsed));
         Assert.Equal(GpuEngineType.Other, parsed.Engine);
+        Assert.True(GpuEngineInstance.TryParse(Name(""), out parsed));
+        Assert.Equal(GpuEngineType.Unspecified, parsed.Engine);
     }
 
     [Theory]
@@ -41,7 +43,6 @@ public sealed class GpuLoadCalculatorTests
     [InlineData("pid_1_luid_0x123_0x89abcdef_phys_0_eng_0_engtype_3D")]
     [InlineData("pid_1_luid_0x81234567_0x89abcdef_phys_x_eng_0_engtype_3D")]
     [InlineData("pid_1_luid_0x81234567_0x89abcdef_phys_0_eng_x_engtype_3D")]
-    [InlineData("pid_1_luid_0x81234567_0x89abcdef_phys_0_eng_0_engtype_")]
     public void Parser_rejects_malformed_names(string name) => Assert.False(GpuEngineInstance.TryParse(name, out _));
 
     [Fact]
@@ -58,6 +59,25 @@ public sealed class GpuLoadCalculatorTests
         var sample = Assert.IsType<MeasuredGpuSample>(GpuLoadCalculator.Calculate(Selected, items));
         Assert.Equal(Selected, sample.Adapter);
         Assert.Equal(100, sample.Percentage);
+    }
+
+    [Fact]
+    public void Calculator_ignores_structurally_valid_empty_engine_from_foreign_luid()
+    {
+        var items = new GpuCounterItem[]
+        {
+            new("pid_1_luid_0x00000000_0x00000001_phys_0_eng_1_engtype_", 0, true),
+            new(Name("3D"), 27, true),
+        };
+
+        Assert.Equal(27, Assert.IsType<MeasuredGpuSample>(GpuLoadCalculator.Calculate(Selected, items)).Percentage);
+    }
+
+    [Fact]
+    public void Calculator_rejects_empty_engine_from_selected_luid()
+    {
+        var sample = Assert.IsType<GpuUnavailableSample>(GpuLoadCalculator.Calculate(Selected, [new(Name(""), 0, true)]));
+        Assert.Equal(UnavailabilityReason.Uncorrelated, sample.Reason);
     }
 
     [Fact]

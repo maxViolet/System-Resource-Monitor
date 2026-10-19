@@ -1,6 +1,6 @@
 # B08 implementation plan for coding agents
 
-Status: planned. This package implements [B08 — GPU adapter selection, correlation, and display](../B08-gpu.md). The [product plan — GPU](../../plan.md#gpu), [implementation plan — Initial model and workflows](../../implementation-plan.md#initial-model-and-workflows), [Settings and lifecycle](../../implementation-plan.md#settings-and-lifecycle), [Independent later slices](../../implementation-plan.md#independent-later-slices), [first-release acceptance gates](../../implementation-plan.md#first-release-acceptance-gates), [CONTEXT](../../../CONTEXT.md#language), [ADR 0011](../../adr/0011-exit-when-a-collector-run-faults.md), and [ADR 0012](../../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md) govern ambiguity. B07 must be `done` before B08 implementation begins.
+Status: planned. This package implements [B08 — GPU adapter selection, correlation, and display](../B08-gpu.md). The [product plan — GPU](../../plan.md#gpu), [implementation plan — Initial model and workflows](../../implementation-plan.md#initial-model-and-workflows), [Settings and lifecycle](../../implementation-plan.md#settings-and-lifecycle), [Independent later slices](../../implementation-plan.md#independent-later-slices), [first-release acceptance gates](../../implementation-plan.md#first-release-acceptance-gates), [CONTEXT](../../../CONTEXT.md#language), [ADR 0011](../../adr/0011-exit-when-a-collector-run-faults.md), [ADR 0012](../../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), and [ADR 0013](../../adr/0013-foreign-empty-gpu-engine-instances.md) govern ambiguity. B07 must be `done` before B08 implementation begins.
 
 ## Outcome and handoff
 
@@ -15,6 +15,7 @@ These values are set before any measurement, as the product plan requires:
 - **Engine types.** Each PDH instance's `engtype_<name>` is matched case-insensitively by prefix: `3d` → 3D, `compute` → Compute, `copy` → Copy, `video` → Video (covering `VideoDecode`, `VideoEncode`, `VideoProcessing`, and `Video Codec`). Every other engine type is excluded and listed in the probe report. If Task Manager's value is driven by an excluded engine type, record the divergence; do not widen the CONTEXT definition in this brick.
 - **Per-engine sums.** PDH values are read uncapped (`PDH_FMT_DOUBLE | PDH_FMT_NOCAP100`). A single instance value that is non-finite, negative, or above 100 makes the sample `Invalid`. A per-engine sum above 100 is capped at 100, matching Task Manager's display range.
 - **Physical index.** An instance of the selected LUID with a physical index other than `0` makes the sample `Uncorrelated`; linked multi-node adapters are not shown.
+- **Empty engine names.** An instance with a fully parseable PID/LUID/physical/engine identity and an empty `engtype_` is ignored only when its LUID differs from the selected adapter. An empty engine type for the selected LUID, or any unparseable identity, makes the sample `Uncorrelated` ([ADR 0013](../../adr/0013-foreign-empty-gpu-engine-instances.md)).
 - **Task Manager tolerance.** For idle and for sustained GPU load separately: 30 paired observations at 2-second intervals in the same 60-second window, on the same adapter. The difference between window means must be at most 5 percentage points in each regime. Record transition spikes separately.
 - **In-process read.** The GPU read runs in-process on a thread-pool worker. It must pass the same rule as CPU and RAM: no two consecutive reads longer than 2 seconds. A failure requires a new ADR before moving it to a child process.
 
@@ -56,11 +57,12 @@ Add a test-host mode `--gpu-probe` that only reads and reports:
 ### 4. Add the GPU rules in Core
 
 - `GpuAdapterSelector.Select(IReadOnlyList<GpuAdapterCandidate>)`, where a candidate has `Description`, `Luid`, `IsHardware`, and `IsIntegrated`. Discrete means `IsHardware && !IsIntegrated`. It returns the selected `GpuAdapter`, `NoDiscreteAdapter`, or `AmbiguousAdapter`.
-- `GpuEngineInstance.TryParse(string)` for `pid_<n>_luid_0x<8 hex>_0x<8 hex>_phys_<n>_eng_<n>_engtype_<name>`, where the first hex group is `HighPart` and the second `LowPart`.
+- `GpuEngineInstance.TryParse(string)` for `pid_<n>_luid_0x<8 hex>_0x<8 hex>_phys_<n>_eng_<n>_engtype_<name>`, where the first hex group is `HighPart` and the second `LowPart`; an empty engine name is structurally parsed as `Unspecified` for the foreign-LUID rule below.
 - `GpuLoadCalculator.Calculate(GpuAdapter selected, IReadOnlyList<GpuCounterItem>)`. An item is an instance name, a value, and whether PDH marked it valid. The calculator returns a `MetricSample`:
   - any unparseable name, or no valid item of the selected LUID with a counted engine type → `Uncorrelated`;
   - a selected-LUID item with a physical index other than `0` → `Uncorrelated`;
   - items of other LUIDs are ignored;
+  - a structurally valid empty-engine instance from a foreign LUID is ignored; the same instance on the selected LUID → `Uncorrelated`;
   - PDH-invalid items are skipped (a process that appeared since the last collection). If every counted item is skipped, the result is `NotYetSampled` on the source's first collection and `Invalid` afterwards;
   - otherwise apply the per-engine sum and cap rules above and return `MeasuredGpuSample` with the maximum.
 - Keep the calculator stateless; the source tracks whether it has collected before.
