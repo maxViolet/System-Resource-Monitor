@@ -56,6 +56,10 @@ internal static partial class NativeMethods
     internal const int NIN_SELECT = WM_USER;
     internal const int NIN_KEYSELECT = WM_USER + 1;
     internal const int IDI_APPLICATION = 32512;
+    internal const uint IMAGE_ICON = 1;
+    internal const uint LR_SHARED = 0x00008000;
+    internal const int SM_CXSMICON = 49;
+    internal const int SM_CYSMICON = 50;
 
     internal const uint MF_STRING = 0x00000000;
     internal const uint MF_CHECKED = 0x00000008;
@@ -145,8 +149,14 @@ internal static partial class NativeMethods
     internal static partial bool GetMonitorInfo(nint hMonitor, ref MONITORINFO lpmi);
 
 
-    [LibraryImport("user32.dll", EntryPoint = "LoadIconW", SetLastError = true)]
-    internal static partial nint LoadIcon(nint hInstance, nint lpIconName);
+    [LibraryImport("user32.dll", EntryPoint = "LoadImageW", SetLastError = true)]
+    internal static partial nint LoadImage(nint hInst, nint name, uint type, int cx, int cy, uint fuLoad);
+
+    [LibraryImport("user32.dll")]
+    internal static partial int GetSystemMetrics(int nIndex);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW", SetLastError = true)]
+    internal static partial nint GetModuleHandle(nint lpModuleName);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial nint CreatePopupMenu();

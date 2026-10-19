@@ -115,7 +115,10 @@ Update this table when evidence changes a brick's state. Valid states are `plann
 | B004 | done |
 | B005 | planned |
 | B006 | done |
-| B007–B018 | planned |
+| B007 | done |
+| B008–B018 | planned |
+
+B007 is `done` by user decision on 2026-10-16 after [PR #25](https://github.com/maxViolet/System-Resource-Monitor/pull/25) merged. Its separate acceptance reports are not present in `docs/acceptance/`; the [B008 automated report](../acceptance/2026-10-16-B08-automated.md) records this handoff limitation and the affected gate reruns. B008 remains `planned` until its applicable acceptance criteria have evidence.
 
 ## Brick template
 

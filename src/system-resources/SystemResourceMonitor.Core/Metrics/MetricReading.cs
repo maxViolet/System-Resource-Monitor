@@ -5,6 +5,7 @@ public enum MetricKind
 {
     Cpu,
     Ram,
+    Gpu,
 }
 
 /// <summary>Why a metric has no trustworthy current value. Unavailable is never shown as zero.</summary>
@@ -21,7 +22,16 @@ public enum UnavailabilityReason
 
     /// <summary>The source could not read a value.</summary>
     ReadFailed,
+    NoDiscreteAdapter,
+    AmbiguousAdapter,
+    Uncorrelated,
 }
+
+/// <summary>The Windows adapter identity used to correlate GPU counters.</summary>
+public readonly record struct AdapterLuid(uint LowPart, int HighPart);
+
+/// <summary>A selected discrete GPU adapter.</summary>
+public sealed record GpuAdapter(string Description, AdapterLuid Luid);
 
 /// <summary>Physical memory in use and in total, in bytes.</summary>
 public readonly record struct RamBytes(ulong UsedBytes, ulong TotalBytes);
@@ -92,7 +102,12 @@ public sealed record AvailableMetric : MetricReading
 
         return (kind, sample) switch
         {
-            (_, SampleUnavailable unavailable) => new UnavailableMetric(kind, unavailable.Reason),
+            (MetricKind.Gpu, GpuUnavailableSample gpuUnavailable) => new UnavailableMetric(kind, gpuUnavailable.Reason),
+            (MetricKind.Gpu, MeasuredGpuSample { Adapter: not null, Percentage: var gpuPercentage })
+                when double.IsFinite(gpuPercentage) && gpuPercentage is >= 0 and <= 100
+                => new AvailableMetric(kind, gpuPercentage, measuredAt, timestamp, null),
+            (_, SampleUnavailable unavailable) when unavailable.Reason is UnavailabilityReason.NotYetSampled or UnavailabilityReason.Invalid or UnavailabilityReason.ReadFailed
+                => new UnavailableMetric(kind, unavailable.Reason),
             (MetricKind.Cpu, MeasuredSample { Percentage: var percentage }) when double.IsFinite(percentage) && percentage is >= 0 and <= 100
                 => new AvailableMetric(kind, percentage, measuredAt, timestamp, null),
             (MetricKind.Ram, MeasuredRamSample { TotalBytes: > 0 } ram) when ram.UsedBytes <= ram.TotalBytes
@@ -109,7 +124,7 @@ public sealed record UnavailableMetric : MetricReading
     public UnavailableMetric(MetricKind kind, UnavailabilityReason reason)
         : base(kind)
     {
-        if (!Enum.IsDefined(reason))
+        if (!Enum.IsDefined(reason) || (kind != MetricKind.Gpu && reason is UnavailabilityReason.NoDiscreteAdapter or UnavailabilityReason.AmbiguousAdapter or UnavailabilityReason.Uncorrelated))
         {
             throw new ArgumentOutOfRangeException(nameof(reason), reason, "Undefined unavailability reason.");
         }

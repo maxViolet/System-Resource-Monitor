@@ -14,7 +14,7 @@ using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// The non-activating AppBar with fixed-width CPU and RAM sections. All HWND, tray, placement, and reconciliation members run on its WPF thread.
+/// The non-activating AppBar with fixed-width CPU, RAM, and GPU sections. All HWND, tray, placement, and reconciliation members run on its WPF thread.
 /// </summary>
 public sealed class BarWindow : Window, IShutdownBar
 {
@@ -48,6 +48,7 @@ public sealed class BarWindow : Window, IShutdownBar
     private MenuReconciliationDeferral? _menuDeferral;
     private readonly TextBlock _cpuSection = CreateSection();
     private readonly TextBlock _ramSection = CreateSection();
+    private readonly TextBlock _gpuSection = CreateSection();
 
     public BarWindow(
         BarEdge initialEdge,
@@ -74,7 +75,7 @@ public sealed class BarWindow : Window, IShutdownBar
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { _cpuSection, _ramSection },
+            Children = { _cpuSection, _ramSection, _gpuSection },
         };
         ShowMetrics(DashboardState.Initial);
 
@@ -199,6 +200,7 @@ public sealed class BarWindow : Window, IShutdownBar
         Dispatcher.VerifyAccess();
         Show(_cpuSection, MetricSectionFormat.Format(state.Cpu));
         Show(_ramSection, MetricSectionFormat.Format(state.Ram));
+        Show(_gpuSection, MetricSectionFormat.Format(state.Gpu, state.GpuAdapter));
 
         static void Show(TextBlock section, MetricSection content)
         {
@@ -280,6 +282,7 @@ public sealed class BarWindow : Window, IShutdownBar
     {
         _cpuSection.Width = WidestCandidate(MetricKind.Cpu, pixelsPerDip);
         _ramSection.Width = WidestCandidate(MetricKind.Ram, pixelsPerDip);
+        _gpuSection.Width = WidestCandidate(MetricKind.Gpu, pixelsPerDip);
     }
 
     private static double WidestCandidate(MetricKind kind, double pixelsPerDip)

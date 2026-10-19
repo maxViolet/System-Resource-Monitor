@@ -21,7 +21,7 @@ public static partial class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram] | --metric-display [seconds] | --native-reads <seconds>";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram|gpu] | --metric-display [seconds] | --native-reads <seconds> | --gpu-probe | --gpu-correlation <seconds>";
 
     [STAThread]
     public static int Main(string[] args)
@@ -35,6 +35,8 @@ public static partial class Program
                 return FailAfterSetPos();
             case ["--bounded-shutdown"]:
                 return BoundedShutdown();
+            case ["--faulted-metric-run"]:
+                return FaultedMetricRun();
             case ["--hold-bar"]:
                 return HoldBar();
             case ["--edge-switches"]:
@@ -53,12 +55,18 @@ public static partial class Program
                 return MetricFreshness(Core.Metrics.MetricKind.Cpu);
             case ["--metric-freshness", "ram"]:
                 return MetricFreshness(Core.Metrics.MetricKind.Ram);
+            case ["--metric-freshness", "gpu"]:
+                return MetricFreshness(Core.Metrics.MetricKind.Gpu);
             case ["--metric-display"]:
                 return MetricDisplay(TimeSpan.Zero);
             case ["--metric-display", var seconds] when TryParseSeconds(seconds, out var hold):
                 return MetricDisplay(hold);
             case ["--native-reads", var seconds] when TryParseSeconds(seconds, out var duration):
                 return NativeReads(duration);
+            case ["--gpu-probe"]:
+                return GpuProbe();
+            case ["--gpu-correlation", var seconds] when TryParseSeconds(seconds, out var gpuDuration):
+                return GpuCorrelation(gpuDuration);
             default:
                 Console.Error.WriteLine(Usage);
                 return InvalidInvocation;
@@ -88,6 +96,39 @@ public static partial class Program
             "bar-positioned",
             "inject-failure",
             $"startup-failed:{nameof(InjectedStartupFailureException)}",
+            "remove",
+            "restored",
+            "wait-start",
+            "exit");
+        return run.Finish();
+    }
+
+    /// <summary>
+    /// A defect faults the running metric monitor after startup (ADR 0011): a <c>Changed</c> handler throws, which stops
+    /// both polling loops. The coordinator records the owner failure, removes the AppBar, restores the work area before
+    /// the bounded wait, and exits with the failure exit code.
+    /// </summary>
+    private static int FaultedMetricRun()
+    {
+        var run = new LifecycleRun();
+        run.Run((bar, _) =>
+        {
+            run.CheckPositionedBar(bar);
+            run.Monitor.Changed += (_, _) => throw new InjectedCollectorFaultException();
+            run.Record("fault-armed");
+        });
+
+        var waited = run.Between("wait-start", "exit");
+        LifecycleRun.Info($"wait-ms {waited.TotalMilliseconds:F0}");
+        run.Check(waited <= ShutdownCoordinator.WaitDeadline, $"waited {waited.TotalMilliseconds:F0} ms after the faulted run");
+        run.Check(run.MarkerCount("pending:metric-monitor") == 0, "the faulted metric monitor was still pending at the deadline");
+        run.Check(run.ExitCode == ExitCodes.Failure, $"coordinator exit code {run.ExitCode}, expected {ExitCodes.Failure}");
+        run.CheckOrder(
+            "guard-acquired",
+            "bar-positioned",
+            "metrics-started",
+            "fault-armed",
+            $"owner-failed:metric-monitor:{nameof(InjectedCollectorFaultException)}",
             "remove",
             "restored",
             "wait-start",
@@ -445,4 +486,6 @@ public static partial class Program
     }
 
     private sealed class InjectedStartupFailureException() : Exception("Injected failure after ABM_SETPOS.");
+
+    private sealed class InjectedCollectorFaultException() : Exception("Injected fault in a metric monitor Changed handler.");
 }

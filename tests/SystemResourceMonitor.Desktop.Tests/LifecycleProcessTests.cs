@@ -17,6 +17,7 @@ public sealed class LifecycleProcessTests
     [Theory(Timeout = TimeoutMilliseconds)]
     [InlineData("--fail-after-setpos")]
     [InlineData("--bounded-shutdown")]
+    [InlineData("--faulted-metric-run")]
     [InlineData("--edge-switches")]
     [InlineData("--fullscreen-reconciliation")]
     [InlineData("--settings-read-failure")]
@@ -37,6 +38,7 @@ public sealed class LifecycleProcessTests
     [Theory(Timeout = TimeoutMilliseconds)]
     [InlineData("--metric-freshness", "cpu")]
     [InlineData("--metric-freshness", "ram")]
+    [InlineData("--metric-freshness", "gpu")]
     [InlineData("--native-reads", "10")]
     public async Task TestHost_metric_mode_passes_its_assertions(string mode, string argument)
     {

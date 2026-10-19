@@ -148,7 +148,7 @@ internal sealed class PublicationRecorder
     {
         lock (_gate)
         {
-            var changed = new[] { state.Cpu, state.Ram }.Where(reading => !ReferenceEquals(reading, _last.Get(reading.Kind))).ToList();
+            var changed = new[] { state.Cpu, state.Ram, state.Gpu }.Where(reading => !ReferenceEquals(reading, _last.Get(reading.Kind))).ToList();
             Assert.Single(changed);
             _publications.Add(changed[0]);
             _last = state;
@@ -410,8 +410,9 @@ internal static class Samples
 {
     public static readonly MetricSample Cpu = new MeasuredSample(12);
     public static readonly MetricSample Ram = new MeasuredRamSample(4UL << 30, 16UL << 30);
+    public static readonly MetricSample Gpu = new SampleUnavailable(UnavailabilityReason.NotYetSampled);
 
-    public static MetricSample For(MetricKind kind) => kind == MetricKind.Cpu ? Cpu : Ram;
+    public static MetricSample For(MetricKind kind) => kind switch { MetricKind.Cpu => Cpu, MetricKind.Ram => Ram, _ => Gpu };
 
     public static MetricKind Other(MetricKind kind) => kind == MetricKind.Cpu ? MetricKind.Ram : MetricKind.Cpu;
 }

@@ -25,11 +25,14 @@ public static partial class Program
     private static int MetricFreshness(MetricKind blocked)
     {
         const int SuccessfulReads = 3;
-        var other = blocked == MetricKind.Cpu ? MetricKind.Ram : MetricKind.Cpu;
         var blockedSource = new ScriptedSource(blocked, read => read < SuccessfulReads ? ScriptedSource.Measured(blocked, 10 * (read + 1)) : null);
-        var otherSource = new ScriptedSource(other, read => ScriptedSource.Measured(other, 20 + read % 50));
-        var run = new LifecycleRun(sources: blocked == MetricKind.Cpu ? (blockedSource, otherSource) : (otherSource, blockedSource));
-        var otherChanges = new List<TimeSpan>();
+        IMetricSource OtherSource(MetricKind kind) => new ScriptedSource(kind, read => ScriptedSource.Measured(kind, 20 + read % 50));
+        var cpuSource = blocked == MetricKind.Cpu ? blockedSource : OtherSource(MetricKind.Cpu);
+        var ramSource = blocked == MetricKind.Ram ? blockedSource : OtherSource(MetricKind.Ram);
+        var gpuSource = blocked == MetricKind.Gpu ? blockedSource : OtherSource(MetricKind.Gpu);
+        var run = new LifecycleRun(sources: (cpuSource, ramSource, gpuSource));
+        var otherKinds = Enum.GetValues<MetricKind>().Where(kind => kind != blocked).ToArray();
+        var otherChanges = otherKinds.ToDictionary(kind => kind, _ => new List<TimeSpan>());
         var blockedChanges = 0;
         TimeSpan? expiryOffset = null;
         TimeSpan? expiredAt = null;
@@ -38,9 +41,9 @@ public static partial class Program
         {
             run.CheckPositionedBar(bar);
             var blockedSection = Section(bar, blocked);
-            var otherSection = Section(bar, other);
+            var otherSections = otherKinds.ToDictionary(kind => kind, kind => Section(bar, kind));
             var blockedText = blockedSection.Text;
-            var otherText = otherSection.Text;
+            var otherTexts = otherSections.ToDictionary(pair => pair.Key, pair => pair.Value.Text);
 
             // Observe the rendered text once per frame, without a hook in the bar. The deadline starts at the blocked
             // source's last successful return, which the monitor stamps immediately afterwards.
@@ -57,16 +60,19 @@ public static partial class Program
                         expiryOffset = Stopwatch.GetElapsedTime(last, now) - MetricMonitor.ExpiryAge;
                         expiredAt = run.Now;
                         run.Check(
-                            blockedSection.ToolTip as string == "No update for 6 seconds.",
+                            (blockedSection.ToolTip as string)?.EndsWith("No update for 6 seconds.", StringComparison.Ordinal) == true,
                             $"the expired {blocked} tooltip is '{blockedSection.ToolTip}'");
                     }
                 }
 
-                if (otherSection.Text != otherText)
+                foreach (var (kind, section) in otherSections)
                 {
-                    otherText = otherSection.Text;
-                    otherChanges.Add(run.Now);
-                    run.Record($"shown:{other}:{otherText}");
+                    if (section.Text != otherTexts[kind])
+                    {
+                        otherTexts[kind] = section.Text;
+                        otherChanges[kind].Add(run.Now);
+                        run.Record($"shown:{kind}:{section.Text}");
+                    }
                 }
             }
 
@@ -109,12 +115,15 @@ public static partial class Program
             run.Check(false, $"the blocked {blocked} section never showed the dash");
         }
 
-        var gaps = otherChanges.Zip(otherChanges.Skip(1), (previous, next) => next - previous).ToList();
-        LifecycleRun.Info($"{other}-changes {otherChanges.Count}; max-gap-ms {(gaps.Count == 0 ? 0 : gaps.Max().TotalMilliseconds):F0}");
-        run.Check(
-            expiredAt is { } expired && otherChanges.Count(at => at < expired) >= 2 && otherChanges.Count(at => at > expired) >= 2,
-            $"the {other} section did not keep changing before and after the expiry");
-        run.Check(gaps.All(gap => gap <= MaximumUpdateGap), $"the {other} section paused longer than {MaximumUpdateGap.TotalMilliseconds:F0} ms");
+        foreach (var kind in otherKinds)
+        {
+            var changes = otherChanges[kind];
+            var gaps = changes.Zip(changes.Skip(1), (previous, next) => next - previous).ToList();
+            LifecycleRun.Info($"{kind}-changes {changes.Count}; max-gap-ms {(gaps.Count == 0 ? 0 : gaps.Max().TotalMilliseconds):F0}");
+            run.Check(expiredAt is { } expired && changes.Count(at => at < expired) >= 2 && changes.Count(at => at > expired) >= 2,
+                $"the {kind} section did not keep changing before and after the expiry");
+            run.Check(gaps.All(gap => gap <= MaximumUpdateGap), $"the {kind} section paused longer than {MaximumUpdateGap.TotalMilliseconds:F0} ms");
+        }
 
         var waited = run.Between("wait-start", "exit");
         LifecycleRun.Info($"wait-ms {waited.TotalMilliseconds:F0}");
@@ -127,12 +136,12 @@ public static partial class Program
 
     /// <summary>
     /// Shows 0%, 100%, and every unavailable reason in turn, holding each for <paramref name="hold"/>. In every state,
-    /// both sections keep their fixed widths, their text fits unclipped within the width and the bar's height, and the
+    /// all sections keep their fixed widths, their text fits unclipped within the width and the bar's height, and the
     /// reserved strip still matches the rendered bar.
     /// </summary>
     private static int MetricDisplay(TimeSpan hold)
     {
-        var run = new LifecycleRun(sources: (ScriptedSource.Blocked(MetricKind.Cpu), ScriptedSource.Blocked(MetricKind.Ram)));
+        var run = new LifecycleRun(sources: (ScriptedSource.Blocked(MetricKind.Cpu), ScriptedSource.Blocked(MetricKind.Ram), ScriptedSource.Steady(MetricKind.Gpu)));
         run.Run((bar, shutdown) =>
         {
             run.CheckPositionedBar(bar);
@@ -145,8 +154,9 @@ public static partial class Program
                     var dpi = VisualTreeHelper.GetDpi(bar);
                     var cpuWidth = Section(bar, MetricKind.Cpu).Width;
                     var ramWidth = Section(bar, MetricKind.Ram).Width;
+                    var gpuWidth = Section(bar, MetricKind.Gpu).Width;
                     LifecycleRun.Info($"dpi-scale {dpi.DpiScaleX.ToString("P0", CultureInfo.InvariantCulture)}");
-                    LifecycleRun.Info($"section-widths CPU {cpuWidth:F2} DIP, RAM {ramWidth:F2} DIP; bar height {bar.ActualHeight:F2} DIP");
+                    LifecycleRun.Info($"section-widths CPU {cpuWidth:F2} DIP, RAM {ramWidth:F2} DIP, GPU {gpuWidth:F2} DIP; bar height {bar.ActualHeight:F2} DIP");
                     foreach (var (name, state) in DisplayStates())
                     {
                         run.Check(shutdown.TryPublish(() => bar.ShowMetrics(state)), $"the {name} state could not publish");
@@ -155,6 +165,7 @@ public static partial class Program
                         run.Record($"display:{name}");
                         CheckSection(run, bar, Section(bar, MetricKind.Cpu), cpuWidth, name);
                         CheckSection(run, bar, Section(bar, MetricKind.Ram), ramWidth, name);
+                        CheckSection(run, bar, Section(bar, MetricKind.Gpu), gpuWidth, name);
                         run.CheckPositionedBar(bar);
                         await Task.Delay(hold);
                     }
@@ -182,10 +193,11 @@ public static partial class Program
     {
         var cpu = new Win32SystemTimesApi();
         var ram = new Win32MemoryStatusApi();
+        using var gpu = new GpuLoadSource(new DxCoreAdapterApi(), new PdhGpuCounterApi());
         var results = Task.WhenAll(
-                MeasureAsync("GetSystemTimes", () => cpu.TryRead(out _, out _), duration),
-                MeasureAsync("GlobalMemoryStatusEx", () => ram.TryRead(out _, out _, out _), duration))
-            .GetAwaiter().GetResult();
+            MeasureAsync("GetSystemTimes", () => cpu.TryRead(out _, out _), duration),
+            MeasureAsync("GlobalMemoryStatusEx", () => ram.TryRead(out _, out _, out _), duration),
+            MeasureAsync("GpuLoadSource.Read", () => { _ = gpu.Read(); return true; }, duration)).GetAwaiter().GetResult();
 
         var passed = true;
         foreach (var result in results)
@@ -249,21 +261,32 @@ public static partial class Program
         {
             yield return ($"{percentage}%", DashboardState.Initial
                 .With(Available(MetricKind.Cpu, percentage))
-                .With(Available(MetricKind.Ram, percentage)));
+                .With(Available(MetricKind.Ram, percentage))
+                .WithGpu(Available(MetricKind.Gpu, percentage), ScriptedSource.TestAdapter));
         }
 
-        foreach (var reason in Enum.GetValues<UnavailabilityReason>())
+        foreach (var reason in new[] { UnavailabilityReason.NotYetSampled, UnavailabilityReason.Expired, UnavailabilityReason.Invalid, UnavailabilityReason.ReadFailed })
         {
             yield return (reason.ToString(), DashboardState.Initial
                 .With(new UnavailableMetric(MetricKind.Cpu, reason))
-                .With(new UnavailableMetric(MetricKind.Ram, reason)));
+                .With(new UnavailableMetric(MetricKind.Ram, reason))
+                .WithGpu(new UnavailableMetric(MetricKind.Gpu, reason), null));
         }
 
-        static MetricReading Available(MetricKind kind, double percentage) => AvailableMetric.Create(
-            kind,
-            ScriptedSource.Measured(kind, percentage),
-            DateTimeOffset.UtcNow,
-            TimeProvider.System.GetTimestamp());
+        foreach (var reason in new[] { UnavailabilityReason.NotYetSampled, UnavailabilityReason.Expired, UnavailabilityReason.Invalid,
+                     UnavailabilityReason.ReadFailed, UnavailabilityReason.Uncorrelated })
+        {
+            yield return ($"{reason}-adapter", DashboardState.Initial.WithGpu(
+                new UnavailableMetric(MetricKind.Gpu, reason), ScriptedSource.TestAdapter));
+        }
+
+        foreach (var reason in new[] { UnavailabilityReason.NoDiscreteAdapter, UnavailabilityReason.AmbiguousAdapter })
+        {
+            yield return (reason.ToString(), DashboardState.Initial.WithGpu(new UnavailableMetric(MetricKind.Gpu, reason), null));
+        }
+
+        static MetricReading Available(MetricKind kind, double percentage) => AvailableMetric.Create(kind,
+            ScriptedSource.Measured(kind, percentage), DateTimeOffset.UtcNow, TimeProvider.System.GetTimestamp());
     }
 
     private static void CheckSection(LifecycleRun run, BarWindow bar, TextBlock section, double fixedWidth, string state)
@@ -288,7 +311,12 @@ public static partial class Program
         run.Check(right <= bar.ActualWidth, $"{state}: '{section.Text}' ends outside the bar");
     }
 
-    private static TextBlock Section(BarWindow bar, MetricKind kind) => kind == MetricKind.Cpu ? LifecycleRun.Sections(bar).Cpu : LifecycleRun.Sections(bar).Ram;
+    private static TextBlock Section(BarWindow bar, MetricKind kind) => kind switch
+    {
+        MetricKind.Cpu => LifecycleRun.Sections(bar).Cpu,
+        MetricKind.Ram => LifecycleRun.Sections(bar).Ram,
+        _ => LifecycleRun.Sections(bar).Gpu,
+    };
 
     private static bool TryParseSeconds(string text, out TimeSpan duration)
     {

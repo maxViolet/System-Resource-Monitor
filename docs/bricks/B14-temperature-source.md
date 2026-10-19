@@ -5,7 +5,7 @@
 | **Area** | Research |
 | **Depends on** | B008 done/rejected; B009 done |
 | **Unblocks** | B015 when accepted |
-| **Sources** | [Product plan — Temperatures](../plan.md#temperatures), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
+| **Sources** | [Product plan — Temperatures](../plan.md#temperatures), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0012](../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 
@@ -24,7 +24,7 @@ A privileged helper is not authorized. If a candidate requires elevation of the 
 ## Acceptance criteria
 
 - [ ] Candidate inventory and dated evidence cover every context field above
-- [ ] CPU evidence, when available, uses a whole-processor/package sensor rather than a single core; GPU evidence, when available, identifies the adapter under the product plan's discrete-then-integrated rule even if B008 rejected load-counter correlation
+- [ ] CPU evidence, when available, uses a whole-processor/package sensor rather than a single core; GPU evidence, when available, identifies the one discrete adapter under the product plan's discrete-only rule even if B008 rejected load-counter correlation
 - [ ] License and redistribution terms permit the intended use and packaging
 - [ ] The exact candidate binaries pass Windows Defender checks and require no elevation of the bar
 - [ ] Blocking, timeout, shutdown, and resource-ownership characteristics are measured and recorded

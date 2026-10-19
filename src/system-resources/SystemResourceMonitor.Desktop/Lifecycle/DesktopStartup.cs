@@ -17,7 +17,8 @@ public sealed class DesktopStartup(
     Dispatcher dispatcher,
     MetricMonitor monitor,
     Action<string>? record = null,
-    Action<BarWindow>? afterBarPositioned = null) : IDisposable
+    Action<BarWindow>? afterBarPositioned = null,
+    Action? afterMetricRun = null) : IDisposable
 {
     /// <summary>Per-session name: AppBar space and the work area belong to one session.</summary>
     public const string ProductionGuardName = @"Local\SystemResourceMonitor-1178D3BA-F66E-486A-8896-F6EBAF20FF05";
@@ -101,7 +102,13 @@ public sealed class DesktopStartup(
             state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
         monitor.Changed += (_, state) => relay.OnChanged(state);
         bar.ShowMetrics(monitor.Current);
-        shutdown.TrackOwner("metric-monitor", monitor.RunAsync(shutdown.Lifetime));
+        var run = monitor.RunAsync(shutdown.Lifetime);
+        shutdown.TrackOwner("metric-monitor", run);
+        if (afterMetricRun is not null)
+        {
+            _ = run.ContinueWith(_ => afterMetricRun(), CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        }
         record?.Invoke("metrics-started");
     }
 

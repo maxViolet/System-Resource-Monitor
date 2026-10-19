@@ -60,6 +60,27 @@ public sealed class MetricSectionFormatTests
     }
 
     [Fact]
+    public void Gpu_formatting_shows_adapter_and_safe_unavailable_explanations()
+    {
+        var adapter = new GpuAdapter(new string('X', 70), new AdapterLuid(1, 2));
+        var measured = MetricSectionFormat.Format(
+            AvailableMetric.Create(MetricKind.Gpu, new MeasuredGpuSample(adapter, 37.5), MeasuredAt, 0), adapter);
+        Assert.Equal("GPU 38%", measured.Text);
+        Assert.Equal(new string('X', 64), measured.ToolTip);
+
+        Assert.Equal("No discrete GPU found.", MetricSectionFormat.Format(
+            new UnavailableMetric(MetricKind.Gpu, UnavailabilityReason.NoDiscreteAdapter)).ToolTip);
+        Assert.Equal("More than one discrete GPU found; none is chosen.", MetricSectionFormat.Format(
+            new UnavailableMetric(MetricKind.Gpu, UnavailabilityReason.AmbiguousAdapter)).ToolTip);
+        Assert.Equal(new string('X', 64) + ": GPU counters could not be matched to this adapter.", MetricSectionFormat.Format(
+            new UnavailableMetric(MetricKind.Gpu, UnavailabilityReason.Uncorrelated), adapter).ToolTip);
+        Assert.Equal(new string('X', 64) + ": Windows did not return a measurement.", MetricSectionFormat.Format(
+            new UnavailableMetric(MetricKind.Gpu, UnavailabilityReason.ReadFailed), adapter).ToolTip);
+        Assert.Equal("GPU \u2014", MetricSectionFormat.Format(
+            new UnavailableMetric(MetricKind.Gpu, UnavailabilityReason.ReadFailed)).Text);
+    }
+
+    [Fact]
     public void Undefined_kind_is_a_programmer_error()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => MetricSectionFormat.WidthCandidates((MetricKind)99).ToList());

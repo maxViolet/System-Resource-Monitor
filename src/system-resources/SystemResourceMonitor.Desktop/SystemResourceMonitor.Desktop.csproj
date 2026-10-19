@@ -5,12 +5,19 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Regenerate with Assets\generate-icon.py. The tray loads it from the executable. -->
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- LibraryImport generates blittable marshalling stubs. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SystemResourceMonitor.Core\SystemResourceMonitor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The user guide ships in the published folder only. -->
+    <None Include="..\..\..\README.md" Link="README.md" CopyToOutputDirectory="Never" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

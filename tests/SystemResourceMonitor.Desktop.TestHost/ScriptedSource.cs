@@ -10,6 +10,7 @@ namespace SystemResourceMonitor.Desktop.TestHost;
 internal sealed class ScriptedSource(MetricKind kind, Func<int, MetricSample?> script) : IMetricSource
 {
     private const ulong Gib = 1UL << 30;
+    public static readonly GpuAdapter TestAdapter = new("Test discrete GPU", new AdapterLuid(0x12345678, 0x10203040));
     private int _reads;
     private long _lastSuccess;
 
@@ -37,9 +38,12 @@ internal sealed class ScriptedSource(MetricKind kind, Func<int, MetricSample?> s
     public static ScriptedSource Steady(MetricKind kind) => new(kind, read => Measured(kind, read % 2 == 0 ? 12 : 64));
 
     /// <summary>A sample of <paramref name="kind"/> at <paramref name="percentage"/>, with 16 GiB total for RAM.</summary>
-    public static MetricSample Measured(MetricKind kind, double percentage) => kind == MetricKind.Cpu
-        ? new MeasuredSample(percentage)
-        : new MeasuredRamSample((ulong)(16 * Gib * percentage / 100), 16 * Gib);
+    public static MetricSample Measured(MetricKind kind, double percentage) => kind switch
+    {
+        MetricKind.Cpu => new MeasuredSample(percentage),
+        MetricKind.Ram => new MeasuredRamSample((ulong)(16 * Gib * percentage / 100), 16 * Gib),
+        _ => new MeasuredGpuSample(TestAdapter, percentage),
+    };
 
     /// <summary>Blocks every read, so the monitor publishes nothing after its initial state.</summary>
     public static ScriptedSource Blocked(MetricKind kind) => new(kind, _ => null);

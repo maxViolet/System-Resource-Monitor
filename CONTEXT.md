@@ -37,7 +37,8 @@ A measured value of CPU, RAM or GPU state together with its measurement time.
 _Avoid_: resource
 
 **Load**:
-Current CPU or GPU utilization as a percentage. For the GPU, the maximum across engines (3D, Compute, Copy, Video), as in Task Manager; the discrete GPU is used, or the integrated one if there is no discrete GPU.
+Current CPU or GPU utilization as a percentage. For the GPU, the maximum across engines (3D, Compute, Copy, Video), as in Task Manager, of the one discrete GPU only; with no discrete GPU or more than one, GPU load is unavailable.
+For GPU counters, an empty engine type is ignored only when the full identity parses and its adapter LUID differs from the selected GPU. An empty engine type on the selected LUID or an unparseable identity makes GPU load unavailable.
 _Avoid_: power
 
 **RAM usage**:
