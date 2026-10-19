@@ -1,26 +1,26 @@
-# B05 metric monitoring report — 2026-10-15
+# B005 metric monitoring report — 2026-10-15
 
-Brick: [B05 — Independent metric monitoring](../bricks/B05-metric-monitoring.md). Package plan: [B05 plan](../bricks/B05-metric-monitoring/plan.md).
+Brick: [B005 — Independent metric monitoring](../bricks/B05-metric-monitoring.md). Package plan: [B005 plan](../bricks/B05-metric-monitoring/plan.md).
 
-Status: implemented; automated criteria pass; not accepted: B04 gate open. Windows integration and manual desktop checks are not applicable to B05: Desktop does not compose `MetricMonitor` until B06.
+Status: implemented; automated criteria pass; not accepted: B004 gate open. Windows integration and manual desktop checks are not applicable to B005: Desktop does not compose `MetricMonitor` until B006.
 
 ## Prerequisite and exception
 
-The plan requires B04 to be accepted before B05 implementation begins. [B04's 2026-10-15 report](2026-10-15-B04-fullscreen-reconciliation.md) on `main` remains in progress and states: "B04 is not accepted and B05, B10, and B11 remain gated." The roadmap progress table is unchanged. On 2026-10-15 the user stated that B04 is done and authorized B05 implementation now. That implementation-order exception, approved on 2026-10-15, permits B05 code and deterministic tests while retaining every B04 and B05 acceptance gate. It does not accept either brick or unblock dependent work. This report does not change the B04 report.
+The plan requires B004 to be accepted before B005 implementation begins. [B004's 2026-10-15 report](2026-10-15-B04-fullscreen-reconciliation.md) on `main` remains in progress and states: "B004 is not accepted and B005, B010, and B011 remain gated." The roadmap progress table is unchanged. On 2026-10-15 the user stated that B004 is done and authorized B005 implementation now. That implementation-order exception, approved on 2026-10-15, permits B005 code and deterministic tests while retaining every B004 and B005 acceptance gate. It does not accept either brick or unblock dependent work. This report does not change the B004 report.
 
 ## Environment
 
 | | |
 |---|---|
 | Source | Branch `FEAT-005-metric-monitoring`, uncommitted working tree based on commit `955fbc5fc12778936310988a428852ddf2cad96f` |
-| Tree | `b6dbba810339d189bd8d49ef1f964ee34b25282a`: the B05 working tree without this report, written through a temporary index |
+| Tree | `b6dbba810339d189bd8d49ef1f964ee34b25282a`: the B005 working tree without this report, written through a temporary index |
 | Windows | Windows 11 Pro x64, build 10.0.26300 |
 | .NET SDK | 10.0.401, pinned in `global.json`. The machine-wide `dotnet` had only SDK 8.0.425, so SDK 10.0.401 was installed with the official `dotnet-install.ps1` into a session-local folder and used for every command |
 | Test runner | Microsoft.Testing.Platform with xunit.v3 4.0.2 ([ADR 0005](../adr/0005-project-level-runtime-and-testing-platform.md)) |
 
 ## Baseline
 
-Both baseline checks ran on the clean tree at `955fbc5` before any B05 change.
+Both baseline checks ran on the clean tree at `955fbc5` before any B005 change.
 
 | Command | Exit code | Result |
 |---|---|---|
@@ -41,10 +41,10 @@ Both baseline checks ran on the clean tree at `955fbc5` before any B05 change.
 | `dotnet test --project tests/SystemResourceMonitor.Core.Tests/SystemResourceMonitor.Core.Tests.csproj -c Release`, ten consecutive runs | 0 each | 69 total and 69 succeeded in every run. |
 | `dotnet restore SystemResourceMonitor.slnx -r win-x64 --locked-mode` | 0 | All six projects restored from lock files. |
 | `dotnet build SystemResourceMonitor.slnx -c Release --no-restore` | 0 | 0 warnings, 0 errors. |
-| `dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build` | 0 | 152 total, 152 succeeded, 0 failed, on the first run. An earlier handoff run of the same command, before the review fixes, failed 1 of 149: the B04 real-HWND test `LifecycleProcessTests.TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(mode: "--fullscreen-reconciliation")`, which depends on the interactive desktop foreground. It passed in three Desktop-only reruns and in a solution rerun. B05 changes no Desktop code; the test remains intermittent and outside B05. |
+| `dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build` | 0 | 152 total, 152 succeeded, 0 failed, on the first run. An earlier handoff run of the same command, before the review fixes, failed 1 of 149: the B004 real-HWND test `LifecycleProcessTests.TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(mode: "--fullscreen-reconciliation")`, which depends on the interactive desktop foreground. It passed in three Desktop-only reruns and in a solution rerun. B005 changes no Desktop code; the test remains intermittent and outside B005. |
 | `git diff --check` | 0 | No whitespace errors. |
 
-`dotnet publish` was not run. B05 does not change the published app's behavior because Desktop does not compose `MetricMonitor` until B06.
+`dotnet publish` was not run. B005 does not change the published app's behavior because Desktop does not compose `MetricMonitor` until B006.
 
 Test counts: Core.Tests has 69 tests (8 from the baseline and 61 new in `tests/SystemResourceMonitor.Core.Tests/Metrics/`). Desktop.Tests is unchanged at 83, for a solution total of 152.
 
@@ -86,4 +86,4 @@ The notification rule has its own tests: `MetricMonitorStateTests.Each_accepted_
 
 ## Not applicable
 
-Windows integration and manual desktop checks are not applicable to B05. The native adapters, dispatcher marshalling, and the real UI freshness transition belong to B06; the responsiveness gate belongs to B07.
+Windows integration and manual desktop checks are not applicable to B005. The native adapters, dispatcher marshalling, and the real UI freshness transition belong to B006; the responsiveness gate belongs to B007.

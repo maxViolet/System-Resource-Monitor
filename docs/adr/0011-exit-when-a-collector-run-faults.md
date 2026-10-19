@@ -1,6 +1,6 @@
 # Exit when a collector run faults
 
-Status: accepted, 2026-10-15. Applies to collector tasks in the [implementation plan](../implementation-plan.md#technology-and-layout) and to B06. [ADR 0009](0009-exit-when-tray-recovery-fails.md) remains in force.
+Status: accepted, 2026-10-15. Applies to collector tasks in the [implementation plan](../implementation-plan.md#technology-and-layout) and to B006. [ADR 0009](0009-exit-when-tray-recovery-fails.md) remains in force.
 
 ## Decision
 
@@ -20,7 +20,7 @@ After a fault, no loop polls and no timer expires a reading. The bar would keep 
 - **Show both readings as `Unavailable` and keep running.** Rejected: the readings never recover, the bar stays reserved with nothing to show, and the defect stays hidden behind a state that also means an ordinary read failure.
 - **Restart the collector run with a bounded retry.** Rejected for the first release: a fault comes from a defect, not from a transient cause, so a restart would repeat it. A retry also adds a timer state machine. Revisit if Windows evidence shows a transient fault.
 
-Later collectors, such as the provider monitors in B12 and B13, follow the same rule. They map source failures to `Unavailable` readings and must not fault on them, so one provider's failure does not stop the bar. Revisit this ADR if a later collector can fault for a transient cause.
+Later collectors, such as the provider monitors in B012 and B013, follow the same rule. They map source failures to `Unavailable` readings and must not fault on them, so one provider's failure does not stop the bar. Revisit this ADR if a later collector can fault for a transient cause.
 
 ## Acceptance
 

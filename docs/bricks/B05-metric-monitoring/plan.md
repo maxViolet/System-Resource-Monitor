@@ -1,23 +1,23 @@
-# B05 implementation plan for coding agents
+# B005 implementation plan for coding agents
 
-Status: planned. This package implements [B05 — Independent metric monitoring](../B05-metric-monitoring.md). The [product plan](../../plan.md#product-and-first-release), [implementation plan — Initial model and workflows](../../implementation-plan.md#initial-model-and-workflows), [automated verification](../../implementation-plan.md#automated-verification-and-handoff), [CONTEXT](../../../CONTEXT.md#language), [ADR 0005](../../adr/0005-project-level-runtime-and-testing-platform.md), and [ADR 0007](../../adr/0007-resource-projects-by-package.md) govern ambiguity. B04 must be accepted before B05 implementation begins; a failed B04 blocks B05 pending the placement decision in the [roadmap](../README.md#stages).
+Status: planned. This package implements [B005 — Independent metric monitoring](../B05-metric-monitoring.md). The [product plan](../../plan.md#product-and-first-release), [implementation plan — Initial model and workflows](../../implementation-plan.md#initial-model-and-workflows), [automated verification](../../implementation-plan.md#automated-verification-and-handoff), [CONTEXT](../../../CONTEXT.md#language), [ADR 0005](../../adr/0005-project-level-runtime-and-testing-platform.md), and [ADR 0007](../../adr/0007-resource-projects-by-package.md) govern ambiguity. B004 must be accepted before B005 implementation begins; a failed B004 blocks B005 pending the placement decision in the [roadmap](../README.md#stages).
 
 ## Outcome and handoff
 
 Deliver platform-independent CPU and RAM monitoring policy in `SystemResourceMonitor.Core`. Given fake metric sources and a fake `TimeProvider`, Core polls each source every two seconds without overlapping that source's reads, validates every result, publishes immutable `DashboardState` changes, and expires each reading at monotonic age `>= 6s` on its own timer, independently of the other source and of a blocked read.
 
-B06 must be able to plug in the `GetSystemTimes` and `GlobalMemoryStatusEx` adapters as source ports and marshal state notifications to the WPF dispatcher without changing B05 policy. B05 has no Desktop, native, WPF, or manual desktop work; every acceptance criterion closes with automated tests. The freshness gate's real UI transition within 0.5 seconds of the deadline belongs to B06.
+B006 must be able to plug in the `GetSystemTimes` and `GlobalMemoryStatusEx` adapters as source ports and marshal state notifications to the WPF dispatcher without changing B005 policy. B005 has no Desktop, native, WPF, or manual desktop work; every acceptance criterion closes with automated tests. The freshness gate's real UI transition within 0.5 seconds of the deadline belongs to B006.
 
 ## Work order
 
 Complete these steps in order. Keep the solution buildable after each step. All new production code lives in `src/system-resources/SystemResourceMonitor.Core/Metrics/` in namespace `SystemResourceMonitor.Core.Metrics`. Do not add `IClock`, a generic result type, DI registrations, or a scheduler abstraction.
 
-### 1. Verify the B04 handoff and the Core baseline
+### 1. Verify the B004 handoff and the Core baseline
 
-- Require B04 accepted in the roadmap progress table or an accepted B04 acceptance report. If B04 is in progress or blocked, record B05 as blocked rather than implementing ahead of the placement decision.
-- Run the targeted Core tests and the solution build from a clean tree. Record the starting commit in the B05 report.
+- Require B004 accepted in the roadmap progress table or an accepted B004 acceptance report. If B004 is in progress or blocked, record B005 as blocked rather than implementing ahead of the placement decision.
+- Run the targeted Core tests and the solution build from a clean tree. Record the starting commit in the B005 report.
 
-**Gate:** B04 is accepted, and the baseline Core tests and solution build pass.
+**Gate:** B004 is accepted, and the baseline Core tests and solution build pass.
 
 ### 2. Model readings as an explicit union
 
@@ -34,15 +34,15 @@ Complete these steps in order. Keep the solution buildable after each step. All 
 
 ### 3. Define the source port
 
-- `IMetricSource`: `MetricKind Kind { get; }` and synchronous `MetricSample Read()`. The port is synchronous because the accepted first-release reads are short synchronous native calls; B06 adapters must not wrap them in fake asynchrony.
+- `IMetricSource`: `MetricKind Kind { get; }` and synchronous `MetricSample Read()`. The port is synchronous because the accepted first-release reads are short synchronous native calls; B006 adapters must not wrap them in fake asynchrony.
 - `MetricSample`: closed union of `MeasuredSample(double Percentage)` for CPU, `MeasuredRamSample(ulong UsedBytes, ulong TotalBytes)` for RAM, and `SampleUnavailable(UnavailabilityReason Reason)` where `Reason` is `NotYetSampled`, `Invalid`, or `ReadFailed`. A source never reports `Expired` and never supplies timestamps. A sample whose shape does not match the source's kind is `Invalid`.
 - Core stamps `MeasuredAt` (`GetUtcNow()`) and `Timestamp` (`GetTimestamp()`) from the injected `TimeProvider` when `Read()` returns. Any exception thrown by `Read()` becomes `ReadFailed`; the exception does not escape the collector.
 
-**Gate:** the port compiles without native types, and the B06 CPU first-sample, reset, and invalid-delta outcomes are expressible without changing it.
+**Gate:** the port compiles without native types, and the B006 CPU first-sample, reset, and invalid-delta outcomes are expressible without changing it.
 
 ### 4. Apply readings and expiry in one state owner
 
-- `MetricMonitor` owns the current `DashboardState`, takes both sources and `TimeProvider` in its constructor, and exposes `DashboardState Current` and `event EventHandler<DashboardState>? Changed`. One private lock serializes every state transition; raise `Changed` after the transition while still serialized so subscribers observe states in order. Document that handlers must return quickly and must not block; the Desktop handler only posts to the dispatcher (B06).
+- `MetricMonitor` owns the current `DashboardState`, takes both sources and `TimeProvider` in its constructor, and exposes `DashboardState Current` and `event EventHandler<DashboardState>? Changed`. One private lock serializes every state transition; raise `Changed` after the transition while still serialized so subscribers observe states in order. Document that handlers must return quickly and must not block; the Desktop handler only posts to the dispatcher (B006).
 - Apply a completed read for one kind with these rules, notifying exactly once whenever a rule says "publish":
   - Valid measurement: replace the reading, publish, and re-arm that kind's expiry timer for `6s` after the new `Timestamp`. Publish even when the value equals the previous value, because the measurement time changed.
   - Invalid measurement or `SampleUnavailable(Invalid)`: replace with `Invalid` immediately, cancel the expiry timer, and publish if the previous reading was not already `Invalid`.
@@ -59,7 +59,7 @@ Complete these steps in order. Keep the solution buildable after each step. All 
 - Each loop: record the poll's due time, run `source.Read()` on a thread-pool worker through `Task.Run`, await it, apply the result, then wait with `Task.Delay(remaining, timeProvider, token)` until `previousDue + 2s`. If the read finished after that time, start the next read immediately and skip missed ticks; never queue a burst. A loop never starts a read while its previous read is pending.
 - The loops share nothing except the lock-protected state. A blocked CPU read must not delay RAM polling, RAM publication, or CPU expiry, and the inverse.
 - Cancellation: no new read starts after the token is cancelled. A pending read is awaited with `WaitAsync(token)` so the loop exits promptly, but the synchronous call is not interrupted; its eventual result is discarded and never published. After cancellation, also dispose both expiry timers and reject every later state change, so neither late results nor expiry fire `Changed`. `RunAsync` completes without throwing on cancellation and surfaces any other unexpected failure.
-- Do not record overrun durations in Core. Native-duration measurement belongs to B06; the responsiveness gate belongs to B07.
+- Do not record overrun durations in Core. Native-duration measurement belongs to B006; the responsiveness gate belongs to B007.
 
 **Gate:** polling tests prove the two-second cadence, no overlap under slow reads, independence of both sources, and no publication after cancellation.
 
@@ -97,12 +97,12 @@ dotnet test --solution SystemResourceMonitor.slnx -c Release --no-build
 git diff --check
 ```
 
-B05 does not change the published app's behavior because Desktop does not compose `MetricMonitor` until B06; skip `dotnet publish` and say so in the report.
+B005 does not change the published app's behavior because Desktop does not compose `MetricMonitor` until B006; skip `dotnet publish` and say so in the report.
 
-Create `docs/acceptance/<date>-B05-metric-monitoring.md` with commit and tree IDs, commands and exit codes, test counts, the ten-run stability result, and pass/fail for every B05 criterion with the test that proves it. The report has an automated section only and states that Windows integration and manual desktop checks are not applicable to B05. Update the roadmap progress table when B05 is accepted.
+Create `docs/acceptance/<date>-B05-metric-monitoring.md` with commit and tree IDs, commands and exit codes, test counts, the ten-run stability result, and pass/fail for every B005 criterion with the test that proves it. The report has an automated section only and states that Windows integration and manual desktop checks are not applicable to B005. Update the roadmap progress table when B005 is accepted.
 
-**Gate:** every B05 acceptance criterion maps to a passing named test, and the full handoff commands pass.
+**Gate:** every B005 acceptance criterion maps to a passing named test, and the full handoff commands pass.
 
-## Boundary for B06
+## Boundary for B006
 
-B06 owns the `GetSystemTimes` and `GlobalMemoryStatusEx` adapters, CPU delta arithmetic and baseline reset, native-call duration measurement, composing `MetricMonitor` in Desktop startup and shutdown, marshalling `Changed` to the WPF dispatcher once, presentation, and tooltips that map each `UnavailabilityReason` to a safe explanation. B05 must hand off a stable `IMetricSource`, `MetricSample`, `MetricReading`, `DashboardState`, and `MetricMonitor` contract without Desktop code. Combining system metric state with subscription limit state is Desktop composition in B12/B13, not a B05 concern. Record a new ADR for any new design choice with meaningful alternatives.
+B006 owns the `GetSystemTimes` and `GlobalMemoryStatusEx` adapters, CPU delta arithmetic and baseline reset, native-call duration measurement, composing `MetricMonitor` in Desktop startup and shutdown, marshalling `Changed` to the WPF dispatcher once, presentation, and tooltips that map each `UnavailabilityReason` to a safe explanation. B005 must hand off a stable `IMetricSource`, `MetricSample`, `MetricReading`, `DashboardState`, and `MetricMonitor` contract without Desktop code. Combining system metric state with subscription limit state is Desktop composition in B012/B013, not a B005 concern. Record a new ADR for any new design choice with meaningful alternatives.

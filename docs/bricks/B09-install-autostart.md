@@ -1,11 +1,11 @@
-# B09 — Per-user installation and autostart
+# B009 — Per-user installation and autostart
 
 | | |
 |---|---|
 | **Area** | Release |
-| **Depends on** | B07 |
-| **Unblocks** | B14; optionally B16 |
-| **Sources** | [Product plan — Installation and autostart](../plan.md#installation-and-autostart), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices) |
+| **Depends on** | B007 |
+| **Unblocks** | B014; optionally B016 |
+| **Sources** | [Product plan — Installation and autostart](../plan.md#installation-and-autostart), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0014](../adr/0014-per-user-installation-and-autostart.md) |
 
 ## Why
 
@@ -17,7 +17,7 @@ Install and uninstall scripts place and remove the self-contained app safely for
 
 ## Context
 
-Apply the [Installation and autostart](../implementation-plan.md#installation-and-autostart) controls in the implementation plan: owner-only ACLs, reparse-point rejection, one owned quoted `REG_SZ` Run value, and manifest-scoped uninstall. That section does not yet name the exact per-user destination; record it there before script implementation, then avoid any executable path controlled by another user. Scripts may perform per-user setup; the bar itself never elevates.
+Apply the [Installation and autostart](../implementation-plan.md#installation-and-autostart) controls and [ADR 0014](../adr/0014-per-user-installation-and-autostart.md): the fixed per-user destination, ACL and reparse-point checks, one owned quoted `REG_SZ` Run value, and manifest-scoped uninstall. The destination is recorded before script implementation. Scripts may perform per-user setup; the bar itself never elevates.
 
 Verification covers process state, payload files, registry values, settings, and work-area restoration. Exit the running bar safely before replacement or removal.
 
@@ -31,8 +31,8 @@ Verification covers process state, payload files, registry values, settings, and
 - [ ] Uninstall stops the process, releases the AppBar, removes owned payload/registry state, and applies the documented settings-retention choice
 - [ ] ACL, ownership, canonical-path, and reparse-point negative cases fail safely without modifying attacker-controlled locations
 - [ ] Install, sign-out/in, disable, exit, upgrade, and uninstall evidence records process, files, registry, settings, and work-area state
-- [ ] Affected B07 gates pass for the installed artifact
+- [ ] Affected B007 gates pass for the installed artifact
 
 ## Out of scope
 
-Machine-wide installation, elevation of the bar, MSIX/MSI, automatic update, and public package provenance. B16 owns public distribution.
+Machine-wide installation, elevation of the bar, MSIX/MSI, automatic update, and public package provenance. B016 owns public distribution.

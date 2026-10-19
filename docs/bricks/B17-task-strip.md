@@ -1,10 +1,10 @@
-# B17 — Task strip and clock
+# B017 — Task strip and clock
 
 | | |
 |---|---|
 | **Area** | Desktop |
-| **Depends on** | B07 |
-| **Unblocks** | B18; optionally B16 |
+| **Depends on** | B007 |
+| **Unblocks** | B018; optionally B016 |
 | **Sources** | [Product plan — Task strip and taskbar replacement](../plan.md#task-strip-and-taskbar-replacement), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0008](../adr/0008-replace-taskbar-buttons-in-phases.md), [ADR 0009](../adr/0009-managedshell-for-tasks-and-tray.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
@@ -25,7 +25,7 @@ Activating a task must bring its window to the foreground even though the bar is
 
 The clock shows the time in the short time format of the current Windows regional settings, 24-hour or 12-hour, and shows the full date in its tooltip. It updates at each minute boundary rather than by polling, and follows changes of time zone, system time, and regional format. Clicking the clock does nothing.
 
-The task list survives Explorer restart, display and DPI changes, and primary-monitor change, under the same scenarios as B03. Record ManagedShell's version and every Windows 11 scenario under `docs/acceptance/`.
+The task list survives Explorer restart, display and DPI changes, and primary-monitor change, under the same scenarios as B003. Record ManagedShell's version and every Windows 11 scenario under `docs/acceptance/`.
 
 ## Acceptance criteria
 
@@ -36,8 +36,8 @@ The task list survives Explorer restart, display and DPI changes, and primary-mo
 - [ ] With 1, 10, and 40 tasks, titled task buttons stay between 48 and 160 DIP, all buttons become 32 DIP icon-only buttons when 48 DIP does not fit, and the rest move to `»`; the left sections and the clock keep their position and width
 - [ ] The clock shows the regional short time format in both a 24-hour and a 12-hour regional setting, follows format, time zone, and system-time changes within one minute boundary, and its tooltip shows the full date
 - [ ] Explorer restart, resolution and DPI changes, and primary-monitor change leave a complete, current task list; the evidence is recorded under `docs/acceptance/`
-- [ ] All affected B07 gates, including CPU and memory budgets with the task strip enabled, pass and are recorded
+- [ ] All affected B007 gates, including CPU and memory budgets with the task strip enabled, pass and are recorded
 
 ## Out of scope
 
-Hiding the Windows taskbar, the bar's own tray, and the shell indicators belong to B18. Task grouping, pinned applications, thumbnails, jump lists, and `ITaskbarList3` progress or overlay icons are not authorized by the product plan. A calendar or any action on clicking the clock is not authorized.
+Hiding the Windows taskbar, the bar's own tray, and the shell indicators belong to B018. Task grouping, pinned applications, thumbnails, jump lists, and `ITaskbarList3` progress or overlay icons are not authorized by the product plan. A calendar or any action on clicking the clock is not authorized.

@@ -1,9 +1,9 @@
-# B16 — Authenticated public package
+# B016 — Authenticated public package
 
 | | |
 |---|---|
 | **Area** | Release |
-| **Depends on** | B07 and every optional feature included in the package |
+| **Depends on** | B007 and every optional feature included in the package |
 | **Unblocks** | — |
 | **Sources** | [Product plan — Release rule](../plan.md#release-rule), [Implementation plan — Public distribution gate](../implementation-plan.md#public-distribution-gate) |
 
@@ -29,7 +29,7 @@ Do not claim Authenticode signing unless separately implemented; the required co
 - [ ] Missing, extra, modified, and mismatched payload test cases are rejected
 - [ ] On a clean Windows 11 x64 profile, the package requires no separately installed .NET, client authorization, or UAC
 - [ ] Windows Defender reports no warning for the exact final package
-- [ ] All B07 gates and every affected optional-feature gate pass against the final package configuration
+- [ ] All B007 gates and every affected optional-feature gate pass against the final package configuration
 - [ ] The package contains no test host, fixtures, secrets, credentials, development configuration, production diagnostic hook, or unrelated artifact
 
 ## Out of scope

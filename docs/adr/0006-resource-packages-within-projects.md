@@ -12,7 +12,7 @@ This changes ADR 0002's proposed `Desktop/Adapters/<source>/` layout for feature
 
 ## Alternatives considered
 
-- New projects for AI and system behavior would enforce more compile-time seams, but would expand the five-project B01 foundation before either feature needs a separate assembly.
+- New projects for AI and system behavior would enforce more compile-time seams, but would expand the five-project B001 foundation before either feature needs a separate assembly.
 - Layer-only directories such as `Metrics/`, `Monitoring/`, and `Adapters/` keep implementation types together, but scatter one feature's policy and adapters across unrelated directory trees.
 
 The two package directories make the two work tracks discoverable while preserving the existing project boundary.

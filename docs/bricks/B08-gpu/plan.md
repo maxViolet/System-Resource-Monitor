@@ -1,12 +1,12 @@
-# B08 implementation plan for coding agents
+# B008 implementation plan for coding agents
 
-Status: planned. This package implements [B08 — GPU adapter selection, correlation, and display](../B08-gpu.md). The [product plan — GPU](../../plan.md#gpu), [implementation plan — Initial model and workflows](../../implementation-plan.md#initial-model-and-workflows), [Settings and lifecycle](../../implementation-plan.md#settings-and-lifecycle), [Independent later slices](../../implementation-plan.md#independent-later-slices), [first-release acceptance gates](../../implementation-plan.md#first-release-acceptance-gates), [CONTEXT](../../../CONTEXT.md#language), [ADR 0011](../../adr/0011-exit-when-a-collector-run-faults.md), [ADR 0012](../../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), and [ADR 0013](../../adr/0013-foreign-empty-gpu-engine-instances.md) govern ambiguity. B07 must be `done` before B08 implementation begins.
+Status: planned. This package implements [B008 — GPU adapter selection, correlation, and display](../B08-gpu.md). The [product plan — GPU](../../plan.md#gpu), [implementation plan — Initial model and workflows](../../implementation-plan.md#initial-model-and-workflows), [Settings and lifecycle](../../implementation-plan.md#settings-and-lifecycle), [Independent later slices](../../implementation-plan.md#independent-later-slices), [first-release acceptance gates](../../implementation-plan.md#first-release-acceptance-gates), [CONTEXT](../../../CONTEXT.md#language), [ADR 0011](../../adr/0011-exit-when-a-collector-run-faults.md), [ADR 0012](../../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), and [ADR 0013](../../adr/0013-foreign-empty-gpu-engine-instances.md) govern ambiguity. B007 must be `done` before B008 implementation begins.
 
 ## Outcome and handoff
 
 The bar gains a fixed-width `GPU 37%` section after RAM. Its value is the load of the one discrete adapter: the maximum, over the 3D, Compute, Copy, and Video engines, of each engine's utilization summed across processes. The section never shows an integrated adapter. With no discrete adapter, more than one, or counters that cannot be proven to belong to the selected adapter, it shows `GPU —` with a tooltip that says why. CPU and RAM polling, freshness, and presentation stay unchanged when the GPU read fails or blocks.
 
-B08 adds GPU contracts to the system Core, DXCore and PDH adapters to Desktop, the GPU section, test-host evidence modes, and the GPU acceptance runs. B14 relies on the same discrete-only adapter identity. Temperatures, multi-adapter display, and aggregation across adapters are out of scope.
+B008 adds GPU contracts to the system Core, DXCore and PDH adapters to Desktop, the GPU section, test-host evidence modes, and the GPU acceptance runs. B014 relies on the same discrete-only adapter identity. Temperatures, multi-adapter display, and aggregation across adapters are out of scope.
 
 ## Decisions fixed by this plan
 
@@ -23,12 +23,12 @@ These values are set before any measurement, as the product plan requires:
 
 Complete these steps in order and keep the solution buildable after each. Core code lives in `src/system-resources/SystemResourceMonitor.Core/Metrics/`; native adapters in `src/system-resources/SystemResourceMonitor.Desktop/Adapters/Metrics/`; presentation in `Bar/`. Use `LibraryImport` and source-generated COM (`[GeneratedComInterface]`, `StrategyBasedComWrappers`); do not add a COM interop package, DI, or an abstraction over `MetricMonitor`.
 
-### 1. Verify the B07 handoff and the baseline
+### 1. Verify the B007 handoff and the baseline
 
-- Require B07 `done` in the [roadmap progress table](../README.md#progress) with its acceptance reports. If B07 is not done, record B08 as `blocked` and do not implement ahead of it.
-- From a clean tree, run the targeted Core and Desktop tests and the solution build. Record the starting commit and the B07 published-app and test-host hashes; they are the baseline for the gate reruns in step 9.
+- Require B007 `done` in the [roadmap progress table](../README.md#progress) with its acceptance reports. If B007 is not done, record B008 as `blocked` and do not implement ahead of it.
+- From a clean tree, run the targeted Core and Desktop tests and the solution build. Record the starting commit and the B007 published-app and test-host hashes; they are the baseline for the gate reruns in step 9.
 
-**Gate:** B07 is done and the baseline tests and build pass.
+**Gate:** B007 is done and the baseline tests and build pass.
 
 ### 2. Probe adapters and counters on the target PC
 
@@ -93,8 +93,8 @@ Add a test-host mode `--gpu-probe` that only reads and reports:
   - `NoDiscreteAdapter`: `No discrete GPU found.`;
   - `AmbiguousAdapter`: `More than one discrete GPU found; none is chosen.`;
   - `Uncorrelated`: `{adapter description}: GPU counters could not be matched to this adapter.`;
-  - `NotYetSampled`, `Expired`, `Invalid`, `ReadFailed`: the existing B06 text, prefixed with `{adapter description}: ` when an adapter is known.
-- Truncate the adapter description to 64 characters in tooltips. Width and DPI handling follow B06: the section width is fixed to the widest of `GPU 0%` … `GPU 100%` and `GPU —`, and is recomputed on DPI change.
+  - `NotYetSampled`, `Expired`, `Invalid`, `ReadFailed`: the existing B006 text, prefixed with `{adapter description}: ` when an adapter is known.
+- Truncate the adapter description to 64 characters in tooltips. Width and DPI handling follow B006: the section width is fixed to the widest of `GPU 0%` … `GPU 100%` and `GPU —`, and is recomputed on DPI change.
 - Section order: CPU, RAM, GPU, then any accepted provider sections. CPU and RAM widths and positions do not change.
 
 **Gate:** formatter tests cover 0, 100, rounding at 0.5/99.5, every reason with and without an adapter, and description truncation.
@@ -119,7 +119,7 @@ Add these modes through the production `DesktopStartup` seam and wire each into 
 - **Criterion 4:** on the published app, hover the GPU section in the available state, and run `--metric-display` for each unavailable reason. Tooltips appear without activating the bar.
 - **Criterion 5:** step 3 Core tests with a blocked and a failing GPU source, plus the step 8 freshness modes.
 - **Criterion 6:** rerun with GPU enabled, on newly identified artifacts: app CPU cost, app memory ceiling, eight-hour memory growth, 30-minute native-read responsiveness (including GPU), freshness and independence, normal and fault shutdown, DPI and rendering at 100%/150%/200%, and artifact hygiene. CPU and RAM accuracy, provider gates, settings failures, and desktop placement scenarios are not affected by a third section; record that reason in the report instead of rerunning them.
-- **Rejection path (criterion 7):** if step 2 or criterion 2 cannot prove correlation, ship the source so it reports `Uncorrelated` and the bar shows `GPU —`. Write the rejection report naming the failed evidence, mark criteria 2–3 not applicable, and still pass criteria 1, 4, 5, and 6. Mark B08 `rejected`. This does not change the selection rule and does not block B14.
+- **Rejection path (criterion 7):** if step 2 or criterion 2 cannot prove correlation, ship the source so it reports `Uncorrelated` and the bar shows `GPU —`. Write the rejection report naming the failed evidence, mark criteria 2–3 not applicable, and still pass criteria 1, 4, 5, and 6. Mark B008 `rejected`. This does not change the selection rule and does not block B014.
 
 ### 10. Verify and record evidence
 
@@ -138,4 +138,4 @@ git diff --check
 - Create separate dated automated, Windows integration, and manual desktop/resource reports under `docs/acceptance/`, following the sanitization rules in the [first-release gates](../../implementation-plan.md#first-release-acceptance-gates). Adapter descriptions and LUIDs may be recorded; process IDs, process names, and window titles from PDH instances may not. Mark any unrun scenario `unverified`.
 - Update the roadmap progress table to `done` or `rejected` only when every applicable criterion has passing evidence.
 
-**Gate:** each criterion in the [B08 brief](../B08-gpu.md#acceptance-criteria) points to passing evidence or, on the rejection path, is marked not applicable with the reason.
+**Gate:** each criterion in the [B008 brief](../B08-gpu.md#acceptance-criteria) points to passing evidence or, on the rejection path, is marked not applicable with the reason.

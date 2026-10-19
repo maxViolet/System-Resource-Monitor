@@ -1,20 +1,20 @@
-# B02 acceptance report — 2026-10-14
+# B002 acceptance report — 2026-10-14
 
-Brick: [B02 — Empty AppBar lifecycle](../bricks/B02-empty-appbar-lifecycle.md). Package plan: [B02 plan](../bricks/B02-empty-appbar-lifecycle/plan.md).
+Brick: [B002 — Empty AppBar lifecycle](../bricks/B02-empty-appbar-lifecycle.md). Package plan: [B002 plan](../bricks/B02-empty-appbar-lifecycle/plan.md).
 
 Status: accepted. Every criterion has direct evidence below.
 
 ## Prerequisite
 
-B01 is complete: [B01 acceptance report](2026-10-12-B01-solution-boundary.md) records the locked restore, Release build and tests, architecture checks, banned-API negative probes, and the independent test-host smoke run.
+B001 is complete: [B001 acceptance report](2026-10-12-B01-solution-boundary.md) records the locked restore, Release build and tests, architecture checks, banned-API negative probes, and the independent test-host smoke run.
 
 ## Placement investigation clock
 
 | | |
 |---|---|
-| Started | 2026-10-14 12:18 local time, Wednesday, UTC+05:00 (Windows time zone `Qyzylorda Standard Time`), at the first B02 implementation action |
+| Started | 2026-10-14 12:18 local time, Wednesday, UTC+05:00 (Windows time zone `Qyzylorda Standard Time`), at the first B002 implementation action |
 | Shared deadline | 2026-10-16 12:18 local time, Friday, UTC+05:00 — two working days |
-| Scope | One clock across B02, B03, and B04; B04 enforces it |
+| Scope | One clock across B002, B003, and B004; B004 enforces it |
 
 ## Target desktop before launch
 
@@ -59,7 +59,7 @@ The production assemblies are identical in both folders, so the test-host eviden
 | `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true` | 0 | Self-contained folder published. |
 | `git diff --check HEAD~1 HEAD` | 0 | No whitespace errors in the commit. |
 
-Desktop.Tests coverage added by B02:
+Desktop.Tests coverage added by B002:
 
 - `ShutdownCoordinatorTests`, with fake time: AppBar removal before the request returns and before the wait; the exact two-second deadline with pending work recorded and its late result rejected; early completion of faulted work; repeated requests with the first exit code; failure before a bar exists; cancellation-callback failure and rejected `ABM_REMOVE` that still close, wait, and exit with failure.
 - `NativeLayoutTests`: `RECT`, `APPBARDATA`, and `MONITORINFO` match the x64 sizes passed as `cbSize`.
@@ -108,4 +108,4 @@ An earlier build without a `WM_MOUSEACTIVATE` handler raised one foreground and 
 | The bar never takes keyboard focus during launch or interaction with another application | Passed: 0 focus events for the bar or the Desktop process. |
 | Normal exit restores the prior work area and leaves no background process | Passed. |
 | A test-host injected handled startup failure restores the prior work area | Passed: `restored` precedes `wait-start`. |
-| The placement investigation start timestamp is recorded so B04 can enforce the single two-working-day limit across B02–B04 | Passed: see [Placement investigation clock](#placement-investigation-clock). |
+| The placement investigation start timestamp is recorded so B004 can enforce the single two-working-day limit across B002–B004 | Passed: see [Placement investigation clock](#placement-investigation-clock). |

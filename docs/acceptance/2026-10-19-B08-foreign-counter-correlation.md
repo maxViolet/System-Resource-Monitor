@@ -1,6 +1,6 @@
-# B08 foreign GPU counter correlation follow-up
+# B008 foreign GPU counter correlation follow-up
 
-Status: partial verification; B08 acceptance remains open. This report records why ADR 0013 was proposed and what evidence remains required.
+Status: partial verification; B008 acceptance remains open. This report records why ADR 0013 was proposed and what evidence remains required.
 
 ## Diagnostic evidence
 
@@ -30,7 +30,7 @@ Process identifiers and raw PDH instance names are omitted.
 
 - Run the updated Core and Desktop tests and the full solution verification commands from `docs/implementation-plan.md`.
 - Compare the published app with Task Manager for 30 paired samples at idle and 30 under sustained windowed 3D load. Require a difference between window means of at most 5 percentage points in each regime.
-- Repeat affected B07 resource, freshness, shutdown, and rendering gates on newly identified artifacts.
-- Record the published-app GPU tooltip hover/non-activation behavior and any still-unverified affected B07 gates.
+- Repeat affected B007 resource, freshness, shutdown, and rendering gates on newly identified artifacts.
+- Record the published-app GPU tooltip hover/non-activation behavior and any still-unverified affected B007 gates.
 
-The historical 2026-10-16 B08 integration report remains a record of that run. It does not validate the ADR 0013 behavior. B08 remains incomplete until all applicable criteria are evidenced.
+The historical 2026-10-16 B008 integration report remains a record of that run. It does not validate the ADR 0013 behavior. B008 remains incomplete until all applicable criteria are evidenced.

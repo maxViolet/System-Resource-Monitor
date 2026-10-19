@@ -1,6 +1,6 @@
 # Discrete GPU selected by DXCore and correlated by LUID
 
-Status: accepted, 2026-10-16. Applies to B08 and to the GPU rule in [CONTEXT](../../CONTEXT.md#language) and the [product plan](../plan.md#gpu). Replaces the earlier integrated-adapter fallback in those documents. [ADR 0011](0011-exit-when-a-collector-run-faults.md) remains in force.
+Status: accepted, 2026-10-16. Applies to B008 and to the GPU rule in [CONTEXT](../../CONTEXT.md#language) and the [product plan](../plan.md#gpu). Replaces the earlier integrated-adapter fallback in those documents. [ADR 0011](0011-exit-when-a-collector-run-faults.md) remains in force.
 
 ## Decision
 
@@ -26,4 +26,4 @@ GPU collection runs in-process on a thread-pool worker, like the first-release C
 
 ## Acceptance
 
-B08 proves the decision on the target PC: native evidence lists every DXCore candidate with its LUID and flags, the selected adapter, and every PDH instance used for a displayed value with its parsed LUID. If correlation cannot be proven there, B08 follows its rejection path; this ADR does not authorize a different selection rule.
+B008 proves the decision on the target PC: native evidence lists every DXCore candidate with its LUID and flags, the selected adapter, and every PDH instance used for a displayed value with its parsed LUID. If correlation cannot be proven there, B008 follows its rejection path; this ADR does not authorize a different selection rule.

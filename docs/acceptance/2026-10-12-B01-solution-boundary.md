@@ -1,6 +1,6 @@
-# B01 acceptance report — 2026-10-12
+# B001 acceptance report — 2026-10-12
 
-Brick: [B01 — Solution and enforced Core boundary](../bricks/B01-solution-boundary.md). Package plan: [B01 plan](../bricks/B01-solution-boundary/plan.md).
+Brick: [B001 — Solution and enforced Core boundary](../bricks/B01-solution-boundary.md). Package plan: [B001 plan](../bricks/B01-solution-boundary/plan.md).
 
 ## Environment
 
@@ -22,7 +22,7 @@ Brick: [B01 — Solution and enforced Core boundary](../bricks/B01-solution-boun
 | `tests/SystemResourceMonitor.Desktop.Tests` | `net10.0-windows` | test executable | Desktop, TestHost | yes |
 | `tests/SystemResourceMonitor.Desktop.TestHost` | `net10.0-windows` | console `Exe` | none | yes |
 
-Every project has nullable reference types, warnings as errors, a NuGet lock file, and runtime identifier `win-x64` (`Directory.Build.props`). Package versions are pinned centrally in `Directory.Packages.props`. Desktop.Tests references Desktop and TestHost only to launch both executables from its output folder. TestHost references no project at B01; later bricks add the references they exercise.
+Every project has nullable reference types, warnings as errors, a NuGet lock file, and runtime identifier `win-x64` (`Directory.Build.props`). Package versions are pinned centrally in `Directory.Packages.props`. Desktop.Tests references Desktop and TestHost only to launch both executables from its output folder. TestHost references no project at B001; later bricks add the references they exercise.
 
 ## Automated checks
 
@@ -83,7 +83,7 @@ After the probes, the probe file was deleted and the clean Core build succeeded.
 |---|---|
 | `SystemResourceMonitor.Desktop.TestHost.exe --smoke` from its own build output | Exit code 0, prints the smoke message. |
 | `SystemResourceMonitor.Desktop.TestHost.exe bad` | Exit code 2, prints usage. |
-| Published `SystemResourceMonitor.Desktop.exe` | Starts and exits with code 0; it creates no window at B01. |
+| Published `SystemResourceMonitor.Desktop.exe` | Starts and exits with code 0; it creates no window at B001. |
 | Desktop publish file list | 259 files; none matches `TestHost`, `Tests`, `xunit`, or `testing`. |
 
 `ExecutableSmokeTests` in Desktop.Tests repeats the three executable checks as separate processes on every test run.
@@ -98,6 +98,6 @@ After the probes, the probe file was deleted and the clean Core build succeeded.
 | Test-host executable starts and exits independently of the published Desktop artifact | Passed. |
 | No provider, GPU, temperature, repository, mediator, or generic result abstraction | Passed by review: Core contains only its project file and `BannedSymbols.txt`. |
 
-Unverified: the checks ran on the development PC, not on a separate clean target PC. B01 does not require a target-PC run.
+Unverified: the checks ran on the development PC, not on a separate clean target PC. B001 does not require a target-PC run.
 
 Environment note: a first export into a deeply nested temporary directory could not start the test executables (`Win32Exception (206): The filename or extension is too long`). The export was repeated in a short path; the results above come from that run. Keep checkout paths short on Windows.

@@ -1,6 +1,6 @@
-# B08 desktop and resource gates — 2026-10-16
+# B008 desktop and resource gates — 2026-10-16
 
-Brick: [B08 — GPU adapter selection, correlation, and display](../bricks/B08-gpu.md). Related evidence: [automated verification](2026-10-16-B08-automated.md) and [Windows integration](2026-10-16-B08-windows-integration.md).
+Brick: [B008 — GPU adapter selection, correlation, and display](../bricks/B08-gpu.md). Related evidence: [automated verification](2026-10-16-B08-automated.md) and [Windows integration](2026-10-16-B08-windows-integration.md).
 
 Status: **partial**. The real-AppBar test host passes at 100% scaling, including freshness and shutdown. The published app has not completed the manual and long-duration gates below. No unattended test or build result is presented as a manual observation.
 
@@ -10,7 +10,7 @@ The test host registered a real AppBar on Windows 11, outside the sandbox. Its `
 
 Before the review fixes, the full Desktop test project passed 133/133 on ten consecutive runs with real AppBar registration. Those runs include `--metric-freshness cpu`, `ram`, and `gpu`, plus normal and injected-fault shutdown modes. After the fixes, the latest solution run passed 134/134 Desktop tests; a preceding run had one foreground-focus failure in the unchanged fullscreen scenario, and its isolated rerun passed 10/10. The passing runs verify the six-second expiry, independent updating of the other two sections, work-area restoration before the collector wait, and bounded exit for the test-host artifact. These results apply to the test host and build output used by the tests; they do not substitute for a published-app manual run.
 
-## B08 and affected B07 gates still open
+## B008 and affected B007 gates still open
 
 | Gate | Required evidence | Current result |
 |---|---|
@@ -25,8 +25,8 @@ Before the review fixes, the full Desktop test project passed 133/133 on ten con
 | DPI and rendering | Published app at 100%, 150%, and 200% scaling; fixed, unclipped sections and matching reservation; hover tooltips. | **Partial.** Test-host 100% programmatic checks pass. Published-app, 150%, 200%, and manual hover checks are unverified. |
 | Artifact hygiene | Self-contained folder runs without installed .NET, elevation, or provider authorization; excludes tests, secrets, and diagnostic hooks. | **Partial.** Publication succeeded and 247 file names had no test/fixture pattern. Independent runtime and full content audit are unverified. |
 
-Per the B08 plan, CPU/RAM accuracy, provider limits, settings failures, and earlier desktop placement scenarios are not rerun solely because a third metric section was added. GPU adds a separate polling loop and section; the affected freshness, shutdown, rendering, native responsiveness, CPU-cost, and memory gates above are the B07 reruns required for B08. The prior B07 acceptance reports are absent, so no earlier manual result is silently inherited.
+Per the B008 plan, CPU/RAM accuracy, provider limits, settings failures, and earlier desktop placement scenarios are not rerun solely because a third metric section was added. GPU adds a separate polling loop and section; the affected freshness, shutdown, rendering, native responsiveness, CPU-cost, and memory gates above are the B007 reruns required for B008. The prior B007 acceptance reports are absent, so no earlier manual result is silently inherited.
 
 ## Decision status
 
-The [integration report](2026-10-16-B08-windows-integration.md) shows why positive GPU correlation is unavailable on this PC. The source safely displays unavailable, but the remaining criterion 4 and 6 checks prevent marking B08 `rejected` yet. A final rejection report would record the completed applicable gates and mark positive correlation and accuracy criteria not applicable. Until then the roadmap keeps B08 `planned`.
+The [integration report](2026-10-16-B08-windows-integration.md) shows why positive GPU correlation is unavailable on this PC. The source safely displays unavailable, but the remaining criterion 4 and 6 checks prevent marking B008 `rejected` yet. A final rejection report would record the completed applicable gates and mark positive correlation and accuracy criteria not applicable. Until then the roadmap keeps B008 `planned`.

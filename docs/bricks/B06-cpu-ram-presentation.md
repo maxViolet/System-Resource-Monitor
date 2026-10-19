@@ -1,10 +1,10 @@
-# B06 — CPU/RAM sources and bar presentation
+# B006 — CPU/RAM sources and bar presentation
 
 | | |
 |---|---|
 | **Area** | Core + Desktop |
-| **Depends on** | B05 |
-| **Unblocks** | B07, B12, B13 |
+| **Depends on** | B005 |
+| **Unblocks** | B007, B012, B013 |
 | **Sources** | [Product plan — Deliver CPU/RAM](../plan.md#2-deliver-cpuram), [Implementation plan — Slice 1](../implementation-plan.md#slice-1-cpuram), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates) |
 
 ## Why
@@ -19,7 +19,7 @@ The bar shows fixed-width `CPU 12%` and `RAM 64%` sections on a thin dark surfac
 
 Run both short synchronous native calls on background thread-pool workers. The first CPU sample is `NotYetSampled`; reset or invalid deltas discard the baseline and produce `Invalid`. Calculate RAM usage from physical `(total - available) / total`. Check return codes, sizes, pointer widths, and ownership. Neither wrapper retains a native handle.
 
-Marshal collector results to the WPF dispatcher before updating UI-bound state. The two-second polling, six-second freshness, no-overlap, and late-result rules come from B05. The 500 ms fullscreen reconciliation remains active and counts toward resource measurements.
+Marshal collector results to the WPF dispatcher before updating UI-bound state. The two-second polling, six-second freshness, no-overlap, and late-result rules come from B005. The 500 ms fullscreen reconciliation remains active and counts toward resource measurements.
 
 ## Acceptance criteria
 
@@ -31,4 +31,4 @@ Marshal collector results to the WPF dispatcher before updating UI-bound state. 
 
 ## Out of scope
 
-First-release accuracy, 30-minute native-read responsiveness, eight-hour resource gates, artifact hygiene, user documentation, and the release acceptance report belong to B07. GPU, subscriptions, and temperatures have no placeholder sections in this brick.
+First-release accuracy, 30-minute native-read responsiveness, eight-hour resource gates, artifact hygiene, user documentation, and the release acceptance report belong to B007. GPU, subscriptions, and temperatures have no placeholder sections in this brick.

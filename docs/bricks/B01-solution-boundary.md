@@ -1,10 +1,10 @@
-# B01 — Solution and enforced Core boundary
+# B001 — Solution and enforced Core boundary
 
 | | |
 |---|---|
 | **Area** | Core + Desktop |
 | **Depends on** | — |
-| **Unblocks** | B02 |
+| **Unblocks** | B002 |
 | **Sources** | [Implementation plan — Technology and layout](../implementation-plan.md#technology-and-layout), [ADR 0002](../adr/0002-appbar-first-cpu-ram-release.md) |
 
 ## Why
@@ -31,4 +31,4 @@ Desktop references Core; Core has no Desktop dependency. Add `Microsoft.CodeAnal
 
 ## Out of scope
 
-A window, AppBar registration, tray icon, settings, and lifecycle behavior belong to B02 and B03. System metric collection begins in B05.
+A window, AppBar registration, tray icon, settings, and lifecycle behavior belong to B002 and B003. System metric collection begins in B005.

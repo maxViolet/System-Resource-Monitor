@@ -1,6 +1,6 @@
 # Ignore structurally valid empty-engine instances from foreign GPU adapters
 
-Status: accepted, 2026-10-19. Applies to B08 and refines [ADR 0012](0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md): an empty `engtype_` suffix is treated as parseable only when the full identity shape is valid, and it is ignored only for a foreign LUID. A selected-LUID empty suffix and every other unparseable identity remain `Uncorrelated`. Adapter enumeration and selection remain governed by ADR 0012.
+Status: accepted, 2026-10-19. Applies to B008 and refines [ADR 0012](0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md): an empty `engtype_` suffix is treated as parseable only when the full identity shape is valid, and it is ignored only for a foreign LUID. A selected-LUID empty suffix and every other unparseable identity remain `Uncorrelated`. Adapter enumeration and selection remain governed by ADR 0012.
 
 ## Context
 
@@ -19,4 +19,4 @@ This change does not alter the discrete adapter selection rule, counted engine t
 
 ## Consequences and validation
 
-The core calculator needs tests for both foreign and selected LUID cases. The native correlation mode must show measured reads and no unparseable instances on the target system. Its resulting values still require comparison with Task Manager under the B08 acceptance thresholds; this decision alone does not establish accuracy or complete B08.
+The core calculator needs tests for both foreign and selected LUID cases. The native correlation mode must show measured reads and no unparseable instances on the target system. Its resulting values still require comparison with Task Manager under the B008 acceptance thresholds; this decision alone does not establish accuracy or complete B008.

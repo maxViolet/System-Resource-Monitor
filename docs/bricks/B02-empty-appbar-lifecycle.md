@@ -1,10 +1,10 @@
-# B02 — Empty AppBar lifecycle
+# B002 — Empty AppBar lifecycle
 
 | | |
 |---|---|
 | **Area** | Desktop |
-| **Depends on** | B01 |
-| **Unblocks** | B03 |
+| **Depends on** | B001 |
+| **Unblocks** | B003 |
 | **Sources** | [Product plan — Validate placement first](../plan.md#1-validate-placement-first), [Implementation plan — Settings and lifecycle](../implementation-plan.md#settings-and-lifecycle), [ADR 0001](../adr/0001-separate-windows-appbar.md), [ADR 0002](../adr/0002-appbar-first-cpu-ram-release.md) |
 
 ## Why
@@ -19,7 +19,7 @@ Launching the Desktop app creates one thin, borderless, non-activating bar on th
 
 Declare `PerMonitorV2` DPI awareness in `app.manifest`. On the owning WPF thread, register with `ABM_NEW` and a `RegisterWindowMessage` callback, negotiate with `ABM_QUERYPOS`, and commit with `ABM_SETPOS`. Treat AppBar rectangles as physical pixels and apply them with `SetWindowPos(..., SWP_NOACTIVATE)`. Keep HWND, `SetWindowPos`, message handling, monitor/DPI work, and AppBar calls on that thread. Check native return values and structure sizes.
 
-Startup acquires the single-instance guard before any settings access or bar registration; a second process exits without reading or writing settings. `App.xaml.cs` owns cancellation and shutdown; no Generic Host. Cleanup is idempotent: stop state publication, cancel work, and call `ABM_REMOVE` immediately in a `finally` path, then wait no more than two seconds total. Late results cannot publish. The first-release native readers introduced later will own no long-lived handles. The placement investigation's two-working-day clock starts when work on this brick starts and runs across B02–B04.
+Startup acquires the single-instance guard before any settings access or bar registration; a second process exits without reading or writing settings. `App.xaml.cs` owns cancellation and shutdown; no Generic Host. Cleanup is idempotent: stop state publication, cancel work, and call `ABM_REMOVE` immediately in a `finally` path, then wait no more than two seconds total. Late results cannot publish. The first-release native readers introduced later will own no long-lived handles. The placement investigation's two-working-day clock starts when work on this brick starts and runs across B002–B004.
 
 ## Acceptance criteria
 
@@ -28,8 +28,8 @@ Startup acquires the single-instance guard before any settings access or bar reg
 - [ ] The bar never takes keyboard focus during launch or interaction with another application
 - [ ] Normal exit restores the prior work area and leaves no background process
 - [ ] A test-host injected handled startup failure restores the prior work area
-- [ ] The placement investigation start timestamp is recorded so B04 can enforce the single two-working-day limit across B02–B04
+- [ ] The placement investigation start timestamp is recorded so B004 can enforce the single two-working-day limit across B002–B004
 
 ## Out of scope
 
-Tray actions, persisted edge selection, Explorer recovery, display changes, and fullscreen behavior belong to B03 and B04. CPU and RAM do not appear yet.
+Tray actions, persisted edge selection, Explorer recovery, display changes, and fullscreen behavior belong to B003 and B004. CPU and RAM do not appear yet.
