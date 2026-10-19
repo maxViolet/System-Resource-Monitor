@@ -586,25 +586,41 @@ function script:Move-PayloadDirectory { param([string]$Source, [string]$Destinat
         $null = Invoke-PackageScript $packageA 'set-autostart.ps1' '-Enabled $true'
     }
 
-    # Uninstall conflicts and manifest tampering.
-    $extra = Join-Path $application 'extra.txt'
-    Set-Content -LiteralPath $extra -Value 'extra'
-    $run = Invoke-PackageScript $packageA 'uninstall.ps1'
-    $remaining = @([IO.Directory]::GetFiles($application, '*', [IO.SearchOption]::AllDirectories) | ForEach-Object { $_.Substring($application.Length + 1) } | Sort-Object)
-    Assert-Outcome 'Uninstall with an unexpected file' 'uninstall.ps1' $run 1 { ($remaining -join ',') -eq 'extra.txt,install-manifest.json' -and (Get-RunDescription) -eq 'owned' } 'listed files removed; unexpected file, manifest, and Run value kept'
-    Remove-Item -LiteralPath $extra
-    $run = Invoke-PackageScript $packageA 'uninstall.ps1'
-    Assert-Outcome 'Uninstall after the conflict is resolved' 'uninstall.ps1' $run 0 { -not [IO.Directory]::Exists($application) -and (Get-RunDescription) -eq 'absent' } 'manifest, directory, and Run value removed'
-
+    # Uninstall conflicts change nothing: the payload, manifest, and owned Run value stay until the conflict is resolved.
+    # Package B stays installed when the running-bar checks are skipped; the conflicts restore files from package A.
     $null = Invoke-PackageScript $packageA 'install.ps1'
     $null = Invoke-PackageScript $packageA 'set-autostart.ps1' '-Enabled $true'
-    Add-Content -LiteralPath $installedReadme -Value 'changed'
+    $packageReadme = Join-Path $packageA 'app\README.md'
+    $extra = Join-Path $application 'extra.txt'
+    $conflicts = @(
+        @{ Name = 'an unexpected file'; Create = { Set-Content -LiteralPath $extra -Value 'extra' }; Resolve = { Remove-Item -LiteralPath $extra } },
+        @{ Name = 'a changed file'; Create = { Add-Content -LiteralPath $installedReadme -Value 'changed' }; Resolve = { Copy-Item -LiteralPath $packageReadme -Destination $installedReadme -Force } },
+        @{ Name = 'a missing file'; Create = { Remove-Item -LiteralPath $installedReadme }; Resolve = { Copy-Item -LiteralPath $packageReadme -Destination $installedReadme } }
+    )
+    foreach ($conflict in $conflicts) {
+        & $conflict.Create
+        $conflictSnapshot = Get-TreeSnapshot $application
+        $run = Invoke-PackageScript $packageA 'uninstall.ps1'
+        Assert-Outcome "Uninstall with $($conflict.Name)" 'uninstall.ps1' $run 1 { (Get-TreeSnapshot $application) -eq $conflictSnapshot -and (Get-RunDescription) -eq 'owned' } 'nothing removed; Run value kept'
+        & $conflict.Resolve
+    }
     $run = Invoke-PackageScript $packageA 'uninstall.ps1'
-    $remaining = @([IO.Directory]::GetFiles($application, '*', [IO.SearchOption]::AllDirectories) | ForEach-Object { $_.Substring($application.Length + 1) } | Sort-Object)
-    Assert-Outcome 'Uninstall with a changed file' 'uninstall.ps1' $run 1 { ($remaining -join ',') -eq 'install-manifest.json,README.md' -and (Get-RunDescription) -eq 'owned' } 'changed file, manifest, and Run value kept'
-    Remove-Item -LiteralPath $installedReadme
+    Assert-Outcome 'Uninstall after the conflicts are resolved' 'uninstall.ps1' $run 0 { -not [IO.Directory]::Exists($application) -and (Get-RunDescription) -eq 'absent' } 'payload, manifest, directory, and Run value removed'
+
+    # A Run value that already starts the installed path before installation was not written by the scripts.
+    Set-RunValue -Data $ownedRunData
+    $run = Invoke-PackageScript $packageA 'install.ps1'
+    Assert-Outcome 'Pre-existing matching Run value: install' 'install.ps1 (package A)' $run 1 { -not [IO.Directory]::Exists($application) -and @(Get-Siblings).Count -eq 0 -and (Get-RunDescription) -eq 'owned' } 'nothing installed; value unchanged'
+    $run = Invoke-PackageScript $packageA 'set-autostart.ps1' '-Enabled $false'
+    Assert-Outcome 'Pre-existing matching Run value: disable' 'set-autostart.ps1 -Enabled $false' $run 1 { (Get-RunDescription) -eq 'owned' } 'value unchanged'
     $run = Invoke-PackageScript $packageA 'uninstall.ps1'
-    Assert-Outcome 'Uninstall after the changed file is removed' 'uninstall.ps1' $run 0 { -not [IO.Directory]::Exists($application) -and (Get-RunDescription) -eq 'absent' } 'removed'
+    Assert-Outcome 'Pre-existing matching Run value: uninstall' 'uninstall.ps1' $run 1 { (Get-RunDescription) -eq 'owned' } 'value unchanged'
+    $plantDuringStaging = "Set-ItemProperty -LiteralPath 'HKCU:\$runKeyPath' -Name '$runValueName' -Value '$($ownedRunData.Replace("'", "''"))' -Type String"
+    Remove-RunValue
+    # Clean install: recheck 3 follows staging; the planted value must stop the rename into place.
+    $run = Invoke-Injected $packageA ($assertWrapper.Replace('__CALL__', '3').Replace('__PLANT__', $plantDuringStaging)) "Invoke-SrmInstall -PackageDirectory '$($packageA.Replace("'", "''"))'"
+    Assert-Outcome 'Matching Run value planted during staging: install' 'Invoke-SrmInstall (value planted at recheck 3)' $run 1 { -not [IO.Directory]::Exists($application) -and @(Get-Siblings).Count -eq 0 -and (Get-RunDescription) -eq 'owned' } 'nothing installed; value unchanged'
+    Remove-RunValue
 
     $null = Invoke-PackageScript $packageA 'install.ps1'
     $null = Invoke-PackageScript $packageA 'set-autostart.ps1' '-Enabled $true'

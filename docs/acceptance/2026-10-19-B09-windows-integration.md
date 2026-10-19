@@ -10,12 +10,12 @@ Status: the installation script checks pass on Windows 11 x64 in the developer's
 |---|---|
 | Target | Windows 11 Pro x64, build 26300; 22 logical processors |
 | Shell | Windows PowerShell 5.1, not elevated; `CurrentUser` execution policy `RemoteSigned`, process scope `Bypass` for each child |
-| Package | `artifacts\SystemResourceMonitor-dc4b13d`, built by `packaging\new-package.ps1` from source commit `dc4b13d4f64a4e28085d754f3cf8629393fe950c` ([automated report](2026-10-19-B09-automated.md#package)) |
+| Package | `artifacts\SystemResourceMonitor-8f9477a`, built by `packaging\new-package.ps1` from source commit `8f9477ac9dde06aa653ad721e3e41cbcb8f09053` (merged PR #32) with the FIX-001 module and checks from the working tree; the payload hashes equal those in the [automated report](2026-10-19-B09-automated.md#package) |
 | Profile | The developer's profile. `%LOCALAPPDATA%\Programs` already existed and is shared with other apps. Before each run, the application directory, its `.SystemResourceMonitor.*` siblings, and the `SystemResourceMonitor` Run value were absent; after each run they were absent again. |
 | Paths with spaces | Both candidate packages ran from `%TEMP%\SRM installation checks <id>\package A` and `…\package B`; the planted copy lived in `%LOCALAPPDATA%\Programs\SystemResourceMonitor Planted`. |
 | Candidates | Package A is the built package. Package B is a copy whose `app\README.md` has one appended line and whose manifest was regenerated with the same source commit, so an upgrade changes one payload file. |
 
-The first run of the harness on this date skipped the running-bar checks because a bar from another worktree held the session guard. With the user's approval, that bar was closed through `WM_CLOSE` and the harness was run again. The table below is the second run.
+The first run of the harness on this date skipped the running-bar checks because a bar from another worktree held the session guard. With the user's approval, that bar was closed through `WM_CLOSE`. The table below is the run after the FIX-001 ownership fixes: a Run value that already starts the installed path before installation stops the install, and uninstall changes nothing when any listed file is changed, missing, or unexpected.
 
 ## Command
 
@@ -24,7 +24,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests\installation\Invok
     -PackageDirectory artifacts\SystemResourceMonitor-dc4b13d -ConfirmDisposableProfile -ResultPath artifacts\checks.md
 ```
 
-Exit code `0`: 64 passed, 0 failed, 4 skipped. Rows naming `Invoke-Srm*` ran in a child process that replaced one internal module function before calling the entry function that the script calls. Exit code `-1` is the forced termination of that child.
+Exit code `0`: 68 passed, 0 failed, 4 skipped. Rows naming `Invoke-Srm*` ran in a child process that replaced one internal module function before calling the entry function that the script calls. Exit code `-1` is the forced termination of that child.
 
 ## Results
 
@@ -85,10 +85,14 @@ Exit code `0`: 64 passed, 0 failed, 4 skipped. Rows naming `Invoke-Srm*` ran in 
 | Upgrade closes the running bar | `install.ps1 (package A)` | 0 | pass | bar exited, work area restored, not restarted |
 | Planted prefix executable is not closed or removed | `uninstall.ps1` | 0 | pass | planted bar still running; installation removed |
 | Uninstall closes the running bar | `uninstall.ps1` | 0 | pass | bar exited, work area restored, payload and Run value removed |
-| Uninstall with an unexpected file | `uninstall.ps1` | 1 | pass | listed files removed; unexpected file, manifest, and Run value kept |
-| Uninstall after the conflict is resolved | `uninstall.ps1` | 0 | pass | manifest, directory, and Run value removed |
-| Uninstall with a changed file | `uninstall.ps1` | 1 | pass | changed file, manifest, and Run value kept |
-| Uninstall after the changed file is removed | `uninstall.ps1` | 0 | pass | removed |
+| Uninstall with an unexpected file | `uninstall.ps1` | 1 | pass | nothing removed; Run value kept |
+| Uninstall with a changed file | `uninstall.ps1` | 1 | pass | nothing removed; Run value kept |
+| Uninstall with a missing file | `uninstall.ps1` | 1 | pass | nothing removed; Run value kept |
+| Uninstall after the conflicts are resolved | `uninstall.ps1` | 0 | pass | payload, manifest, directory, and Run value removed |
+| Pre-existing matching Run value: install | `install.ps1 (package A)` | 1 | pass | nothing installed; value unchanged |
+| Pre-existing matching Run value: disable | `set-autostart.ps1 -Enabled $false` | 1 | pass | value unchanged |
+| Pre-existing matching Run value: uninstall | `uninstall.ps1` | 1 | pass | value unchanged |
+| Matching Run value planted during staging: install | `Invoke-SrmInstall (value planted at recheck 3)` | 1 | pass | nothing installed; value unchanged |
 | Installed manifest with '../escape.txt': uninstall | `uninstall.ps1` | 1 | pass | nothing removed |
 | Installed manifest with '../escape.txt': disable | `set-autostart.ps1 -Enabled $false` | 1 | pass | Run value kept |
 | Installed manifest with 'C:/escape.txt': uninstall | `uninstall.ps1` | 1 | pass | nothing removed |

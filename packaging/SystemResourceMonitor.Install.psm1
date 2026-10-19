@@ -991,12 +991,15 @@ function Invoke-Install {
     Resolve-InterruptedOperation $layout
     $inventory = Assert-InstallationLocation $layout
     if ($null -eq $inventory) {
+        Assert-NoPreexistingRunValue $layout
         $stage = New-StagedPayload -Layout $layout -Candidate $candidate
         try {
             $null = Assert-InstallationLocation $layout
             if ([IO.Directory]::Exists($layout.ApplicationDirectory)) {
                 Stop-Installation 'The application directory appeared during installation; it was left unchanged.'
             }
+
+            Assert-NoPreexistingRunValue $layout
 
             Move-PayloadDirectory -Source $stage -Destination $layout.ApplicationDirectory
         }
@@ -1136,6 +1139,23 @@ function Invoke-SetAutostart {
     Write-Step 'Disabled autostart. The installed app and its settings were kept.'
 }
 
+function Assert-UninstallablePayload {
+    param($Layout, $Manifest, $Inventory)
+    $comparison = Compare-InstalledPayload -Root $Layout.ApplicationDirectory -Manifest $Manifest -Inventory $Inventory
+    if (-not $comparison.IsExact) {
+        Stop-Installation ("The installed files do not match their manifest, so uninstall cannot prove that it owns them or the Run value; nothing was changed:" + [Environment]::NewLine + (Format-PayloadConflicts $comparison) + [Environment]::NewLine + "Restore changed or missing files from the app folder of the installed package and delete unexpected files, then run uninstall.ps1 again. Otherwise remove the folder and the Run value yourself.")
+    }
+}
+
+function Assert-NoPreexistingRunValue {
+    # Before a clean install no Run value can be ours. A value that already starts the installed path would look
+    # owned once the payload exists, so disable or uninstall could later delete it; refuse instead.
+    param($Layout)
+    if ((Get-RunValueState $Layout) -eq 'Owned') {
+        Stop-Installation "The Run value '$($script:RunValueName)' already starts '$($Layout.ExecutablePath)', but the app is not installed, so this installation did not create it. Nothing was installed and the value was left unchanged. Remove the value with Registry Editor and run install.ps1 again."
+    }
+}
+
 function Invoke-Uninstall {
     $layout = Get-InstallLayout
     $null = Assert-InstallationLocation $layout
@@ -1151,33 +1171,32 @@ function Invoke-Uninstall {
         return
     }
 
+    # Ownership of the payload and of the Run value needs every listed file unchanged and nothing missing or extra.
+    # On any conflict, uninstall changes nothing, so that a later run after the user resolves it can still prove ownership.
     $manifest = Read-InstallManifest -Path $layout.ManifestPath -Root $layout.ApplicationDirectory
+    Assert-UninstallablePayload -Layout $layout -Manifest $manifest -Inventory $inventory
     $null = Stop-InstalledBar $layout
     $inventory = Assert-InstallationLocation $layout
-    $comparison = Compare-InstalledPayload -Root $layout.ApplicationDirectory -Manifest $manifest -Inventory $inventory
-    $ownershipProven = ($comparison.Changed.Count -eq 0 -and $comparison.Unexpected.Count -eq 0)
-    $runLeft = $false
-    if ($runState -eq 'Owned' -and $ownershipProven) {
+    Assert-UninstallablePayload -Layout $layout -Manifest $manifest -Inventory $inventory
+    $runState = Get-RunValueState $layout
+    if ($runState -eq 'Owned') {
         Remove-OwnedRunValue $layout
         Write-Step 'Removed the autostart Run value.'
-    }
-    elseif ($runState -ne 'Absent') {
-        $runLeft = $true
     }
 
     $null = Assert-InstallationLocation $layout
     $leftovers = Remove-ManifestScopedFiles -Root $layout.ApplicationDirectory -Manifest $manifest -Inventory $inventory
     $messages = New-Object System.Collections.Generic.List[string]
-    if ($runLeft) {
-        $messages.Add("The Run value '$($script:RunValueName)' was left unchanged because the installation could not prove that it owns it.")
+    if ($runState -eq 'Foreign') {
+        $messages.Add("The Run value '$($script:RunValueName)' does not match the installed executable; it was left unchanged.")
     }
 
     if ($leftovers.Count -gt 0) {
-        $messages.Add("These files were left in '$($layout.ApplicationDirectory)':" + [Environment]::NewLine + (($leftovers | ForEach-Object { "  $_" }) -join [Environment]::NewLine))
+        $messages.Add("These files changed during uninstall and were left in '$($layout.ApplicationDirectory)':" + [Environment]::NewLine + (($leftovers | ForEach-Object { "  $_" }) -join [Environment]::NewLine))
     }
 
     if ($messages.Count -gt 0) {
-        Stop-Installation ("Uninstall removed only the unchanged installed files. " + ($messages -join [Environment]::NewLine))
+        Stop-Installation ("Uninstall removed the installed files it owns. " + ($messages -join [Environment]::NewLine))
     }
 
     Write-Step "Uninstalled System Resource Monitor. Settings in '$(Join-Path $layout.LocalAppData 'SystemResourceMonitor')' were kept."
