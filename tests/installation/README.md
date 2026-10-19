@@ -22,9 +22,9 @@ The harness prints one line per check with the script command and its exit code,
 - Injected stage-copy and staged-hash failures before activation.
 - A junction or moved installation planted immediately before the recheck that precedes the install rename, the upgrade swap, autostart removal, uninstall Run-value removal, and uninstall file removal.
 - Clean install, repeat install, no launch, enable, repeat enable, disable, repeat disable, and re-enable.
-- Foreign Run values: unquoted, with an argument, pointing to a planted copy whose folder name has the installed name as a prefix, and with the `REG_EXPAND_SZ` type.
+- Foreign Run values: unquoted, with an argument, pointing to a planted copy whose folder name has the installed name as a prefix, and with the `REG_EXPAND_SZ` type. A value that already starts the installed path before installation, or is planted during staging, stops install and survives disable and uninstall.
 - Write access for `Users` on the application directory, an installed file, and a new `Programs` directory; an Administrators owner when the account can assign it.
-- Changed and unexpected installed files during upgrade and uninstall, and tampered installed manifests.
+- Changed and unexpected installed files during upgrade; changed, missing, and unexpected installed files during uninstall, which then changes nothing; and tampered installed manifests.
 - Upgrade with retained settings and autostart choice, an injected failure between the two renames, and a process killed after each rename followed by recovery in the next invocation.
 - When no other bar holds the session guard: upgrade and uninstall close a running installed bar through `WM_CLOSE`, the work area returns to its pre-launch value, and a running planted copy is neither closed nor removed.
 

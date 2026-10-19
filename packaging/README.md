@@ -57,6 +57,8 @@ Every script prints what it did. Exit code `0` (`$LASTEXITCODE`) means success; 
 
 The script verifies `app\` against `install-manifest.json`, copies it into a temporary folder next to the application folder, verifies the copy, and then moves it into place. If anything fails before that move, no application folder is created.
 
+If a `SystemResourceMonitor` Run value already starts the installed executable before the bar is installed, the scripts did not create it. `install.ps1` then stops without changes, so that a later disable or uninstall cannot delete a value that belongs to someone else. Remove the value with Registry Editor and run `install.ps1` again.
+
 The bar does not start. The scripts add no Start menu entry; start the bar by running:
 
 ```powershell
@@ -103,13 +105,11 @@ The upgrade stops without changes when an installed file was changed, an unexpec
 .\uninstall.ps1
 ```
 
-The script closes a running installed bar, which releases its screen strip, removes the autostart value it owns, and removes the installed files listed in the manifest. It does not delete:
+The script closes a running installed bar, which releases its screen strip, removes the autostart value it owns, and removes the installed files listed in the manifest. It never deletes your settings in `%LOCALAPPDATA%\SystemResourceMonitor`, including any `settings.invalid-*.json` backups.
 
-- your settings in `%LOCALAPPDATA%\SystemResourceMonitor`, including any `settings.invalid-*.json` backups;
-- an installed file that was changed after installation;
-- a file that the installation did not create.
+Uninstall first checks that every installed file still matches the manifest. If a file was changed, is missing, or was added, the script cannot prove that the installation and the autostart value are its own. It then lists those files, changes nothing, and exits with code `1`. Restore changed or missing files from the `app\` folder of the package you installed, delete added files, and run `uninstall.ps1` again. Otherwise remove the application folder and the Run value yourself.
 
-If it leaves files behind, it lists them, exits with code `1`, and keeps the manifest. It then keeps the autostart value as well, because changed or extra files mean it cannot prove the installation is its own. Remove or restore the listed files and run `uninstall.ps1` again. To remove the settings, delete `%LOCALAPPDATA%\SystemResourceMonitor` yourself after uninstalling.
+To remove the settings, delete `%LOCALAPPDATA%\SystemResourceMonitor` yourself after uninstalling.
 
 ## Safety checks
 
