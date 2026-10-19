@@ -1,19 +1,19 @@
-# B03 acceptance report — 2026-10-14
+# B003 acceptance report — 2026-10-14
 
-Brick: [B03 — Tray, edge settings, and shell/display recovery](../bricks/B03-shell-position-recovery.md). Package plan: [B03 plan](../bricks/B03-shell-position-recovery/plan.md).
+Brick: [B003 — Tray, edge settings, and shell/display recovery](../bricks/B03-shell-position-recovery.md). Package plan: [B003 plan](../bricks/B03-shell-position-recovery/plan.md).
 
-Status: in progress. Automated checks and the available single-monitor Windows integration checks pass. Explorer restart, multiple-monitor primary changes, 150%/200% DPI, resolution changes, taskbar auto-hide, tray-menu interaction, and focus instrumentation remain unverified, so B03 is not accepted and B04 is not unblocked by this report.
+Status: in progress. Automated checks and the available single-monitor Windows integration checks pass. Explorer restart, multiple-monitor primary changes, 150%/200% DPI, resolution changes, taskbar auto-hide, tray-menu interaction, and focus instrumentation remain unverified, so B003 is not accepted and B004 is not unblocked by this report.
 
 ## Prerequisite and placement clock
 
-[B02's acceptance report](2026-10-14-B02-empty-appbar-lifecycle.md) is accepted. Its accepted source is commit `b28960baf333dcb74551f09e005486efb04f37d9`; the second-process trace records zero settings-directory operations and closes B03's prerequisite. The shared placement investigation started on 2026-10-14 and retains the 2026-10-16 deadline recorded by B02.
+[B002's acceptance report](2026-10-14-B02-empty-appbar-lifecycle.md) is accepted. Its accepted source is commit `b28960baf333dcb74551f09e005486efb04f37d9`; the second-process trace records zero settings-directory operations and closes B003's prerequisite. The shared placement investigation started on 2026-10-14 and retains the 2026-10-16 deadline recorded by B002.
 
 ## Implemented behavior
 
 - Settings contain only `Top`/`Bottom`, default to Top, load off the WPF thread after guard acquisition, accept a UTF-8 BOM, preserve malformed bytes when possible, and commit a flushed same-directory temporary file with `File.Move(..., overwrite: true)` (`MoveFileEx` replace-existing). `File.Replace` was removed because its documented errors 1176/1177 can leave neither the old nor the new file under the settings name.
 - Applied edge changes use the existing AppBar registration, fresh primary-monitor geometry and window DPI, shell negotiation, validated physical-pixel rectangles, and `SetWindowPos` with `SWP_NOACTIVATE`. Successful changes are persisted serially; write failure leaves the live edge in place and enters the restart-only notification path.
 - A native `Shell_NotifyIcon` tray owns Position/Top/Bottom and Exit commands. Per [ADR 0008](../adr/0008-tray-menu-foreground-owner.md), its menu is tracked by a hidden owner window that takes foreground for the menu; the visible bar is never the owner. Shell recovery is deferred while the menu's modal loop runs, and shutdown inside that loop calls `EndMenu` first. Shutdown removes AppBar first, then deletes the tray icon and owner idempotently, before the bounded wait.
-- AppBar position/state notifications, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, and `TaskbarCreated` enter one dispatcher-owned coalescing coordinator. `ABN_FULLSCREENAPP` produces no B03 transition. Explorer recovery preserves the required AppBar-register, position, tray-add, tray-version order and reports AppBar/tray results independently. Per [ADR 0009](../adr/0009-exit-when-tray-recovery-fails.md), a rejected `ABM_NEW` is followed by a best-effort `ABM_REMOVE` and one more `ABM_NEW`. A second rejection is reported as a failure, and shutdown keeps its `ABM_REMOVE` responsibility. Tray recreation deletes a surviving icon before `NIM_ADD`. A failed tray recovery enters failure shutdown, so the reservation is released instead of leaving a bar without Exit.
+- AppBar position/state notifications, `WM_DISPLAYCHANGE`, `WM_DPICHANGED`, and `TaskbarCreated` enter one dispatcher-owned coalescing coordinator. `ABN_FULLSCREENAPP` produces no B003 transition. Explorer recovery preserves the required AppBar-register, position, tray-add, tray-version order and reports AppBar/tray results independently. Per [ADR 0009](../adr/0009-exit-when-tray-recovery-fails.md), a rejected `ABM_NEW` is followed by a best-effort `ABM_REMOVE` and one more `ABM_NEW`. A second rejection is reported as a failure, and shutdown keeps its `ABM_REMOVE` responsibility. Tray recreation deletes a surviving icon before `NIM_ADD`. A failed tray recovery enters failure shutdown, so the reservation is released instead of leaving a bar without Exit.
 - Startup does not create the bar when shutdown began while settings were loading. Without that guard, the new test-host mode reproduced a bar positioned after shutdown with a stale `(0, 24, 1920, 1168)` reservation at exit.
 - The separate test host owns isolated settings roots and read, malformed-backup, write, ten-edge-switch, and shutdown-during-settings-load modes. No production command-line, environment, or configuration fault switch was added.
 
@@ -55,7 +55,7 @@ The commands below replace the private absolute path of the locally installed .N
 | `dotnet publish src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true --no-restore` | 0 | Self-contained published folder created. |
 | `git diff --check` | 0 | No whitespace errors. |
 
-Permanent coverage includes valid/missing/malformed settings, a UTF-8 BOM, unknown additive properties, invalid edge shapes and values, byte-preserving malformed backup with collision suffix, read/backup/write failures, a failed commit retaining the last valid file, ordered saves, exact restart-only failure text, Top/Bottom geometry at 100%/150%/200% DPI and negative origins, ten edge changes without re-registration, failed placement rollback, fresh primary geometry and DPI per placement, message classification, notification coalescing, Explorer recovery order and partial failures, recovery after a rejected `ABM_NEW` whose registration survived, retained `ABM_REMOVE` responsibility, the recovery decision for every AppBar/tray outcome, delete-before-add tray recreation, failed tray version cleanup, idempotent tray deletion, the tray-menu owner's foreground sequence, refusal and non-override behavior, owner removal during tracking without losing the chosen command, shutdown during the settings load, and the B02 shutdown regressions.
+Permanent coverage includes valid/missing/malformed settings, a UTF-8 BOM, unknown additive properties, invalid edge shapes and values, byte-preserving malformed backup with collision suffix, read/backup/write failures, a failed commit retaining the last valid file, ordered saves, exact restart-only failure text, Top/Bottom geometry at 100%/150%/200% DPI and negative origins, ten edge changes without re-registration, failed placement rollback, fresh primary geometry and DPI per placement, message classification, notification coalescing, Explorer recovery order and partial failures, recovery after a rejected `ABM_NEW` whose registration survived, retained `ABM_REMOVE` responsibility, the recovery decision for every AppBar/tray outcome, delete-before-add tray recreation, failed tray version cleanup, idempotent tray deletion, the tray-menu owner's foreground sequence, refusal and non-override behavior, owner removal during tracking without losing the chosen command, shutdown during the settings load, and the B002 shutdown regressions.
 
 The lost-registration regression proves that an edge change fails without calling `ABM_SETPOS` while `ABM_NEW` remains rejected, preserves the prior applied edge, and succeeds only after re-registration.
 
@@ -81,7 +81,7 @@ Every run created the 24-DIP/24-pixel reservation and processed normal `WM_CLOSE
 - `--settings-read-failure`, `--settings-backup-failure`, and `--settings-write-failure` each pass in the automated lifecycle test. All reach a positioned controllable bar, switch to Bottom, restore the baseline, remove the tray, and exit 0. The write mode keeps the previous valid Top file, leaves live Bottom applied, and records `settings-save-restart-only` before shutdown.
 - On the earlier build `8f5b806`, a direct `--settings-write-failure` run confirmed live Bottom at `(0, 1144, 1920, 1168)`, Bottom work area `(0, 0, 1920, 1144)`, the restart-only marker, AppBar removal before `tray-remove` and `wait-start`, baseline restoration, and exit 0. On `2769fca` the same mode passes inside the automated lifecycle test.
 - `--shutdown-during-settings-load` requests shutdown while the load is pending and keeps the dispatcher alive through the bounded wait. The load completes inside the wait, startup records `startup-skipped` before `exit`, no bar is created, exit is 0, and the work area remains `(0, 0, 1920, 1168)`.
-- B02's handled-startup-failure, bounded-shutdown, second-process-before-settings, production second launch, and normal-close scenarios pass in the same 68-test run.
+- B002's handled-startup-failure, bounded-shutdown, second-process-before-settings, production second launch, and normal-close scenarios pass in the same 68-test run.
 
 ### Tray menu, published application
 
@@ -111,7 +111,7 @@ Known limitation: if the user selects Top or Bottom while a real Explorer restar
 | Primary-monitor changes in both directions | Unverified; only one monitor was available. |
 | Enable/disable taskbar auto-hide at Top and Bottom | Unverified; taskbar configuration was not changed. |
 | Failed-save notification visibly states the restart-only limitation | Unverified visually; the production status path and exact message pass automated and test-host checks. |
-| B02 focus-event regression while using the tray and recovery paths | Unverified; no new `SetWinEventHook` run was performed. |
+| B002 focus-event regression while using the tray and recovery paths | Unverified; no new `SetWinEventHook` run was performed. |
 
 ## Acceptance criteria
 
@@ -125,4 +125,4 @@ Known limitation: if the user selects Top or Bottom while a real Explorer restar
 | Resolution, DPI, and primary-monitor changes converge without a stale old reservation | Unverified on the desktop. |
 | Auto-hidden Windows taskbar behavior leaves no stale reservation | Unverified. |
 
-B03 remains open until every unverified Windows desktop gate has direct evidence from clean, matching published and test-host artifacts.
+B003 remains open until every unverified Windows desktop gate has direct evidence from clean, matching published and test-host artifacts.

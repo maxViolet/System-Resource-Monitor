@@ -1,6 +1,6 @@
 # Let a hidden owner take foreground for the tray menu
 
-Status: accepted, 2026-10-14. Narrows the "never steal focus" rule of the [implementation plan](../implementation-plan.md#appbar-and-shell-behaviour) and the B03 focus gate for the tray menu only. [ADR 0001](0001-separate-windows-appbar.md) and [ADR 0003](0003-keep-appbar-registered-during-fullscreen.md) remain in force.
+Status: accepted, 2026-10-14. Narrows the "never steal focus" rule of the [implementation plan](../implementation-plan.md#appbar-and-shell-behaviour) and the B003 focus gate for the tray menu only. [ADR 0001](0001-separate-windows-appbar.md) and [ADR 0003](0003-keep-appbar-registered-during-fullscreen.md) remain in force.
 
 ## Decision
 
@@ -14,7 +14,7 @@ The visible bar keeps `WS_EX_NOACTIVATE`, its `WM_MOUSEACTIVATE` handling, and `
 
 ## Reason and alternatives
 
-Windows dismisses a notification-icon menu on an outside click, and routes keyboard navigation to it, only when the menu's owner is the foreground window. B03 also required that no foreground or focus event target the Desktop process. Those two requirements cannot both hold for a native menu.
+Windows dismisses a notification-icon menu on an outside click, and routes keyboard navigation to it, only when the menu's owner is the foreground window. B003 also required that no foreground or focus event target the Desktop process. Those two requirements cannot both hold for a native menu.
 
 - **Keep a zero-foreground rule.** The menu can stay open after an outside click, and the keyboard cannot reach it. Rejected as a defect in the only control surface.
 - **Build a custom nonactivating popup.** This avoids any foreground change, but it re-implements input, dismissal, accessibility, keyboard, and DPI behavior that native menus already provide. Rejected as disproportionate for two actions.
@@ -23,4 +23,4 @@ The hidden owner confines the foreground change to an invisible window, for as l
 
 ## Acceptance
 
-With `SetWinEventHook` running, a real tray click must produce foreground and focus events only for the taskbar, the hidden owner, and the menu. No event may target the visible bar. After a menu closes without a selection, the window that was foreground when the menu opened must regain foreground. An outside click and Escape must both dismiss the menu. Every other B03 scenario keeps the rule that no event targets the Desktop process.
+With `SetWinEventHook` running, a real tray click must produce foreground and focus events only for the taskbar, the hidden owner, and the menu. No event may target the visible bar. After a menu closes without a selection, the window that was foreground when the menu opened must regain foreground. An outside click and Escape must both dismiss the menu. Every other B003 scenario keeps the rule that no event targets the Desktop process.

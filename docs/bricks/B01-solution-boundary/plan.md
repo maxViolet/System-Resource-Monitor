@@ -1,16 +1,16 @@
-# B01 implementation plan for coding agents
+# B001 implementation plan for coding agents
 
-Status: in progress; evidence in [the 2026-10-12 report](../../acceptance/2026-10-12-B01-solution-boundary.md). This package implements [B01 — Solution and enforced Core boundary](../B01-solution-boundary.md). The [product plan](../../plan.md), [implementation plan](../../implementation-plan.md#technology-and-layout), and [ADR 0002](../../adr/0002-appbar-first-cpu-ram-release.md) govern any ambiguity.
+Status: in progress; evidence in [the 2026-10-12 report](../../acceptance/2026-10-12-B01-solution-boundary.md). This package implements [B001 — Solution and enforced Core boundary](../B01-solution-boundary.md). The [product plan](../../plan.md), [implementation plan](../../implementation-plan.md#technology-and-layout), and [ADR 0002](../../adr/0002-appbar-first-cpu-ram-release.md) govern any ambiguity.
 
 ## Outcome and handoff
 
-Deliver a Windows 11 x64 .NET 10 solution that restores, builds, and tests in Release with locked dependencies. The Desktop executable and a separate Desktop.TestHost executable both start and exit. Core is a plain `net10.0` project with a build-enforced boundary. B02 can add the first bar without restructuring this foundation.
+Deliver a Windows 11 x64 .NET 10 solution that restores, builds, and tests in Release with locked dependencies. The Desktop executable and a separate Desktop.TestHost executable both start and exit. Core is a plain `net10.0` project with a build-enforced boundary. B002 can add the first bar without restructuring this foundation.
 
-Do not claim B01 complete from a successful compile alone. Complete the architecture check, temporary negative probes, and independent test-host smoke check below. Keep automated and Windows runtime evidence distinct in `docs/acceptance/`.
+Do not claim B001 complete from a successful compile alone. Complete the architecture check, temporary negative probes, and independent test-host smoke check below. Keep automated and Windows runtime evidence distinct in `docs/acceptance/`.
 
 ## Work order
 
-Complete these steps in order. After each step, leave the solution buildable; add no behavior assigned to B02 or later bricks.
+Complete these steps in order. After each step, leave the solution buildable; add no behavior assigned to B002 or later bricks.
 
 ### 1. Create the minimal solution
 
@@ -23,9 +23,9 @@ Complete these steps in order. After each step, leave the solution buildable; ad
 
 ### 2. Make both executables independently runnable
 
-- Add the smallest valid WPF application entry point under Desktop (`App.xaml`, `App.xaml.cs`, and any minimum build assets). Keep application composition in `App.xaml.cs`; at B01 it has no AppBar, tray, collectors, settings access, or window to construct.
-- Add a minimal console TestHost entry point that returns success for a smoke invocation and has a nonzero exit for an invalid invocation. Keep its CLI deliberately small; B02 and later bricks will add lifecycle fault modes. Ensure TestHost is not included in the Desktop publish output.
-- Create only directories needed by actual B01 files. The planned `Metrics`, `Monitoring`, `Settings`, `AppBar`, adapter, view-model, view, and tray areas are owned by later work unless a concrete B01 file requires them.
+- Add the smallest valid WPF application entry point under Desktop (`App.xaml`, `App.xaml.cs`, and any minimum build assets). Keep application composition in `App.xaml.cs`; at B001 it has no AppBar, tray, collectors, settings access, or window to construct.
+- Add a minimal console TestHost entry point that returns success for a smoke invocation and has a nonzero exit for an invalid invocation. Keep its CLI deliberately small; B002 and later bricks will add lifecycle fault modes. Ensure TestHost is not included in the Desktop publish output.
+- Create only directories needed by actual B001 files. The planned `Metrics`, `Monitoring`, `Settings`, `AppBar`, adapter, view-model, view, and tray areas are owned by later work unless a concrete B001 file requires them.
 
 **Gate:** run the TestHost executable directly and record its exit code; run the Desktop executable separately and record its exit code. Compare the published Desktop file list with TestHost and confirm no TestHost executable or test assembly is present.
 
@@ -40,7 +40,7 @@ Complete these steps in order. After each step, leave the solution buildable; ad
 ### 4. Prove each banned family with temporary negative probes
 
 - In a temporary Core source file, compile a direct use of each banned family one at a time: `File`, `Directory`, `Process`, `Registry`, `DllImport`, and `LibraryImport`. For attribute probes, make syntax otherwise valid so a compiler error cannot masquerade as a successful boundary check.
-- For each probe, run a Core build and require `RS0030` naming the intended family. Record command, family, and diagnostic in the B01 acceptance report. A generic failed build, or a different diagnostic without `RS0030`, fails this gate.
+- For each probe, run a Core build and require `RS0030` naming the intended family. Record command, family, and diagnostic in the B001 acceptance report. A generic failed build, or a different diagnostic without `RS0030`, fails this gate.
 - Remove every probe, rebuild Core, and check the final diff so no temporary source remains. Review new I/O or interop entry points when dependencies change; this list is a direct-use check, not proof against every platform API.
 
 **Gate:** six `RS0030` observations are recorded and the clean Core build passes.
@@ -57,8 +57,8 @@ dotnet publish src/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.c
 git diff --check
 ```
 
-Create a dated `docs/acceptance/` report with the source commit or working-tree identity, Windows build, SDK version, commands and exit codes, project graph, six negative-probe diagnostics, TestHost and Desktop smoke results, and Desktop publish file-list check. Mark anything not run `unverified`; separate automated checks from Windows runtime checks. Do not record `accepted` in the roadmap until every B01 acceptance criterion has evidence.
+Create a dated `docs/acceptance/` report with the source commit or working-tree identity, Windows build, SDK version, commands and exit codes, project graph, six negative-probe diagnostics, TestHost and Desktop smoke results, and Desktop publish file-list check. Mark anything not run `unverified`; separate automated checks from Windows runtime checks. Do not record `accepted` in the roadmap until every B001 acceptance criterion has evidence.
 
 ## Boundaries for the next agent
 
-B02 adds the single-instance guard, AppBar window, native registration, and shutdown lifecycle. B03 adds tray and settings. B05 begins metric policy. B01 must not add a provider, GPU, temperature, repository, mediator, or generic result abstraction. If implementation exposes a design choice with meaningful alternatives, add a new ADR and update the affected brick before changing the agreed architecture.
+B002 adds the single-instance guard, AppBar window, native registration, and shutdown lifecycle. B003 adds tray and settings. B005 begins metric policy. B001 must not add a provider, GPU, temperature, repository, mediator, or generic result abstraction. If implementation exposes a design choice with meaningful alternatives, add a new ADR and update the affected brick before changing the agreed architecture.

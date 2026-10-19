@@ -1,15 +1,15 @@
-# B18 — Own tray, shell indicators, and hidden Windows taskbar
+# B018 — Own tray, shell indicators, and hidden Windows taskbar
 
 | | |
 |---|---|
 | **Area** | Desktop + acceptance |
-| **Depends on** | B17 |
-| **Unblocks** | optionally B16 |
+| **Depends on** | B017 |
+| **Unblocks** | optionally B016 |
 | **Sources** | [Product plan — Task strip and taskbar replacement](../plan.md#task-strip-and-taskbar-replacement), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [Implementation plan — Settings and lifecycle](../implementation-plan.md#settings-and-lifecycle), [ADR 0008](../adr/0008-replace-taskbar-buttons-in-phases.md), [ADR 0009](../adr/0009-managedshell-for-tasks-and-tray.md), [ADR 0010](../adr/0010-own-shell-indicators.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
 
-After B17 the Windows taskbar still exists only for its tray and its volume, network, and battery controls. Phase B gives the bar its own tray and shell indicators so the Windows taskbar can be hidden without making any of them unreachable.
+After B017 the Windows taskbar still exists only for its tray and its volume, network, and battery controls. Phase B gives the bar its own tray and shell indicators so the Windows taskbar can be hidden without making any of them unreachable.
 
 ## What done looks like
 
@@ -17,7 +17,7 @@ From left to right after the task strip, the bar shows the tray, the shell indic
 
 ## Context
 
-Run the feasibility gate first, on Windows 11, before writing code that hides the Windows taskbar. With applications already running when the bar starts, ManagedShell's tray services must deliver every icon those applications show in the Windows tray, including the icons in its overflow. Record the applications, the icons received, and any icon that is not recovered. If an icon cannot be recovered, mark this brick `rejected`: the Windows taskbar is not hidden, and B17 remains the delivered phase.
+Run the feasibility gate first, on Windows 11, before writing code that hides the Windows taskbar. With applications already running when the bar starts, ManagedShell's tray services must deliver every icon those applications show in the Windows tray, including the icons in its overflow. Record the applications, the icons received, and any icon that is not recovered. If an icon cannot be recovered, mark this brick `rejected`: the Windows taskbar is not hidden, and B017 remains the delivered phase.
 
 Take tray icons only from ManagedShell's tray services in Desktop, as ADR 0009 requires. Icons, tooltips, clicks, and context menus must reach the owning applications as they do from the Windows tray. Build the shell indicators as ADR 0010 specifies.
 
@@ -41,7 +41,7 @@ Create `plan.md` in this brick's package before implementation; this brief does 
 - [ ] The Windows taskbar stays hidden after Explorer restart, resolution and DPI changes, and primary-monitor change
 - [ ] Exit, handled startup failure, and the shutdown deadline path each leave the Windows taskbar visible and the work area restored
 - [ ] After the bar is terminated through Task Manager, the recorded recovery makes the Windows taskbar visible again
-- [ ] All affected B07 and B17 gates, including CPU and memory budgets with the tray and shell indicators enabled, pass and are recorded under `docs/acceptance/`
+- [ ] All affected B007 and B017 gates, including CPU and memory budgets with the tray and shell indicators enabled, pass and are recorded under `docs/acceptance/`
 
 ## Out of scope
 

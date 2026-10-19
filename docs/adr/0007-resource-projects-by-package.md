@@ -10,7 +10,7 @@ The Desktop application remains the single WPF process and composition root. It 
 
 No AI provider interface, reader, or UI behavior is introduced by this layout change. Further AI projects require an accepted source and a concrete implementation need.
 
-Commands that target the Desktop project now use `src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj`; earlier ADRs and B01 evidence retain the paths that were valid when recorded.
+Commands that target the Desktop project now use `src/system-resources/SystemResourceMonitor.Desktop/SystemResourceMonitor.Desktop.csproj`; earlier ADRs and B001 evidence retain the paths that were valid when recorded.
 
 ## Alternatives considered
 

@@ -1,14 +1,14 @@
-# B04 fullscreen reconciliation report — 2026-10-15
+# B004 fullscreen reconciliation report — 2026-10-15
 
-Brick: [B04 — Fullscreen reconciliation and placement gate](../bricks/B04-placement-gate.md). Package plan: [B04 plan](../bricks/B04-placement-gate/plan.md).
+Brick: [B004 — Fullscreen reconciliation and placement gate](../bricks/B04-placement-gate.md). Package plan: [B004 plan](../bricks/B04-placement-gate/plan.md).
 
-Status: in progress. Deterministic coverage and the available single-monitor real-HWND smoke pass. B03 remains unaccepted, and the named published-app video, game, Explorer, display, and two-monitor scenarios remain unverified. B04 is not accepted and B05, B10, and B11 remain gated.
+Status: in progress. Deterministic coverage and the available single-monitor real-HWND smoke pass. B003 remains unaccepted, and the named published-app video, game, Explorer, display, and two-monitor scenarios remain unverified. B004 is not accepted and B005, B010, and B011 remain gated.
 
 ## Prerequisite and exception
 
-[B02's 2026-10-14 report](2026-10-14-B02-empty-appbar-lifecycle.md) is the accepted lifecycle baseline. The shared placement investigation began at **2026-10-14 12:18 UTC+05:00** and reaches its two-working-day deadline at **2026-10-16 12:18 UTC+05:00**.
+[B002's 2026-10-14 report](2026-10-14-B02-empty-appbar-lifecycle.md) is the accepted lifecycle baseline. The shared placement investigation began at **2026-10-14 12:18 UTC+05:00** and reaches its two-working-day deadline at **2026-10-16 12:18 UTC+05:00**.
 
-[B03's 2026-10-14 report](2026-10-14-B03-shell-position-recovery.md) remains in progress. Explorer restart, resolution changes, 150%/200% DPI, taskbar auto-hide, real tray-menu interaction, focus instrumentation, and the visible failed-save restart-only notification remain unrun. The current desktop also exposes only one 1920×1200 primary display at 100% scaling, so the required primary-monitor-change scenario cannot run. The implementation-order exception approved on 2026-10-15 permits B04 code and deterministic tests while retaining every B03 and B04 acceptance gate. It does not accept either brick or unblock dependent work.
+[B003's 2026-10-14 report](2026-10-14-B03-shell-position-recovery.md) remains in progress. Explorer restart, resolution changes, 150%/200% DPI, taskbar auto-hide, real tray-menu interaction, focus instrumentation, and the visible failed-save restart-only notification remain unrun. The current desktop also exposes only one 1920×1200 primary display at 100% scaling, so the required primary-monitor-change scenario cannot run. The implementation-order exception approved on 2026-10-15 permits B004 code and deterministic tests while retaining every B003 and B004 acceptance gate. It does not accept either brick or unblock dependent work.
 
 ## Implemented behavior
 
@@ -21,7 +21,7 @@ Status: in progress. Deterministic coverage and the available single-monitor rea
 
 ## Source and artifacts
 
-The artifacts were built from the uncommitted B04 working tree based on commit `3fb765f1828f5d44b1c329457a83edab7a02844c`. They are verification artifacts, not clean-commit acceptance artifacts. The production Desktop assembly copied beside the test host matches the published assembly.
+The artifacts were built from the uncommitted B004 working tree based on commit `3fb765f1828f5d44b1c329457a83edab7a02844c`. They are verification artifacts, not clean-commit acceptance artifacts. The production Desktop assembly copied beside the test host matches the published assembly.
 
 | Artifact | SHA-256 |
 |---|---|
@@ -74,6 +74,6 @@ This controlled borderless-window smoke is not evidence for fullscreen video, an
 - Explorer restart during fullscreen, including restored AppBar registration, reservation, one tray icon, Position and Exit actions, and post-recovery z-order.
 - Fullscreen on another physical monitor and primary-monitor changes in both directions; only one display is available.
 - Published-app resolution changes, 150% and 200% DPI, taskbar auto-hide, real tray-menu interaction, and focus-event instrumentation.
-- The remaining B02–B03 published-app regression scenarios listed in the B04 package plan on one clean, matching source commit.
+- The remaining B002–B003 published-app regression scenarios listed in the B004 package plan on one clean, matching source commit.
 
 No placement fallback was implemented. Because required desktop evidence is still missing, this report does not make the placement-feasibility decision or mark dependent bricks ready.

@@ -1,14 +1,14 @@
-# B06 CPU/RAM presentation report — 2026-10-15
+# B006 CPU/RAM presentation report — 2026-10-15
 
-Brick: [B06 — CPU/RAM sources and bar presentation](../bricks/B06-cpu-ram-presentation.md). Package plan: [B06 plan](../bricks/B06-cpu-ram-presentation/plan.md).
+Brick: [B006 — CPU/RAM sources and bar presentation](../bricks/B06-cpu-ram-presentation.md). Package plan: [B006 plan](../bricks/B06-cpu-ram-presentation/plan.md).
 
 Status: done by user decision on 2026-10-15. Criteria 1, 2, and 5 pass. Criteria 3 and 4 are partial, and their remaining checks are waived: 150% and 200% scaling, the tooltip of a `—` section, and a visual observation of expiry are unverified.
 
 ## Prerequisite
 
-The plan requires B05 done before B06 implementation begins. [B05's 2026-10-15 report](2026-10-15-B05-metric-monitoring.md) states "implemented; automated criteria pass; not accepted: B04 gate open". On 2026-10-15 the user marked B04 done, and the roadmap progress table now records B04 as `done`. B05 remains `planned` in that table and has no accepted report. The user directed B06 implementation to proceed on that basis.
+The plan requires B005 done before B006 implementation begins. [B005's 2026-10-15 report](2026-10-15-B05-metric-monitoring.md) states "implemented; automated criteria pass; not accepted: B004 gate open". On 2026-10-15 the user marked B004 done, and the roadmap progress table now records B004 as `done`. B005 remains `planned` in that table and has no accepted report. The user directed B006 implementation to proceed on that basis.
 
-The B06 branch was based on the B06 plan commit `a9cce39`, which predates the B05 merge. Commit `189cfb0` merges `origin/main` (`47281fc`, PR #19) into the branch. The B05 contract matches the plan: `IMetricSource` (`Kind`, synchronous `Read()`), `MeasuredSample`, `MeasuredRamSample`, `SampleUnavailable(NotYetSampled | Invalid | ReadFailed)`, `MetricReading`, `AvailableMetric.RamBytes`, `DashboardState`, and `MetricMonitor(cpu, ram, TimeProvider)` with `Current`, `Changed`, and `RunAsync(CancellationToken)`.
+The B006 branch was based on the B006 plan commit `a9cce39`, which predates the B005 merge. Commit `189cfb0` merges `origin/main` (`47281fc`, PR #19) into the branch. The B005 contract matches the plan: `IMetricSource` (`Kind`, synchronous `Read()`), `MeasuredSample`, `MeasuredRamSample`, `SampleUnavailable(NotYetSampled | Invalid | ReadFailed)`, `MetricReading`, `AvailableMetric.RamBytes`, `DashboardState`, and `MetricMonitor(cpu, ram, TimeProvider)` with `Current`, `Changed`, and `RunAsync(CancellationToken)`.
 
 ## Environment
 
@@ -23,7 +23,7 @@ The B06 branch was based on the B06 plan commit `a9cce39`, which predates the B0
 
 ## Baseline
 
-The baseline ran at `189cfb0` before any B06 change.
+The baseline ran at `189cfb0` before any B006 change.
 
 | Command | Exit code | Result |
 |---|---|---|
@@ -77,7 +77,7 @@ New tests: 12 in `CpuLoadCalculatorTests` (Core); in Desktop.Tests, `MetricSourc
 | `GlobalMemoryStatusEx` with `dwLength = 0` through the production wrapper | Passed; Windows returned `FALSE` with `ERROR_INVALID_PARAMETER` (87), which maps to `ReadFailed`. |
 | `GetSystemTimes` failure path | Covered only by a fake `ISystemTimesApi` behind the production `SystemTimesCpuSource`; Windows has no safe way to make the call fail. |
 | `FILETIME` and `MEMORYSTATUSEX` sizes | Passed; 8 and 64 bytes. |
-| `--native-reads 10` smoke | Passed; 5 calls per reader, maximum 9.7 ms (`GetSystemTimes`) and 5.1 ms (`GlobalMemoryStatusEx`), no call over 2 s. B07 owns the 30-minute run. |
+| `--native-reads 10` smoke | Passed; 5 calls per reader, maximum 9.7 ms (`GetSystemTimes`) and 5.1 ms (`GlobalMemoryStatusEx`), no call over 2 s. B007 owns the 30-minute run. |
 
 ## Desktop runs
 
@@ -179,7 +179,7 @@ The user ran the published app from `fbdc8f0` on 2026-10-15 and reported each ch
 | 2. Windows integration checks exercise both native wrappers and their failure paths | Pass, with the `GetSystemTimes` failure path covered by a fake as described above. |
 | 3. Actual bar shows fixed-width text, RAM GiB details, and unavailable states; fixed and unclipped at 100%, 150%, and 200% | Partial. 100% passes programmatically in the test host, and the published app shows the sections and the RAM GiB tooltip. Not verified: 150% and 200%, cropped screenshots per scale, and the tooltip of a `—` section on the published app. |
 | 4. Fault injection visibly expires one reading within 0.5 s while the other keeps updating | Partial. The automated timing passes (2 ms and 8 ms). Not verified: a person observing the expiry on screen. |
-| 5. Published app stays responsive during desktop and measurement runs | Pass for desktop runs. Exit responded in 337 ms with monitoring active, test-host edge switches and exit passed, and the published app's tray menu, Position change, RAM tooltip, and Exit worked with monitoring active. The 30-minute `--native-reads` responsiveness gate belongs to B07. |
+| 5. Published app stays responsive during desktop and measurement runs | Pass for desktop runs. Exit responded in 337 ms with monitoring active, test-host edge switches and exit passed, and the published app's tray menu, Position change, RAM tooltip, and Exit worked with monitoring active. The 30-minute `--native-reads` responsiveness gate belongs to B007. |
 
 ## Unverified
 

@@ -1,6 +1,6 @@
 # Exit when tray recovery fails
 
-Status: accepted, 2026-10-14. Applies to Explorer recovery in the [implementation plan](../implementation-plan.md#appbar-and-shell-behaviour) and B03. [ADR 0001](0001-separate-windows-appbar.md) and [ADR 0008](0008-tray-menu-foreground-owner.md) remain in force.
+Status: accepted, 2026-10-14. Applies to Explorer recovery in the [implementation plan](../implementation-plan.md#appbar-and-shell-behaviour) and B003. [ADR 0001](0001-separate-windows-appbar.md) and [ADR 0008](0008-tray-menu-foreground-owner.md) remain in force.
 
 ## Decision
 

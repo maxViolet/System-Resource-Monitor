@@ -1,10 +1,10 @@
-# B05 — Independent metric monitoring
+# B005 — Independent metric monitoring
 
 | | |
 |---|---|
 | **Area** | Core |
-| **Depends on** | B04 |
-| **Unblocks** | B06 |
+| **Depends on** | B004 |
+| **Unblocks** | B006 |
 | **Sources** | [Implementation plan — Initial model and workflows](../implementation-plan.md#initial-model-and-workflows), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
@@ -33,4 +33,4 @@ Inject `TimeProvider`; use UTC only for display and evidence and the monotonic t
 
 ## Out of scope
 
-`GetSystemTimes`, `GlobalMemoryStatusEx`, WPF controls, tooltips, and native-duration measurements belong to B06.
+`GetSystemTimes`, `GlobalMemoryStatusEx`, WPF controls, tooltips, and native-duration measurements belong to B006.

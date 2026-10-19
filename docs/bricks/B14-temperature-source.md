@@ -1,10 +1,10 @@
-# B14 — Qualify temperature sources
+# B014 — Qualify temperature sources
 
 | | |
 |---|---|
 | **Area** | Research |
-| **Depends on** | B08 done/rejected; B09 done |
-| **Unblocks** | B15 when accepted |
+| **Depends on** | B008 done/rejected; B009 done |
+| **Unblocks** | B015 when accepted |
 | **Sources** | [Product plan — Temperatures](../plan.md#temperatures), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
@@ -13,7 +13,7 @@ Hardware temperatures often require third-party libraries, drivers, privileges, 
 
 ## What done looks like
 
-A dated report evaluates candidate CPU-package and GPU temperature sources and either accepts each trustworthy sensor source or rejects the feature with evidence when none pass. The report is complete enough to define B15's supported hardware, sensor coverage, failure behavior, and deployment inputs.
+A dated report evaluates candidate CPU-package and GPU temperature sources and either accepts each trustworthy sensor source or rejects the feature with evidence when none pass. The report is complete enough to define B015's supported hardware, sensor coverage, failure behavior, and deployment inputs.
 
 ## Context
 
@@ -24,13 +24,13 @@ A privileged helper is not authorized. If a candidate requires elevation of the 
 ## Acceptance criteria
 
 - [ ] Candidate inventory and dated evidence cover every context field above
-- [ ] CPU evidence, when available, uses a whole-processor/package sensor rather than a single core; GPU evidence, when available, identifies the adapter under the product plan's discrete-then-integrated rule even if B08 rejected load-counter correlation
+- [ ] CPU evidence, when available, uses a whole-processor/package sensor rather than a single core; GPU evidence, when available, identifies the adapter under the product plan's discrete-then-integrated rule even if B008 rejected load-counter correlation
 - [ ] License and redistribution terms permit the intended use and packaging
 - [ ] The exact candidate binaries pass Windows Defender checks and require no elevation of the bar
 - [ ] Blocking, timeout, shutdown, and resource-ownership characteristics are measured and recorded
 - [ ] An accepted source defines supported hardware and a trustworthy unavailable result for unsupported or ambiguous sensors
-- [ ] If no source passes, the report marks temperatures rejected, B15 is not started, and no simulated readings or privileged helper are added
+- [ ] If no source passes, the report marks temperatures rejected, B015 is not started, and no simulated readings or privileged helper are added
 
 ## Out of scope
 
-Implementing collection or showing readings belongs to B15. Designing or shipping a privileged helper requires a separate future decision and is not part of this roadmap.
+Implementing collection or showing readings belongs to B015. Designing or shipping a privileged helper requires a separate future decision and is not part of this roadmap.

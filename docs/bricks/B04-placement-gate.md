@@ -1,10 +1,10 @@
-# B04 — Fullscreen reconciliation and placement gate
+# B004 — Fullscreen reconciliation and placement gate
 
 | | |
 |---|---|
 | **Area** | Desktop + acceptance |
-| **Depends on** | B03 |
-| **Unblocks** | B05, B10, B11 |
+| **Depends on** | B003 |
+| **Unblocks** | B005, B010, B011 |
 | **Sources** | [Product plan — Validate placement first](../plan.md#1-validate-placement-first), [First-release gate — Desktop behavior](../implementation-plan.md#first-release-acceptance-gates), [ADR 0003](../adr/0003-keep-appbar-registered-during-fullscreen.md) |
 
 ## Why
@@ -28,10 +28,10 @@ After `TaskbarCreated`, recreate AppBar and tray resources, reconcile current fu
 - [ ] Each cycle includes Alt+Tab to a normal window and back; restoration occurs within one second and never steals focus
 - [ ] Explorer restart during fullscreen restores AppBar, tray, reservation, and the correct z-order
 - [ ] Fullscreen on another monitor does not lower the bar; an ordinary maximized window is verified as a negative case; changing the primary monitor reconciles against the new primary
-- [ ] Start/exit, handled startup failure, edge changes, resolution/DPI changes, auto-hidden taskbar, and stale-reservation checks from B02–B03 remain passing
+- [ ] Start/exit, handled startup failure, edge changes, resolution/DPI changes, auto-hidden taskbar, and stale-reservation checks from B002–B003 remain passing
 - [ ] Dated evidence is recorded under `docs/acceptance/`
-- [ ] If any blocking failure remains two working days after the B02 start timestamp, B05 is marked blocked and an explicit placement-or-suspension decision is requested; no fallback is implemented automatically
+- [ ] If any blocking failure remains two working days after the B002 start timestamp, B005 is marked blocked and an explicit placement-or-suspension decision is requested; no fallback is implemented automatically
 
 ## Out of scope
 
-System metric collection and visual CPU/RAM sections begin in B05 and B06. A non-reserving panel requires a new decision superseding or qualifying ADR 0001.
+System metric collection and visual CPU/RAM sections begin in B005 and B006. A non-reserving panel requires a new decision superseding or qualifying ADR 0001.
