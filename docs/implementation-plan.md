@@ -97,7 +97,7 @@ Implement independent collectors and expiry, fixed-width CPU/RAM text, RAM GiB t
 
 ### Slice 2: subscription limits
 
-Start after the slice 0 placement gate passes; run in parallel with slice 1. Qualify Codex and Claude sources independently against product-plan stage 3. Implement each accepted provider with the [provider adapter](#provider-adapters) requirements: fixed-width `short%/weekly%` section, all-windows tooltip, one-minute polling, independent three-minute expiry. A rejected provider gets no section and no placeholder. A provider failure never delays CPU/RAM acquisition, expiry, or the other provider.
+Start after the slice 0 placement gate passes; run in parallel with slice 1. Qualify Codex and Claude sources independently against product-plan stage 3. Implement each accepted provider with the [provider adapter](#provider-adapters) requirements: the display and tooltip in the product plan, one-minute polling, and independent three-minute expiry. Codex follows [ADR 0015](adr/0015-codex-limit-display-from-qualified-windows.md) and the [B011 plan](bricks/B11-codex-limits/plan.md). A rejected provider gets no section and no placeholder. A provider failure never delays CPU/RAM acquisition, expiry, or the other provider.
 
 ### Slice 3: first personal release
 
@@ -109,6 +109,7 @@ Run accuracy, resource, artifact, provider, and real-desktop gates on the exact 
 
 These slices may proceed in any order after the first release and do not retroactively block it.
 
+- **Bundled Codex candidate:** evaluate packaging a version-pinned official Codex client instead of relying on a separate installation. Before adoption, verify distribution rights, update and security-patch delivery, executable provenance, account sign-in behaviour, and the combined memory, CPU, startup, and shutdown costs on the exact published package. Record the decision in a new ADR and rerun affected B010/B011 and first-release gates. This candidate does not change the first-release Codex source or packaging requirements.
 - **GPU:** implement discrete-adapter selection with DXCore, LUID correlation, and one reused PDH query ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), refined by [ADR 0013](adr/0013-foreign-empty-gpu-engine-instances.md)); use the product-plan GPU acceptance, with unavailable rather than guessed selection or correlation. Unlike the first-release readers, the GPU reader owns a long-lived PDH query handle; it closes the handle only when no read is pending and otherwise leaves it to process exit.
 - **Installation/autostart:** implement the product-plan installation and autostart controls independently of GPU. Preserve settings during upgrade and always retain them on uninstall ([ADR 0014](adr/0014-per-user-installation-and-autostart.md)). The [B009 package plan](bricks/B09-install-autostart/plan.md) orders the work and evidence.
 - **Temperatures:** research source/license/driver/Defender behaviour last; never elevate the bar. No acceptable source means no temperatures.
@@ -145,6 +146,7 @@ All thresholds below are release-blocking, not record-only. They are agreed init
 | RAM accuracy | Published app | Idle and sustained load separately: 30 paired observations per regime against Task Manager physical memory usage. Absolute difference `<= 2` percentage points in at least 29/30 observations in each regime. Record used/total values. |
 | App CPU cost | Published app | Release build, 30 minutes at idle; process CPU time delta / elapsed wall time / logical processor count × 100 `<= 0.5%`. Report this whole-machine-normalized definition explicitly. |
 | App memory ceiling | Published app | Sample process private bytes every 2 seconds during the 30-minute idle run and eight-hour run; every sample `<= 150 MiB`. |
+| Codex polling peak memory | Published app and Codex child | With B011 enabled, sample both private-byte values at least every 100 ms across the 30-minute idle run and every Codex poll in the eight-hour run; count the child from start through confirmed exit. The sum at every sample is `<= 150 MiB`; record the maximum and sample count. This supplements the app memory ceiling. |
 | Memory growth | Published app | Warm up 30 minutes, then observe for 8 hours with 2-second private-byte samples. Last 30-minute mean minus first 30-minute mean `<= 10 MiB`. This does not prove absence of all leaks. |
 | Native-read responsiveness | Test host | Use the production CPU/RAM wrappers for 30 minutes on the target PC; timestamp every call. Neither reader has two consecutive calls longer than 2 seconds. The published app also remains responsive throughout its desktop and resource runs. |
 | Freshness and independence | Test host | Block one collector; its reading expires at 6 seconds while the other keeps updating. Test the exact boundary with fake time; observe actual UI transition within 0.5 seconds of the deadline. |

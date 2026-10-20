@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Area** | Release |
-| **Depends on** | B006; B010/B011 accepted/rejected; B012/B013 done/not applicable |
+| **Depends on** | B006; B010/B012 accepted/rejected; B011/B013 done/not applicable |
 | **Unblocks** | B008, B009, B016, B017 |
 | **Sources** | [Product plan — Release rule](../plan.md#release-rule), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates), [Automated verification and handoff](../implementation-plan.md#automated-verification-and-handoff), [ADR 0011](../adr/0011-exit-when-a-collector-run-faults.md) |
 
@@ -30,6 +30,7 @@ Commit only sanitized reports under `docs/acceptance/`, as defined in the implem
 - [ ] Both provider qualifications are closed; a rejected provider has no section or placeholder in the published app
 - [ ] Thirty-minute idle CPU cost is `<= 0.5%` by the plan's whole-machine-normalized formula
 - [ ] Private bytes never exceed 150 MiB in the 30-minute and eight-hour runs
+- [ ] With B011 enabled, published app plus Codex child private bytes never exceed 150 MiB at sampled polling peaks; every child lifetime is observed or the gate remains unverified
 - [ ] After a 30-minute warm-up, last-window minus first-window mean private bytes is `<= 10 MiB` across a complete eight-hour run
 - [ ] The published folder runs on the target Windows 11 x64 PC without relying on a separately installed .NET runtime or UAC and contains none of the prohibited test/development material
 - [ ] With CPU/RAM monitoring active, injected settings read, backup, and write failures do not prevent monitoring; failed persistence shows the restart-only message

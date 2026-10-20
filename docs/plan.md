@@ -8,7 +8,7 @@ The first personal release (v1) shows CPU load, RAM usage, and the remaining sub
 
 - A thin dark bar follows the provided mockup and spans the primary monitor, at the top or above the Windows taskbar, reserving work area through AppBar.
 - While fullscreen is active on the primary monitor, lower the bar to the bottom of the z-order without unregistering it or releasing its reserved strip. Restore its normal z-order without stealing focus when fullscreen ends or Alt+Tab activates a normal window, even if the game remains running. Fullscreen on another monitor does not change the bar state.
-- Show `CPU 12%` and `RAM 64%` with fixed-width sections and a RAM used/total GiB tooltip, followed by a `short%/weekly%` section for each qualified provider (Codex, Claude).
+- Show `CPU 12%` and `RAM 64%` with fixed-width sections and a RAM used/total GiB tooltip, followed by a section for each qualified provider (Codex, Claude). Codex uses the display contract in [ADR 0015](adr/0015-codex-limit-display-from-qualified-windows.md); Claude uses `short%/weekly%` if its source qualifies.
 - Refresh every 2 seconds. At 6 seconds without a successful reading, that reading becomes unavailable (`—`), independently of other readings; its tooltip explains why.
 - Tray actions switch top/bottom and exit. Explorer restart restores the tray icon and both actions. Settings failure never prevents monitoring; failed persistence is reported as applying only until restart. While the tray menu is open, only a hidden menu owner may hold foreground; the bar itself never takes focus.
 - Exit releases AppBar before waiting for collectors. Waiting for collectors is bounded to 2 seconds.
@@ -36,13 +36,17 @@ Allowed sources are official client output or locally written non-credential fil
 
 Each provider passes only when two consecutive non-interactive polls return all windows and reset times, sign-in/network failures are distinguishable, and ten polls without other work leave limits unchanged and create no new sessions. Failed sources are not simulated or included as trusted data.
 
-After a provider passes, show `short%/weekly%`, using the binding weekly window; show all windows and reset times in a tooltip. On failure, show a safe explanation in that same tooltip; an unavailable snapshot displays `--/--`. Poll every minute. Sign-in failure is unavailable on the first failed poll. Network failure may retain explicitly stale data only before three minutes since last success, then `--/--`; expiry must not depend on a subsequent successful poll.
+After a provider passes, show its qualified windows and reset times, using the binding weekly window where applicable. For Codex, the bar shows `Codex: 5H - 76% in HH MM | W 33% | month: --` when the 5-hour window is active; `month: --` means the qualified source supplies no monthly window, not zero remaining. At 100% remaining, omit the 5-hour countdown because the unused window's reset time slides with each poll. The tooltip gives exact reset times for qualified windows and explains unavailable fields. Claude retains `short%/weekly%` and an all-windows tooltip if its source qualifies. On provider failure, show a safe explanation in the tooltip and unavailable values in its section. Poll every minute. Sign-in failure is unavailable on the first failed poll. Network failure may retain explicitly stale data only before three minutes since last success, then unavailable; expiry must not depend on a subsequent successful poll.
 
 Accept each built provider adapter only after a manual check on an authorized account: compare every displayed remaining value with the official client's remaining value, or with `100 − used` after applying the client's verified integer-rounding rule; compare every reset time with the client within the same verification window. Confirm sign-out/loss of access produces the unavailable display and safe error explanation. Repeat the ten-poll non-consuming check with the built adapter. Record client version, account state, observation times, sanitized comparisons without credentials or raw account output, and pass/fail. Parser fixtures and unit tests cannot close this manual gate.
 
 ## Independent later slices
 
 The following work may proceed in any order after the first release. None can retroactively block the accepted first release.
+
+### Bundled Codex candidate
+
+After the first release, investigate including a version-pinned official Codex client in the bar's package as an alternative to requiring a separate Codex installation. This is an unscheduled candidate, not an approved packaging change or a first-release requirement. Before choosing it, establish distribution rights, update and security-patch ownership, executable provenance, account sign-in behaviour, and the resource and lifecycle cost of the exact published package. Record the choice in a new ADR and rerun affected provider and first-release gates if bundling is adopted.
 
 ### GPU
 

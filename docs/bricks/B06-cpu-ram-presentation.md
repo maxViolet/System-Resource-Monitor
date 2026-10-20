@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Core + Desktop |
 | **Depends on** | B005 |
-| **Unblocks** | B007, B012, B013 |
+| **Unblocks** | B007, B011, B013 |
 | **Sources** | [Product plan — Deliver CPU/RAM](../plan.md#2-deliver-cpuram), [Implementation plan — Slice 1](../implementation-plan.md#slice-1-cpuram), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates) |
 
 ## Why

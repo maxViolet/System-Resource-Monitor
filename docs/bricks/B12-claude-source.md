@@ -1,4 +1,4 @@
-# B011 — Qualify a Claude limit source
+# B012 — Qualify a Claude limit source
 
 | | |
 |---|---|
