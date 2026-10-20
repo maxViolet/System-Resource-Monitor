@@ -1,12 +1,12 @@
 # B011 implementation plan for coding agents
 
-Status: planned. This package implements [B011 — Codex remaining limits](../B11-codex-limits.md). Read the [B010 accepted report](../../research/providers/codex-2026-10-19.md), [subscription product plan](../../plan.md#3-deliver-subscription-limits), [provider adapter requirements](../../implementation-plan.md#provider-adapters), [ADR 0004](../../adr/0004-subscription-limits-in-first-release.md), [ADR 0015](../../adr/0015-codex-limit-display-from-qualified-windows.md), and [CONTEXT language](../../../CONTEXT.md#language) before implementation. The brief's acceptance criteria and out-of-scope section are binding.
+Status: in progress. This package implements [B011 — Codex remaining limits](../B11-codex-limits.md). Read the [B010 accepted report](../../research/providers/codex-2026-10-19.md), [subscription product plan](../../plan.md#3-deliver-subscription-limits), [provider adapter requirements](../../implementation-plan.md#provider-adapters), [ADR 0004](../../adr/0004-subscription-limits-in-first-release.md), [ADR 0015](../../adr/0015-codex-limit-display-from-qualified-windows.md), [ADR 0016](../../adr/0016-codex-client-resolution.md), and [CONTEXT language](../../../CONTEXT.md#language) before implementation. The brief's acceptance criteria and out-of-scope section are binding.
 
 ## Ordered work and gates
 
 ### 1. Freeze source and release contract
 
-- Confirm B006 is `done` and B010 is `accepted`. Use only the signed standalone `codex-cli 0.159.0` and the three JSON-RPC messages in the accepted report. Resolve the authoritative installed path, canonicalize it, reject reparse or unsafe writable paths, verify publisher and exact version, and reuse its existing Codex login. Do not read login files or call the usage endpoint directly.
+- Confirm B006 is `done` and B010 is `accepted`. Use only the signed standalone `codex-cli 0.159.0` and the three JSON-RPC messages in the accepted report. Resolve the installer's entry point through its junctions to the pinned release as [ADR 0016](../../adr/0016-codex-client-resolution.md) defines, canonicalize it, reject reparse points in the canonical path and unsafe writable paths, verify publisher and exact version, and reuse its existing Codex login. Do not read login files or call the usage endpoint directly.
 - Record the accepted `codex` bucket, 300- and 10080-minute durations, UTC Unix reset times, rounding rule, signed-out error, network error, and the app-server experimental constraint. Reject any other bucket, version, method, or response shape as unavailable. Keep raw account output out of logs, fixtures, and published files.
 
 **Gate:** a source-contract test rejects each unqualified version, bucket, missing field, and unknown error; no production path reads credentials or uses an undocumented endpoint.
@@ -14,7 +14,7 @@ Status: planned. This package implements [B011 — Codex remaining limits](../B1
 ### 2. Implement the bounded adapter
 
 - Keep process acquisition in Desktop and parsing, limit state, and policy in AI Core. Start a fresh child once per minute with `UseShellExecute=false`, fixed arguments, and a neutral working directory. Send only `initialize`, `initialized`, and `account/rateLimits/read` with `excludeResetCreditDetails: true`.
-- Drain stdout and stderr concurrently under byte limits; accept only the response with the matching request ID. Bound JSON depth, line length, and message count. Set a request timeout above the measured 2.3-second slow case; choose and record the exact timeout before implementation. On shutdown, cancel the request immediately rather than waiting for that timeout. Do not overlap polls. On timeout, cancellation, or shutdown, kill the process tree and confirm exit within the remaining two-second shutdown deadline; never publish a late result.
+- Drain stdout and stderr concurrently under byte limits; accept only the response with the matching request ID. Bound JSON depth, line length, and message count. The request timeout is 10 seconds from client start to the rate-limit response, about four times the measured 2.3-second slow case. After the response, the client gets 5 seconds to exit once its stdin closes; then its tree is terminated. On shutdown, cancel the request immediately rather than waiting for that timeout. Do not overlap polls. On timeout, cancellation, or shutdown, kill the process tree and confirm exit within the remaining two-second shutdown deadline; never publish a late result.
 - Do not let Codex acquisition, failure, or expiry delay CPU, RAM, GPU, or Claude. A first signed-out or unknown-format failure is unavailable; a network failure may retain explicitly stale qualified values only until three minutes after the last success. Use an independent timer to expire them at the exact boundary.
 
 **Gate:** deterministic parser, timeout, no-overlap, failure-classification, fake-time expiry, and process-tree tests pass; injected Codex failures leave the other collectors updating.
@@ -36,4 +36,4 @@ Status: planned. This package implements [B011 — Codex remaining limits](../B1
 
 ## Boundary
 
-B010's qualification report remains historical evidence. B012 qualifies Claude independently; B013 implements it only after acceptance. A bundled Codex client, monthly source, or model split needs later qualification and a separate decision.
+B010's qualification report remains historical evidence. B012 qualifies Claude independently; B013 implements it only after acceptance. B019/B020 own any later Codex monthly qualification and delivery. A bundled Codex client or model split needs separate qualification and a separate decision.
