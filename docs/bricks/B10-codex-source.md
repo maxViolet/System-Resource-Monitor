@@ -21,13 +21,13 @@ Allowed evidence is official client output or a locally written non-credential f
 
 ## Acceptance criteria
 
-- [ ] The report is dated and records every context field above with sanitized examples
-- [ ] Two consecutive non-interactive polls return all limit windows and reset times
-- [ ] Sign-in failure and network failure are distinguishable from each other and from unknown format
-- [ ] Ten polls with no other work leave limits unchanged and create no new sessions or equivalent usage
-- [ ] Remaining values are reconciled with official client output; if only the used share exists, `100 − used` follows verified client rounding
-- [ ] Signed-out behavior is exercised and recorded
-- [ ] The accepted mechanism reads no credential material and calls no undocumented endpoint
+- [x] The report is dated and records every context field above with sanitized examples
+- [x] Two consecutive non-interactive polls return all limit windows and reset times
+- [x] Sign-in failure and network failure are distinguishable from each other and from unknown format
+- [x] Ten polls with no other work leave limits unchanged and create no new sessions or equivalent usage
+- [x] Remaining values are reconciled with official client output; if only the used share exists, `100 − used` follows verified client rounding
+- [x] Signed-out behavior is exercised and recorded
+- [x] The accepted mechanism reads no credential material and calls no undocumented endpoint
 - [ ] If no allowed candidate source passes every gate, the report marks Codex rejected and B012 becomes not applicable; one failed candidate does not reject an untested allowed candidate
 
 ## Out of scope
