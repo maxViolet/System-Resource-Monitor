@@ -14,7 +14,7 @@ This brick owns release evidence, publication, artifact hygiene, and user instru
 
 - Require B006 `done` and inspect its [acceptance report](../../acceptance/2026-10-15-B06-cpu-ram-presentation.md). Its waived visual-expiry check becomes the visual observation in step 3. Its waived 150%/200% scaling and unavailable (`—`) tooltip checks become step 5 gates; `done` does not count them as passed for B007.
 - B004 is `done` by the user decision recorded in the [B006 report](../../acceptance/2026-10-15-B06-cpu-ram-presentation.md#prerequisite), while its own [report](../../acceptance/2026-10-15-B04-fullscreen-reconciliation.md) leaves named desktop scenarios unverified. Step 5 reruns those scenarios on the B007 published artifact. Passing step 5 closes them for B007 without requiring a separate B004 report update; an unrun or failed scenario still blocks B007. Inspect the B002–B003 regression scenarios named by B004 as part of that step.
-- Require a dated closeout for both B010 and B011. For each accepted qualification, require the corresponding B012 or B013 implementation and its own acceptance evidence. For each rejected qualification, require the implementation brick to be `not applicable` and verify that the published bar has no section or placeholder for it.
+- Require a dated closeout for B010 and B012. Accepted B010 requires B011 implementation and its acceptance evidence; accepted B012 requires B013. For each rejected qualification, require the corresponding implementation brick to be `not applicable` and verify that the published bar has no section or placeholder for it.
 - Record the exact source commit and working-tree status before making artifacts. On the target Windows 11 x64 PC, record the Windows build, hardware category, logical processor count, display topology, DPI, Windows taskbar configuration, and measurement tools. The test host is framework-dependent: record the version and location of the .NET 10 Desktop runtime it uses, including a session-local runtime if needed. That runtime is not evidence about the published app's self-contained behavior. Record the provider configuration without account output or credentials.
 - Before scheduling desktop gates, arrange two physical monitors with a switchable primary, 100%/150%/200% scaling, an auto-hidden taskbar, fullscreen video, an exclusive game, a borderless game, CPU/RAM load tools, and official clients with authorized accounts for each accepted provider and a safe way to test access loss. Record any unavailable setup early; run independent gates while it is obtained, but do not mark B007 `done` until every required scenario passes.
 
@@ -73,9 +73,10 @@ git diff --check
 
 - On the published Release app at idle with every accepted provider enabled, measure process CPU time across 30 minutes. Compute `(process CPU time delta / elapsed wall time / logical processor count) × 100`; pass only at `<= 0.5%`. Sample private bytes every two seconds; every sample must be `<= 150 MiB`.
 - After a 30-minute warm-up, keep normal monitoring and every accepted provider enabled for a complete eight-hour observation. Sample private bytes every two seconds. Every sample must be `<= 150 MiB`; the last 30-minute mean minus the first 30-minute mean must be `<= 10 MiB`.
+- When Codex B011 is enabled, additionally sample the published app and its short-lived Codex child at least every 100 ms across the 30-minute run and every Codex poll in the eight-hour run. Their combined private bytes must stay `<= 150 MiB`. Record every child lifetime, sample count, peak sum, and any missed lifetime as unverified; the app-only gate above still applies.
 - Record sample counts, instrument, aggregate values, interruptions, and workload changes. A missing sample or interrupted run invalidates the complete-run result and must be repeated. Report the growth calculation without claiming it proves absence of all leaks.
 
-**Gate:** all three resource budgets pass on the same identified published-app configuration.
+**Gate:** every applicable resource budget passes on the same identified published-app configuration.
 
 ### 7. Check artifact hygiene and write user instructions
 

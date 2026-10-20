@@ -6,7 +6,7 @@ Status: done. This package implements [B006 — CPU/RAM sources and bar presenta
 
 Deliver the first-release bar content. The published app shows fixed-width `CPU 12%` and `RAM 64%` sections on the existing dark 24-DIP strip. CPU load comes from `GetSystemTimes` deltas, and RAM usage from `GlobalMemoryStatusEx`. The RAM tooltip shows used and total GiB. An unavailable reading shows `—` with a tooltip that gives a safe explanation, while the other reading keeps updating. B005's `MetricMonitor` owns polling, expiry, and state. B006 adds only native source adapters, CPU delta arithmetic, Desktop composition, dispatcher marshalling, presentation, and test-host instrumentation.
 
-B012 and B013 add provider sections next to these sections without changing them. B007 runs the 30-minute native-read responsiveness, accuracy, resource, artifact-hygiene, and release gates on artifacts that include this work. Do not add GPU, subscription, or temperature placeholders.
+B011 and B013 add provider sections next to these sections without changing them. B007 runs the 30-minute native-read responsiveness, accuracy, resource, artifact-hygiene, and release gates on artifacts that include this work. Do not add GPU, subscription, or temperature placeholders.
 
 ## Work order
 
@@ -106,6 +106,6 @@ git diff --check
 
 **Gate:** every B006 criterion maps to passing evidence, and the full handoff commands pass. Automated success alone does not close criteria 3–5.
 
-## Boundary for B007, B012, and B013
+## Boundary for B007, B011, and B013
 
-B007 runs CPU/RAM accuracy, the 30-minute `--native-reads` responsiveness gate, the resource and eight-hour memory gates, artifact hygiene, fault shutdown, user documentation, and the release report on clean artifacts. B012 and B013 add provider sections and their AI Core state through the same dispatcher marshalling and `TryPublish` path, without resizing or reordering the CPU/RAM sections. Combining system metric state with limit snapshots is their Desktop composition, not a change to `DashboardState`. Record a new ADR for any new design choice with meaningful alternatives.
+B007 runs CPU/RAM accuracy, the 30-minute `--native-reads` responsiveness gate, the resource and eight-hour memory gates, artifact hygiene, fault shutdown, user documentation, and the release report on clean artifacts. B011 and B013 add provider sections and their AI Core state through the same dispatcher marshalling and `TryPublish` path, without resizing or reordering the CPU/RAM sections. Combining system metric state with limit snapshots is their Desktop composition, not a change to `DashboardState`. Record a new ADR for any new design choice with meaningful alternatives.

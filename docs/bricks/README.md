@@ -30,7 +30,11 @@ Every stage ends in an observable result. Stages 3–4 are independent tracks af
 | 7. Task strip | The bar shows a task button for each task on every monitor and a clock, while the Windows taskbar stays reachable. |
 | 8. Taskbar replacement | The bar shows every tray icon and its own volume, network, and battery indicators; the Windows taskbar is hidden while the bar runs and restored on every handled exit, or the feasibility gate rejects the phase. |
 
-B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B011) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, B014, and B015 never retroactively block an accepted B007 release.
+B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, B014, and B015 never retroactively block an accepted B007 release.
+
+Bundling an official Codex client is an [unscheduled post-release candidate](../plan.md#bundled-codex-candidate), not a first-release brick. Create a bounded brick only after the feasibility work and ADR establish its scope and acceptance gates.
+
+On 2026-10-20, B011 and B012 exchanged assignments: B011 now owns Codex display and B012 qualifies Claude. [DOC-020's dated Codex report](../research/providers/codex-2026-10-19.md) and earlier acceptance reports retain their original brick numbers as historical evidence; use this roadmap for current dependencies.
 
 ## Brick table
 
@@ -46,10 +50,10 @@ B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../ad
 | B005 | [Independent metric monitoring](B05-metric-monitoring/README.md) | Core | B004 |
 | B006 | [CPU/RAM sources and bar presentation](B06-cpu-ram-presentation/README.md) | Core + Desktop | B005 |
 | B010 | [Qualify a Codex limit source](B10-codex-source/README.md) | Research | B004 |
-| B011 | [Qualify a Claude limit source](B11-claude-source/README.md) | Research | B004 |
-| B012 | [Codex remaining limits](B12-codex-limits/README.md) | Core + Desktop | B006; B010 accepted |
-| B013 | [Claude remaining limits](B13-claude-limits/README.md) | Core + Desktop | B006; B011 accepted |
-| B007 | [First-release evidence and self-contained publication](B07-first-release/README.md) | Release | B006; B010/B011 accepted/rejected; B012/B013 done/not applicable |
+| B011 | [Codex remaining limits](B11-codex-limits/README.md) | Core + Desktop | B006; B010 accepted |
+| B012 | [Qualify a Claude limit source](B12-claude-source/README.md) | Research | B004 |
+| B013 | [Claude remaining limits](B13-claude-limits/README.md) | Core + Desktop | B006; B012 accepted |
+| B007 | [First-release evidence and self-contained publication](B07-first-release/README.md) | Release | B006; B010/B012 accepted/rejected; B011/B013 done/not applicable |
 | **Stage 3 — GPU track** ||||
 | B008 | [GPU adapter selection, correlation, and display](B08-gpu/README.md) | Core + Desktop | B007 |
 | **Stage 4 — Installation track** ||||
@@ -64,7 +68,7 @@ B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../ad
 | **Stage 8 — Taskbar replacement** ||||
 | B018 | [Own tray, shell indicators, and hidden Windows taskbar](B18-taskbar-replacement/README.md) | Desktop + acceptance | B017 |
 
-`Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B010, B011, B014, or B018 closes that track; B012, B013, or B015 respectively becomes `not applicable`.
+`Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B010, B012, B014, or B018 closes that track; B011, B013, or B015 respectively becomes `not applicable`.
 
 ## Dependency graph
 
@@ -76,15 +80,15 @@ graph LR
   B004 --> B005[B005 monitoring]
   B005 --> B006[B006 CPU and RAM]
   B004 --> B010[B010 Codex source]
-  B004 --> B011[B011 Claude source]
-  B010 -->|accepted| B012[B012 Codex limits]
-  B011 -->|accepted| B013[B013 Claude limits]
-  B006 --> B012
+  B010 -->|accepted| B011[B011 Codex limits]
+  B004 --> B012[B012 Claude source]
+  B012 -->|accepted| B013[B013 Claude limits]
+  B006 --> B011
   B006 --> B013
   B006 --> B007[B007 first release]
   B010 -->|closed| B007
-  B011 -->|closed| B007
-  B012 -. if built .-> B007
+  B012 -->|closed| B007
+  B011 -. if built .-> B007
   B013 -. if built .-> B007
 
   B007 --> B008[B008 GPU]

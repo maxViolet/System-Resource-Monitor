@@ -69,6 +69,10 @@ _Avoid_: main window
 The remaining limits and reset times of all limit windows of one subscription, obtained in a single poll.
 _Avoid_: subscription balance
 
+**Unqualified limit window**:
+A requested limit period for which the accepted source supplies no trustworthy value. Codex monthly usage is unqualified in B010 and appears as `month: --`; it is distinct from an unavailable qualified snapshot and from zero remaining.
+_Avoid_: zero, estimated limit
+
 **Unavailable**:
 The state of a metric or limit snapshot when there is no trustworthy current value; distinct from a valid zero reading. Freshness deadlines and failure handling are specified in the product plan.
 _Avoid_: zero

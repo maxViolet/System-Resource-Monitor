@@ -6,7 +6,7 @@ Status: planned. This package implements [B004 — Fullscreen reconciliation and
 
 Deliver fullscreen reconciliation for the empty, registered AppBar and a recorded placement-feasibility decision. Active fullscreen on the primary monitor lowers the bar to the bottom of the z-order without releasing its strip. Departure from fullscreen, including Alt+Tab to a normal window while the fullscreen process remains alive, restores normal z-order without activation within one second. Fullscreen on another monitor and an ordinary maximized window leave the bar in its normal state. Explorer recovery and primary-monitor changes reconcile against the current foreground window and current primary monitor.
 
-B004 is the final gate before B005, B010, and B011. Automated tests cannot accept it without the named Windows 11 desktop scenarios. Do not add system metric collection, CPU/RAM presentation, a non-reserving placement, or a second shell-recovery coordinator.
+B004 is the final gate before B005, B010, and B012. Automated tests cannot accept it without the named Windows 11 desktop scenarios. Do not add system metric collection, CPU/RAM presentation, a non-reserving placement, or a second shell-recovery coordinator.
 
 ## Work order
 
@@ -19,7 +19,7 @@ Implementation exception, approved 2026-10-15: the available Windows desktop has
 - Require an accepted B003 report with direct evidence for its tray, edge, Explorer, display/DPI, primary-monitor, auto-hidden taskbar, focus, and stale-reservation checks before accepting B004. Under the approved implementation exception, inspect the existing B003 report, retain every unverified scenario as open, and do not treat code or automated checks as acceptance.
 - Use B002's accepted [2026-10-14 report](../../acceptance/2026-10-14-B02-empty-appbar-lifecycle.md) as the lifecycle baseline. Its second-process file-system trace recorded zero settings-directory operations. The shared investigation started at **2026-10-14 12:18 UTC+05:00** and reaches its two-working-day deadline at **2026-10-16 12:18 UTC+05:00**.
 - Inspect the reviewed B003 dispatcher-owned placement/recovery path, its `ABN_FULLSCREENAPP` hook point, normal z-order behavior, AppBar callback lifetime, tray recovery result, and shutdown ownership. Capture the Windows build, display topology, primary monitor, resolution/scale, taskbar state, baseline work areas, and a foreground application used for focus checks. Identify the exact source commit and published/test-host artifacts used for the B004 baseline.
-- At the shared deadline, if a blocking placement failure remains in B003–B004, record it, mark B005 blocked, and request the explicit non-reserving-placement-or-suspension decision. Do not implement a fallback or change ADR 0001 without a new decision. B010 and B011 also remain gated by B004 acceptance.
+- At the shared deadline, if a blocking placement failure remains in B003–B004, record it, mark B005 blocked, and request the explicit non-reserving-placement-or-suspension decision. Do not implement a fallback or change ADR 0001 without a new decision. B010 and B012 also remain gated by B004 acceptance.
 
 **Gate:** B004 acceptance requires accepted B003 evidence and identification of the accepted B002 and B003 source/evidence and the one shared deadline. The approved one-display exception permits code work while B003 remains open; leave B003 and B004 unaccepted, keep dependent bricks gated, and record the blocker.
 
@@ -83,7 +83,7 @@ git diff --check
 ### 7. Record the decision and hand off
 
 - Write a dated, sanitized `docs/acceptance/` report separating automated, Windows integration, and manual published-app evidence. Include source/artifact identity, Windows build, monitor topology and DPI, taskbar configuration, scenario counts, measured restoration times, registration/reservation/focus results, failures, and unresolved checks. Exclude credentials, usernames, absolute user paths, process/window titles, precise activity timelines, and unredacted screenshots.
-- If all gates pass, mark B004 accepted in the roadmap and unblock B005, B010, and B011. If a blocking failure remains at the shared deadline, mark B005 blocked, keep dependent bricks gated, and request the placement-or-suspension decision specified in the product plan. A non-reserving panel needs a decision superseding or qualifying ADR 0001; do not silently add one.
+- If all gates pass, mark B004 accepted in the roadmap and unblock B005, B010, and B012. If a blocking failure remains at the shared deadline, mark B005 blocked, keep dependent bricks gated, and request the placement-or-suspension decision specified in the product plan. A non-reserving panel needs a decision superseding or qualifying ADR 0001; do not silently add one.
 - Keep any later change to the product plan, implementation plan, brick states, or ADRs under the repository's documentation-approval rule.
 
 **Gate:** the report states an evidence-backed B004 outcome, identifies every unverified check, and applies the shared two-working-day decision rule without extending or restarting the clock.

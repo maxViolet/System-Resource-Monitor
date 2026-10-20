@@ -4,7 +4,7 @@ Status: accepted on 2026-10-19; see the [qualification report](../../research/pr
 
 ## Outcome and handoff
 
-Close B010 as `accepted` or `rejected` with one dated, sanitized report at `docs/research/providers/codex-<YYYY-MM-DD>.md`. B010 adds no code, tests, fixtures, or interfaces under `src/` or `tests/`. An accepted report is B012's contract: qualified client and version, invocation, response schema, limit-window set, reset-time format, used/remaining rounding, failure classification, latency, and constraints. A rejected report makes B012 `not applicable`.
+Close B010 as `accepted` or `rejected` with one dated, sanitized report at `docs/research/providers/codex-<YYYY-MM-DD>.md`. B010 adds no code, tests, fixtures, or interfaces under `src/` or `tests/`. An accepted report is B011's contract: qualified client and version, invocation, response schema, limit-window set, reset-time format, used/remaining rounding, failure classification, latency, and constraints. A rejected report makes B011 `not applicable`.
 
 ## Rules for every step
 
@@ -24,7 +24,7 @@ Close B010 as `accepted` or `rejected` with one dated, sanitized report at `docs
   - the canonical path and reparse-point status;
   - the Authenticode signer (`Get-AuthenticodeSignature`);
   - the authoritative installation metadata (uninstall registry entry or global npm package).
-- Choose the client to qualify. A script client (the npm shim) needs explicit user consent in B012 ([Provider adapters](../../implementation-plan.md#provider-adapters)); record this as a constraint.
+- Choose the client to qualify. A script client (the npm shim) needs explicit user consent in B011 ([Provider adapters](../../implementation-plan.md#provider-adapters)); record this as a constraint.
 
 **Gate:** the qualified client, its version, signature status, and installation metadata are recorded.
 
@@ -54,11 +54,11 @@ Repeat the same steps for the next candidate if C1 fails.
 
 **c. Failure classification (criteria 3 and 6):**
 - **Signed out:** run with `CODEX_HOME` pointing to a new empty temp directory. Record whether `initialize` or the read fails, and the exact error envelope (`code`, `data`, message shape).
-- **Network failure:** run with the network disabled (airplane mode). A secondary check sets `HTTPS_PROXY=http://127.0.0.1:9` for the child process only. Record the envelope and the time to failure, including any hang, because B012 needs this for its timeout.
-- **Unknown format:** define the classifier. Success requires the schema shape; any other success shape is "unknown format". Sign-in and network failures must differ in a structured field. If they differ only in message text, pin the exact strings to the qualified version and record that B012 treats any other text as unknown.
+- **Network failure:** run with the network disabled (airplane mode). A secondary check sets `HTTPS_PROXY=http://127.0.0.1:9` for the child process only. Record the envelope and the time to failure, including any hang, because B011 needs this for its timeout.
+- **Unknown format:** define the classifier. Success requires the schema shape; any other success shape is "unknown format". Sign-in and network failures must differ in a structured field. If they differ only in message text, pin the exact strings to the qualified version and record that B011 treats any other text as unknown.
 - Access revoked on a live account cannot be tested safely. Record it as unverified.
 
-**d. Non-consumption (criterion 4).** Take a reference reading from the official client before and after the run, not during it. Then run ten C1 polls 60 seconds apart (the B012 polling interval) away from any reset time. Each window's `usedPercent` and `resetsAt` must stay the same across all ten polls; record any drift of `resetsAt` in seconds. List the session files (names and count only) before and after: no new session may appear.
+**d. Non-consumption (criterion 4).** Take a reference reading from the official client before and after the run, not during it. Then run ten C1 polls 60 seconds apart (the B011 polling interval) away from any reset time. Each window's `usedPercent` must stay the same. A started window's `resetsAt` must stay fixed; an unused 5-hour window may report a sliding `resetsAt` near now plus 300 minutes, so record that drift separately rather than treating it as usage. List the session files (names and count only) before and after: no new session may appear.
 
 **e. Reconciliation (criterion 5).** Within one two-minute window, capture the TUI `/status` (cropped and redacted) and one C1 poll. For each window, compare the client's "% left" with `100 − used` under round, floor, and ceiling, and identify the rule the client uses. Round the used share first, then subtract it from 100. The rule counts as verified only with a non-integer `usedPercent` sample that tells the rules apart, or with the client source at the qualified tag that shows the formula. Integer-only samples are not enough: at `codex-cli` 0.159.0 the schema types `usedPercent` as `int32`, because the app-server rounds the client's internal floating-point share with `.round()`, so the samples cannot reveal the rule. Without either, criterion 5 stays unverified and B010 cannot be accepted. Convert each reset time from epoch to local time and compare it with the client's display. Separately from the ten-poll run, run one small Codex task with the user's consent, poll again, and confirm that the used share changes the same way `/status` shows. This proves the source is not a stale cache.
 
@@ -81,17 +81,17 @@ Sections in this order:
 - **Accepted contract:** invocation and exact request messages; the response schema with a sanitized example; limit-window IDs, names, and durations; reset-time format; rounding rule; failure-classification table; latency; constraints (login, network, version pin, script client or executable).
 - **Evidence for criteria 1–8:** pass or fail for each.
 - **Unverified items.**
-- **Handoff to B012.**
+- **Handoff to B011.**
 
-The sanitized examples in the report are not B012 fixtures.
+The sanitized examples in the report are not B011 fixtures.
 
 **Gate:** every criterion maps to evidence, and the report contains no raw account output or identifiers.
 
 ### 6. Close
 
-- Set B010 to `accepted` or `rejected` in the roadmap progress table. If rejected, set B012 to `not applicable`. Link the report from the package README.
+- Set B010 to `accepted` or `rejected` in the roadmap progress table. If rejected, set B011 to `not applicable`. Link the report from the package README.
 - Run `git diff --check`. The `dotnet` handoff commands do not apply, because no code changes.
 
 ## Boundary for B011 and B012
 
-B012 owns production parsing types, implementation of trusted resolution, process isolation and tree termination, polling, expiry, display, and repeating the ten-poll check with the built adapter. B011 qualifies Claude independently and shares no harness or report with B010. Record any new design choice with meaningful alternatives in a new ADR.
+B011 owns production parsing types, implementation of trusted resolution, process isolation and tree termination, polling, expiry, display, and repeating the ten-poll check with the built adapter. B012 qualifies Claude independently and shares no harness or report with B010. Record any new design choice with meaningful alternatives in a new ADR.

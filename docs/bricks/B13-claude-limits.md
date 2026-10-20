@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Area** | Core + Desktop |
-| **Depends on** | B006; B011 accepted |
+| **Depends on** | B006; B012 accepted |
 | **Unblocks** | B007 |
-| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [B011 qualification brick and dated report](B11-claude-source.md) |
+| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [B012 qualification brick and dated report](B12-claude-source.md) |
 
 ## Why
 
@@ -17,7 +17,7 @@ The Claude section shows `short%/weekly%`, where weekly is the binding weekly wi
 
 ## Context
 
-Build only against B011's accepted client version and contract. Keep parsing separate from source acquisition and use sanitized fixtures. For an executable source, apply the [provider adapter](../implementation-plan.md#provider-adapters) controls: trusted resolution (never the current directory or an untrusted `PATH` hit), canonical-path, reparse, and publisher checks, `UseShellExecute=false` with fixed arguments, concurrent stdout/stderr reads with byte limits, bounded parsing, and a request timeout. For an accepted local-file source, use the qualified canonical path and non-credential format without process execution. Never log raw account output. Unknown versions or formats are unavailable.
+Build only against B012's accepted client version and contract. Keep parsing separate from source acquisition and use sanitized fixtures. For an executable source, apply the [provider adapter](../implementation-plan.md#provider-adapters) controls: trusted resolution (never the current directory or an untrusted `PATH` hit), canonical-path, reparse, and publisher checks, `UseShellExecute=false` with fixed arguments, concurrent stdout/stderr reads with byte limits, bounded parsing, and a request timeout. For an accepted local-file source, use the qualified canonical path and non-credential format without process execution. Never log raw account output. Unknown versions or formats are unavailable.
 
 If the source can genuinely block, run it in a child process. On timeout or shutdown, terminate the process tree and confirm exit inside the remaining deadline before releasing owned resources. A source that cannot satisfy this rule is not enabled.
 
@@ -33,4 +33,4 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 
 ## Out of scope
 
-Codex is independent in B010/B012. Reading browser or credential state and calling undocumented endpoints remain prohibited.
+Codex is independent in B010/B011. Reading browser or credential state and calling undocumented endpoints remain prohibited.

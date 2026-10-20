@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Research |
 | **Depends on** | B004 |
-| **Unblocks** | B012 when accepted; B007 when closed |
+| **Unblocks** | B011 when accepted; B007 when closed |
 | **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [ADR 0004](../adr/0004-subscription-limits-in-first-release.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
@@ -28,8 +28,8 @@ Allowed evidence is official client output or a locally written non-credential f
 - [x] Remaining values are reconciled with official client output; if only the used share exists, `100 − used` follows verified client rounding
 - [x] Signed-out behavior is exercised and recorded
 - [x] The accepted mechanism reads no credential material and calls no undocumented endpoint
-- [ ] If no allowed candidate source passes every gate, the report marks Codex rejected and B012 becomes not applicable; one failed candidate does not reject an untested allowed candidate
+- [ ] If no allowed candidate source passes every gate, the report marks Codex rejected and B011 becomes not applicable; one failed candidate does not reject an untested allowed candidate
 
 ## Out of scope
 
-Parsing into production types, process isolation, polling, expiry, and display belong to B012. Claude qualification is independent in B011.
+Parsing into production types, process isolation, polling, expiry, and display belong to B011. Claude qualification is independent in B012.
