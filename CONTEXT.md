@@ -65,12 +65,16 @@ _Avoid_: used percentage
 The subscription's weekly window with the lowest remaining limit; its remaining limit is shown on the bar as the weekly value.
 _Avoid_: main window
 
+**Short-window countdown**:
+The whole minutes until an active short limit window resets, shown only below 100% remaining. Round up so a positive duration never appears as `00 00`; an unused 100% window has no countdown.
+_Avoid_: reset time, when meaning the relative countdown
+
 **Limit snapshot**:
 The remaining limits and reset times of all limit windows of one subscription, obtained in a single poll.
 _Avoid_: subscription balance
 
 **Unqualified limit window**:
-A requested limit period for which the accepted source supplies no trustworthy value. Codex monthly usage is unqualified in B010 and appears as `month: --`; B019 owns any later monthly qualification. It is distinct from an unavailable qualified snapshot and from zero remaining.
+A requested limit period for which the accepted source supplies no trustworthy value. It appears as `--`: Codex monthly usage is unqualified in B010 and B019 owns any later monthly qualification; Claude monthly usage is unqualified when B012 qualifies no monthly window. It is distinct from an unavailable qualified snapshot and from zero remaining.
 _Avoid_: zero, estimated limit
 
 **Stale limit snapshot**:
