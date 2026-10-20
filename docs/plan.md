@@ -48,6 +48,12 @@ The following work may proceed in any order after the first release. None can re
 
 After the first release, investigate including a version-pinned official Codex client in the bar's package as an alternative to requiring a separate Codex installation. This is an unscheduled candidate, not an approved packaging change or a first-release requirement. Before choosing it, establish distribution rights, update and security-patch ownership, executable provenance, account sign-in behaviour, and the resource and lifecycle cost of the exact published package. Record the choice in a new ADR and rerun affected provider and first-release gates if bundling is adopted.
 
+### Codex monthly limit
+
+After the first release, qualify a Codex monthly window independently of the accepted 5-hour and weekly contract. Use only official client output or a locally written non-credential file; never infer monthly usage from the weekly bucket, subscription calendar, billing date, or plan tier. Acceptance must establish the exact window meaning, remaining-value rule, reset time, failure behavior, non-consumption, and compatibility with the existing qualified windows. If every allowed candidate fails, retain `month: --`.
+
+Only after qualification succeeds, record the source-composition and display decision in a new ADR, then replace `month: --` with the qualified value and exact reset information. Rerun the affected provider, desktop, publish, shutdown, CPU, and memory gates. This later slice does not retroactively block the accepted first release.
+
 ### GPU
 
 Show load only for the discrete adapter, never for an integrated one ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md)). With no discrete adapter or more than one, GPU load is unavailable. Correlate the selected adapter's counters reliably; structurally valid empty-engine instances from foreign LUIDs are ignored, while ambiguous identity or an empty engine on the selected LUID makes the reading unavailable ([ADR 0013](adr/0013-foreign-empty-gpu-engine-instances.md)). Compare GPU load with Task Manager on the selected adapter at idle and under load. Record adapter identity, comparison method, sample count, and numeric tolerance before acceptance.

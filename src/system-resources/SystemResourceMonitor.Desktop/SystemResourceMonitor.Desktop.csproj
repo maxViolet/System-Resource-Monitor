@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SystemResourceMonitor.Core\SystemResourceMonitor.Core.csproj" />
+    <ProjectReference Include="..\..\ai-resources\SystemResourceMonitor.AIResources.Core\SystemResourceMonitor.AIResources.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

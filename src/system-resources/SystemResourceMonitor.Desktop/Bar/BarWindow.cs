@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using System.Windows.Media;
+using SystemResourceMonitor.AIResources.Core.Codex;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Lifecycle;
 using SystemResourceMonitor.Desktop.Settings;
@@ -14,7 +15,7 @@ using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// The non-activating AppBar with fixed-width CPU, RAM, and GPU sections. All HWND, tray, placement, and reconciliation members run on its WPF thread.
+/// The non-activating AppBar with fixed-width CPU, RAM, GPU, and Codex sections. All HWND, tray, placement, and reconciliation members run on its WPF thread.
 /// </summary>
 public sealed class BarWindow : Window, IShutdownBar
 {
@@ -49,19 +50,27 @@ public sealed class BarWindow : Window, IShutdownBar
     private readonly TextBlock _cpuSection = CreateSection();
     private readonly TextBlock _ramSection = CreateSection();
     private readonly TextBlock _gpuSection = CreateSection();
+    private readonly TextBlock _codexSection = CreateSection();
+    private readonly TimeProvider _time;
+    private readonly DispatcherTimer _codexCountdown;
+    private CodexLimitState _codex = CodexLimitsUnavailable.Initial;
 
     public BarWindow(
         BarEdge initialEdge,
         Action<BarEdge> edgeApplied,
         Action closeRequested,
         Action shellIntegrationFailed,
-        Action<string>? record = null)
+        Action<string>? record = null,
+        TimeProvider? time = null)
     {
         _initialEdge = initialEdge;
         _edgeApplied = edgeApplied;
         _closeRequested = closeRequested;
         _shellIntegrationFailed = shellIntegrationFailed;
         _record = record;
+        _time = time ?? TimeProvider.System;
+        _codexCountdown = new DispatcherTimer(DispatcherPriority.Background, Dispatcher);
+        _codexCountdown.Tick += (_, _) => RenderCodex();
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         ShowActivated = false;
@@ -75,9 +84,10 @@ public sealed class BarWindow : Window, IShutdownBar
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { _cpuSection, _ramSection, _gpuSection },
+            Children = { _cpuSection, _ramSection, _gpuSection, _codexSection },
         };
         ShowMetrics(DashboardState.Initial);
+        ShowCodex(CodexLimitsUnavailable.Initial);
 
         // Create the handle on the primary monitor, which always contains (0, 0).
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -209,6 +219,18 @@ public sealed class BarWindow : Window, IShutdownBar
         }
     }
 
+    /// <summary>
+    /// Shows the Codex limits and keeps their 5-hour countdown current: a one-shot timer re-renders the section when
+    /// the displayed whole minute changes, without waiting for the next poll.
+    /// </summary>
+    public void ShowCodex(CodexLimitState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        Dispatcher.VerifyAccess();
+        _codex = state;
+        RenderCodex();
+    }
+
     public void ReportStatus(string message)
     {
         if (!Dispatcher.CheckAccess())
@@ -234,6 +256,7 @@ public sealed class BarWindow : Window, IShutdownBar
     {
         _shuttingDown = true;
         _fullscreenTimer?.Stop();
+        _codexCountdown.Stop();
         _appBar?.Remove();
     }
 
@@ -280,22 +303,43 @@ public sealed class BarWindow : Window, IShutdownBar
     /// <summary>Fixes each section to the widest text it can show, rounded up to whole device pixels.</summary>
     private void FixSectionWidths(double pixelsPerDip)
     {
-        _cpuSection.Width = WidestCandidate(MetricKind.Cpu, pixelsPerDip);
-        _ramSection.Width = WidestCandidate(MetricKind.Ram, pixelsPerDip);
-        _gpuSection.Width = WidestCandidate(MetricKind.Gpu, pixelsPerDip);
+        _cpuSection.Width = WidestCandidate(MetricSectionFormat.WidthCandidates(MetricKind.Cpu), pixelsPerDip);
+        _ramSection.Width = WidestCandidate(MetricSectionFormat.WidthCandidates(MetricKind.Ram), pixelsPerDip);
+        _gpuSection.Width = WidestCandidate(MetricSectionFormat.WidthCandidates(MetricKind.Gpu), pixelsPerDip);
+        _codexSection.Width = WidestCandidate(CodexSectionFormat.WidthCandidates(), pixelsPerDip);
     }
 
-    private static double WidestCandidate(MetricKind kind, double pixelsPerDip)
+    /// <summary>The section width for <paramref name="candidates"/> at <paramref name="pixelsPerDip"/>, in DIPs.</summary>
+    internal static double WidestCandidate(IEnumerable<string> candidates, double pixelsPerDip) =>
+        Math.Ceiling(candidates.Max(text => MeasureWidth(text, pixelsPerDip)) * pixelsPerDip) / pixelsPerDip;
+
+    /// <summary>The rendered width of <paramref name="text"/> in the section font, in DIPs.</summary>
+    internal static double MeasureWidth(string text, double pixelsPerDip) => new FormattedText(
+        text,
+        CultureInfo.InvariantCulture,
+        FlowDirection.LeftToRight,
+        SectionTypeface,
+        SectionFontSize,
+        SectionForeground,
+        pixelsPerDip).WidthIncludingTrailingWhitespace;
+
+    private void RenderCodex()
     {
-        var widest = MetricSectionFormat.WidthCandidates(kind).Max(text => new FormattedText(
-            text,
-            CultureInfo.InvariantCulture,
-            FlowDirection.LeftToRight,
-            SectionTypeface,
-            SectionFontSize,
-            SectionForeground,
-            pixelsPerDip).WidthIncludingTrailingWhitespace);
-        return Math.Ceiling(widest * pixelsPerDip) / pixelsPerDip;
+        _codexCountdown.Stop();
+        if (_shuttingDown)
+        {
+            return;
+        }
+
+        var now = _time.GetUtcNow();
+        var content = CodexSectionFormat.Format(_codex, now, TimeZoneInfo.Local);
+        _codexSection.Text = content.Text;
+        _codexSection.ToolTip = content.ToolTip;
+        if (CodexSectionFormat.UntilCountdownChanges(_codex, now) is { } untilChange)
+        {
+            _codexCountdown.Interval = untilChange;
+            _codexCountdown.Start();
+        }
     }
 
     private static Brush Frozen(Brush brush)

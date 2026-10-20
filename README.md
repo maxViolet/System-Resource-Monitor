@@ -1,8 +1,8 @@
 # System Resource Monitor
 
-System Resource Monitor reserves a thin strip at the top or bottom of the primary monitor and shows the current CPU load and physical memory use. Windows keeps maximized windows out of the strip, as it does for the taskbar.
+System Resource Monitor reserves a thin strip at the top or bottom of the primary monitor and shows the current CPU load, physical memory use, and the remaining limits of your Codex subscription. Windows keeps maximized windows out of the strip, as it does for the taskbar.
 
-This release shows CPU and RAM only. It has no installer and does not start with Windows.
+This release has no installer and does not start with Windows.
 
 ## Requirements
 
@@ -35,6 +35,33 @@ A section shows a dash, such as `CPU —`, when no current reading exists. Hover
 | Windows did not return a measurement. | The Windows call failed. The next successful reading replaces the dash. |
 
 The other section keeps updating while one section shows a dash.
+
+## Read the Codex section
+
+The Codex section reads your remaining Codex limits through the official standalone Codex client, version 0.159.0, with the login that client already has. The app never reads the client's login files and never contacts OpenAI itself. It asks the client once per minute; a request does not use any of your limits.
+
+`Codex: 5H - 73% in 01 42 | W 96% | month: --` means:
+
+- `5H - 73%`: 73 % of the 5-hour limit is left. `in 01 42` is the time until that limit resets, in hours and minutes, rounded up to the next minute. While the 5-hour window is unused (`5H - 100%`), no countdown is shown, because the window starts only with your next use.
+- `W 96%`: 96 % of the weekly limit is left.
+- `month: --`: the Codex client reports no monthly limit, so there is no monthly value. It does not mean zero.
+
+Hover over the section for the exact local reset times.
+
+If the client cannot reach its usage service, the section shows the last values as `Codex (stale): …` for up to three minutes after the last successful reading. After that, and for any other problem, it shows `Codex: 5H - -- | W -- | month: --`. Hover over it for the reason:
+
+| Tooltip | Meaning |
+|---|---|
+| Waiting for the first Codex reading. | The app has just started. The first reading can take several seconds, because the app first verifies the client's signature. |
+| Codex is signed out. Sign in with the Codex client. | The client has no signed-in account. |
+| The Codex usage service could not be reached. | The client had no network access to its usage service. |
+| Codex answered in a format this bar does not recognise. | The client's answer did not match the qualified format. |
+| The installed Codex client is not version 0.159.0, the only supported version. | The client has updated itself to a version this release does not support. |
+| The standalone Codex client is not installed. | `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe` does not exist. The npm package and the Codex desktop app are not used. |
+| The Codex client failed the path, permission, or signature check. | The client is not the signed OpenAI release in its installer folder, or other accounts can change it. |
+| Codex did not answer in time. | The client did not answer within 10 seconds. |
+| The Codex client could not be started. | Windows could not start the client. |
+| No Codex update for 3 minutes. | No reading has succeeded for three minutes. |
 
 ## Change the position
 
