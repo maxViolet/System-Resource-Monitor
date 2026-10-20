@@ -10,4 +10,9 @@
     <AdditionalFiles Include="BannedSymbols.txt" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- State tests apply poll results to CodexLimitMonitor directly, without the polling loop. -->
+    <InternalsVisibleTo Include="SystemResourceMonitor.Core.Tests" />
+  </ItemGroup>
+
 </Project>
