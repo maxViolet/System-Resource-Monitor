@@ -74,8 +74,12 @@ The remaining limits and reset times of all limit windows of one subscription, o
 _Avoid_: subscription balance
 
 **Unqualified limit window**:
-A requested limit period for which the accepted source supplies no trustworthy value. It appears as `--`, such as Codex monthly usage after B010 or Claude monthly usage when B012 qualifies no monthly window; it is distinct from an unavailable qualified snapshot and from zero remaining.
+A requested limit period for which the accepted source supplies no trustworthy value. It appears as `--`: Codex monthly usage is unqualified in B010 and B019 owns any later monthly qualification; Claude monthly usage is unqualified when B012 qualifies no monthly window. It is distinct from an unavailable qualified snapshot and from zero remaining.
 _Avoid_: zero, estimated limit
+
+**Stale limit snapshot**:
+The last successful limit snapshot, still shown and marked stale after a network failure until three minutes after that success; then the snapshot is unavailable. Other failures make the snapshot unavailable at once.
+_Avoid_: cached limits, last known limits
 
 **Unavailable**:
 The state of a metric or limit snapshot when there is no trustworthy current value; distinct from a valid zero reading. Freshness deadlines and failure handling are specified in the product plan.

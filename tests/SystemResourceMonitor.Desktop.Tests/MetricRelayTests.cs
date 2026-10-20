@@ -16,7 +16,7 @@ public sealed class MetricRelayTests
     {
         var posted = new List<Action>();
         var applied = new List<DashboardState>();
-        var relay = new MetricRelay(posted.Add, applied.Add);
+        var relay = new MetricRelay<DashboardState>(posted.Add, applied.Add);
 
         relay.OnChanged(First);
         relay.OnChanged(Second);
@@ -31,7 +31,7 @@ public sealed class MetricRelayTests
     {
         var posted = new Queue<Action>();
         var applied = new List<DashboardState>();
-        var relay = new MetricRelay(posted.Enqueue, applied.Add);
+        var relay = new MetricRelay<DashboardState>(posted.Enqueue, applied.Add);
 
         relay.OnChanged(First);
         posted.Dequeue()();
@@ -47,8 +47,8 @@ public sealed class MetricRelayTests
     {
         var posted = new Queue<Action>();
         var applied = new List<DashboardState>();
-        MetricRelay? relay = null;
-        relay = new MetricRelay(posted.Enqueue, state =>
+        MetricRelay<DashboardState>? relay = null;
+        relay = new MetricRelay<DashboardState>(posted.Enqueue, state =>
         {
             applied.Add(state);
             if (state == First)

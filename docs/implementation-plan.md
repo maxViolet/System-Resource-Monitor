@@ -97,7 +97,7 @@ Implement independent collectors and expiry, fixed-width CPU/RAM text, RAM GiB t
 
 ### Slice 2: subscription limits
 
-Start after the slice 0 placement gate passes; run in parallel with slice 1. Qualify Codex and Claude sources independently against product-plan stage 3. Implement each accepted provider with the [provider adapter](#provider-adapters) requirements: the display and tooltip in the product plan, one-minute polling, and independent three-minute expiry. Codex follows [ADR 0015](adr/0015-codex-limit-display-from-qualified-windows.md) and the [B011 plan](bricks/B11-codex-limits/plan.md); Claude follows [ADR 0016](adr/0016-claude-limit-display-in-codex-style.md) and the B012 qualification handoff. A rejected provider gets no section and no placeholder. A provider failure never delays CPU/RAM acquisition, expiry, or the other provider.
+Start after the slice 0 placement gate passes; run in parallel with slice 1. Qualify Codex and Claude sources independently against product-plan stage 3. Implement each accepted provider with the [provider adapter](#provider-adapters) requirements: the display and tooltip in the product plan, one-minute polling, and independent three-minute expiry. Codex follows [ADR 0015](adr/0015-codex-limit-display-from-qualified-windows.md) and the [B011 plan](bricks/B11-codex-limits/plan.md); Claude follows [ADR 0017](adr/0017-claude-limit-display-in-codex-style.md) and the B012 qualification handoff. A rejected provider gets no section and no placeholder. A provider failure never delays CPU/RAM acquisition, expiry, or the other provider.
 
 ### Slice 3: first personal release
 
@@ -110,6 +110,11 @@ Run accuracy, resource, artifact, provider, and real-desktop gates on the exact 
 These slices may proceed in any order after the first release and do not retroactively block it.
 
 - **Bundled Codex candidate:** evaluate packaging a version-pinned official Codex client instead of relying on a separate installation. Before adoption, verify distribution rights, update and security-patch delivery, executable provenance, account sign-in behaviour, and the combined memory, CPU, startup, and shutdown costs on the exact published package. Record the decision in a new ADR and rerun affected B010/B011 and first-release gates. This candidate does not change the first-release Codex source or packaging requirements.
+
+### Codex monthly limit
+
+B019 qualifies the monthly source independently of B010's accepted 5-hour and weekly contract. It must establish exact window semantics, value precision and rounding, reset behavior, failure classification, non-consumption, client provenance, and compatibility with B011 without reading credentials or calling undocumented endpoints. Only an accepted B019 unblocks B020. B020 records a new ADR before code, replaces `month: --` only with qualified data, isolates failures when the monthly source is independent, and reruns affected provider, desktop, publish, shutdown, CPU, and memory gates. Rejection leaves the existing placeholder unchanged.
+
 - **GPU:** implement discrete-adapter selection with DXCore, LUID correlation, and one reused PDH query ([ADR 0012](adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), refined by [ADR 0013](adr/0013-foreign-empty-gpu-engine-instances.md)); use the product-plan GPU acceptance, with unavailable rather than guessed selection or correlation. Unlike the first-release readers, the GPU reader owns a long-lived PDH query handle; it closes the handle only when no read is pending and otherwise leaves it to process exit.
 - **Installation/autostart:** implement the product-plan installation and autostart controls independently of GPU. Preserve settings during upgrade and always retain them on uninstall ([ADR 0014](adr/0014-per-user-installation-and-autostart.md)). The [B009 package plan](bricks/B09-install-autostart/plan.md) orders the work and evidence.
 - **Temperatures:** research source/license/driver/Defender behaviour last; never elevate the bar. No acceptable source means no temperatures.
@@ -122,7 +127,7 @@ Later feature acceptance reruns affected first-release gates, including resource
 ### Provider adapters
 
 - Resolve an official client from authoritative installation metadata or explicit user selection, never the current directory or the first untrusted `PATH` hit.
-- Canonicalize the final executable path, reject reparse redirection and locations writable by other principals, and verify its publisher signature where the official client supplies one. An unverifiable user-installed script client requires explicit user consent.
+- Canonicalize the final executable path, reject reparse redirection and locations writable by other principals, and verify its publisher signature where the official client supplies one. The Codex standalone installer selects its release through junctions; [ADR 0016](adr/0016-codex-client-resolution.md) defines the only accepted resolution. An unverifiable user-installed script client requires explicit user consent.
 - Start the verified executable directly with `UseShellExecute=false`, fixed argument tokens, a neutral working directory, no shell window, and a bounded timeout.
 - Drain stdout and stderr concurrently with independent byte limits. Bound parser depth and record/token counts; on any limit, timeout, or cancellation, terminate the process tree and mark the provider unavailable.
 - Keep parsing separate from process execution and use sanitized fixtures. Never retain or log raw account output, credentials, tokens, cookies, or browser data.

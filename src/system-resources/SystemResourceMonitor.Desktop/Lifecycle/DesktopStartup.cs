@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+using SystemResourceMonitor.AIResources.Core.Codex;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Bar;
 using SystemResourceMonitor.Desktop.Settings;
@@ -7,8 +8,8 @@ namespace SystemResourceMonitor.Desktop.Lifecycle;
 
 /// <summary>
 /// Startup order: acquire the per-session guard synchronously, load settings off the WPF thread, create the bar and
-/// tray on the owning dispatcher, then start metric monitoring until shutdown cancels its lifetime. Any owner failure
-/// enters the shared shutdown coordinator.
+/// tray on the owning dispatcher, then start metric monitoring and, when composed, Codex limit monitoring until
+/// shutdown cancels their lifetime. Any owner failure enters the shared shutdown coordinator.
 /// </summary>
 public sealed class DesktopStartup(
     string guardName,
@@ -18,7 +19,8 @@ public sealed class DesktopStartup(
     MetricMonitor monitor,
     Action<string>? record = null,
     Action<BarWindow>? afterBarPositioned = null,
-    Action? afterMetricRun = null) : IDisposable
+    Action? afterMetricRun = null,
+    CodexLimitMonitor? codex = null) : IDisposable
 {
     /// <summary>Per-session name: AppBar space and the work area belong to one session.</summary>
     public const string ProductionGuardName = @"Local\SystemResourceMonitor-1178D3BA-F66E-486A-8896-F6EBAF20FF05";
@@ -87,6 +89,7 @@ public sealed class DesktopStartup(
         }
 
         StartMetrics(bar);
+        StartCodex(bar);
         afterBarPositioned?.Invoke(bar);
     }
 
@@ -97,7 +100,7 @@ public sealed class DesktopStartup(
     /// </summary>
     private void StartMetrics(BarWindow bar)
     {
-        var relay = new MetricRelay(
+        var relay = new MetricRelay<DashboardState>(
             action => bar.Dispatcher.BeginInvoke(action),
             state => shutdown.TryPublish(() => bar.ShowMetrics(state)));
         monitor.Changed += (_, state) => relay.OnChanged(state);
@@ -110,6 +113,27 @@ public sealed class DesktopStartup(
                 TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         }
         record?.Invoke("metrics-started");
+    }
+
+    /// <summary>
+    /// Starts Codex polling after system metrics, on its own monitor, relay, and owner task, so a Codex failure or a
+    /// pending client never delays CPU, RAM, or GPU. Shutdown waits for the run, which ends only after the pending
+    /// client tree has exited or reached its termination deadline.
+    /// </summary>
+    private void StartCodex(BarWindow bar)
+    {
+        if (codex is null)
+        {
+            return;
+        }
+
+        var relay = new MetricRelay<CodexLimitState>(
+            action => bar.Dispatcher.BeginInvoke(action),
+            state => shutdown.TryPublish(() => bar.ShowCodex(state)));
+        codex.Changed += (_, state) => relay.OnChanged(state);
+        bar.ShowCodex(codex.Current);
+        shutdown.TrackOwner("codex-limits", codex.RunAsync(shutdown.Lifetime));
+        record?.Invoke("codex-started");
     }
 
     private static string LoadIssueMessage(SettingsLoadIssue issue) => issue switch

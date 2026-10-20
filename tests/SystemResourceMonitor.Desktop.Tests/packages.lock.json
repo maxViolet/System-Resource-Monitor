@@ -135,12 +135,16 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "systemresourcemonitor.airesources.core": {
+        "type": "Project"
+      },
       "systemresourcemonitor.core": {
         "type": "Project"
       },
       "systemresourcemonitor.desktop": {
         "type": "Project",
         "dependencies": {
+          "SystemResourceMonitor.AIResources.Core": "[1.0.0, )",
           "SystemResourceMonitor.Core": "[1.0.0, )"
         }
       },
