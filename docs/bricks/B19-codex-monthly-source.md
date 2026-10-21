@@ -9,7 +9,7 @@
 
 ## Why
 
-B010 did not qualify a monthly Codex window. A percentage or reset time cannot replace `month: TODO` until an authorized, non-consuming source proves what “monthly” means and supplies the complete value.
+B010 did not qualify a monthly Codex window. The bar cannot show a monthly percentage or reset time until an authorized, non-consuming source proves what “monthly” means and supplies the complete value.
 
 ## What done looks like
 

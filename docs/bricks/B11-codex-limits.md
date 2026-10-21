@@ -13,7 +13,7 @@ Once the source is qualified, the app can expose Codex limits without coupling p
 
 ## What done looks like
 
-The Codex section shows the qualified aggregate 5-hour and weekly used limits, the active 5-hour countdown, and `month: TODO` for the unqualified monthly window, as defined in ADR 0021. Its tooltip shows the exact qualified reset times and explains unavailable fields. Polling occurs once per minute without consuming usage. Sign-in failure is unavailable on the first failed poll; network failure may retain explicitly stale qualified values only until three minutes after the last success, then displays unavailable values without waiting for another poll.
+The Codex section shows the qualified aggregate 5-hour and weekly used limits, and the active 5-hour countdown, as defined in ADR 0021. The bar has no monthly field. Its tooltip shows the exact qualified reset times and explains unavailable fields. Polling occurs once per minute without consuming usage. Sign-in failure is unavailable on the first failed poll; network failure may retain explicitly stale qualified values only until three minutes after the last success, then displays unavailable values without waiting for another poll.
 
 ## Context
 
@@ -26,7 +26,7 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 ## Acceptance criteria
 
 - [ ] Parser tests cover both qualified window durations and reset times, `usedPercent` within 0–100, malformed/unknown output, and rejection of unqualified buckets or versions
-- [ ] Display tests cover the ADR 0021 format, `month: TODO`, the 0% 5-hour state without a countdown, active countdown boundaries, stale values, and unavailable values without clipping
+- [ ] Display tests cover the ADR 0021 format without a monthly field, the 0% 5-hour state without a countdown, active countdown boundaries, stale values, and unavailable values without clipping
 - [ ] Polls do not overlap; Codex failure never delays CPU, RAM, GPU, or Claude acquisition/expiry
 - [ ] Fake-time tests prove first-poll sign-in unavailability and independent three-minute network expiry without a later poll
 - [ ] Timeout and shutdown tests prove process-tree termination, confirmed exit inside the deadline, and no late publication
@@ -37,4 +37,4 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 
 ## Out of scope
 
-Claude is independent in B012/B013. Monthly-source qualification and delivery belong to B019/B020; B011 keeps `month: TODO`. Reading browser or credential state and calling undocumented endpoints remain prohibited.
+Claude is independent in B012/B013. Monthly-source qualification and delivery belong to B019/B020; B011 shows no monthly field. Reading browser or credential state and calling undocumented endpoints remain prohibited.
