@@ -2,8 +2,10 @@ using System.IO;
 
 using System.Windows;
 using SystemResourceMonitor.AIResources.Core.Codex;
+using SystemResourceMonitor.AIResources.Core.Claude;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Adapters.Codex;
+using SystemResourceMonitor.Desktop.Adapters.Claude;
 using SystemResourceMonitor.Desktop.Adapters.Metrics;
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Lifecycle;
@@ -42,8 +44,10 @@ public partial class App : Application
             var monitor = new MetricMonitor(new SystemTimesCpuSource(), new GlobalMemoryRamSource(), _gpu, TimeProvider.System);
             var codex = new CodexLimitMonitor(
                 new CodexAppServerSource(CodexClientLocator.ForCurrentUser(), TimeProvider.System), TimeProvider.System);
+            var claude = new ClaudeLimitMonitor(
+                new ClaudeUsageSource(ClaudeClientLocator.ForCurrentUser(), TimeProvider.System), TimeProvider.System);
             _startup = new DesktopStartup(DesktopStartup.ProductionGuardName, shutdown, settings, Dispatcher, monitor,
-                afterMetricRun: _gpu.Dispose, codex: codex);
+                afterMetricRun: _gpu.Dispose, codex: codex, claude: claude);
             await _startup.RunAsync();
         }
         catch (Exception)

@@ -71,6 +71,7 @@ _Avoid_: reset time, when meaning the relative countdown
 
 **Limit snapshot**:
 The remaining limits and reset times of all limit windows of one subscription, obtained in a single poll.
+For Claude Code `/usage`, a window at 0% used may omit its reset time; this is an explicit unknown reset, not an unavailable remaining limit.
 _Avoid_: subscription balance
 
 **Unqualified limit window**:
