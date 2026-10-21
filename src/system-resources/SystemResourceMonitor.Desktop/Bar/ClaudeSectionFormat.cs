@@ -9,7 +9,6 @@ namespace SystemResourceMonitor.Desktop.Bar;
 public static class ClaudeSectionFormat
 {
     private const string TimeFormat = "d MMM HH:mm";
-    private const string MonthExplanation = "Monthly limit: no qualified Claude monthly window.";
 
     public static MetricSection Format(ClaudeLimitState state, DateTimeOffset now, TimeZoneInfo zone)
     {
@@ -18,12 +17,12 @@ public static class ClaudeSectionFormat
         return state switch
         {
             ClaudeLimitsCurrent current => new MetricSection(Text("Claude:", current.Snapshot, now),
-                WithMonthExplanation(current.Snapshot, Windows(current.Snapshot, zone))),
+                Windows(current.Snapshot, zone)),
             ClaudeLimitsStale stale => new MetricSection(Text("Claude (stale):", stale.Snapshot, now),
                 $"Stale: Claude could not be reached. Last update {Local(stale.MeasuredAt, zone)}.\n"
-                + WithMonthExplanation(stale.Snapshot, Windows(stale.Snapshot, zone))),
-            ClaudeLimitsUnavailable unavailable => new MetricSection("Claude: [5h] -- | [W] -- | month: TODO",
-                Explain(unavailable.Reason) + "\n" + MonthExplanation),
+                + Windows(stale.Snapshot, zone)),
+            ClaudeLimitsUnavailable unavailable => new MetricSection("Claude: 5h -- | W --",
+                Explain(unavailable.Reason)),
             _ => throw new ArgumentOutOfRangeException(nameof(state)),
         };
     }
@@ -49,18 +48,16 @@ public static class ClaudeSectionFormat
         {
             foreach (var shortValue in new[] { "0%", "1% in 00:00", "100% in 99:59" })
             foreach (var week in new[] { "0%", "100%" })
-            foreach (var month in new[] { "TODO", "100%" })
-                yield return $"{label} [5h] {shortValue} | [W] {week} | month: {month}";
+                yield return $"{label} 5h {shortValue} | W {week}";
         }
-        yield return "Claude: [5h] -- | [W] -- | month: TODO";
+        yield return "Claude: 5h -- | W --";
     }
 
     private static string Text(string label, ClaudeLimitSnapshot snapshot, DateTimeOffset now)
     {
         var shortWindow = snapshot.ShortWindow;
         var shortText = shortWindow.UsedPercent == 0 ? "0%" : ShortText(shortWindow, now);
-        var month = snapshot.MonthlyWindow is { } monthly ? $"{monthly.UsedPercent}%" : "TODO";
-        return $"{label} [5h] {shortText} | [W] {snapshot.BindingWeeklyWindow.UsedPercent}% | month: {month}";
+        return $"{label} 5h {shortText} | W {snapshot.BindingWeeklyWindow.UsedPercent}%";
     }
 
     private static string ShortText(ClaudeLimitWindow window, DateTimeOffset now)
@@ -78,9 +75,6 @@ public static class ClaudeSectionFormat
         if (snapshot.MonthlyWindow is { } month) lines.Add(Window(month, zone));
         return string.Join("\n", lines);
     }
-
-    private static string WithMonthExplanation(ClaudeLimitSnapshot snapshot, string windows) =>
-        snapshot.MonthlyWindow is null ? windows + "\n" + MonthExplanation : windows;
 
     private static string Window(ClaudeLimitWindow window, TimeZoneInfo zone) =>
         window.ResetsAt is { } reset

@@ -29,7 +29,7 @@ Every stage ends in an observable result. Stages 3–4 are independent tracks af
 | 6. Public distribution | A clean-profile package passes the public-release checks and has authenticated payload provenance. |
 | 7. Task strip | The bar shows a task button for each task on every monitor and a clock, while the Windows taskbar stays reachable. |
 | 8. Taskbar replacement | The bar shows every tray icon and its own volume, network, and battery indicators; the Windows taskbar is hidden while the bar runs and restored on every handled exit, or the feasibility gate rejects the phase. |
-| 9. Codex monthly track | An allowed source is accepted or rejected with evidence; when accepted, the bar replaces `month: TODO` with the qualified monthly used limit and reset information. |
+| 9. Codex monthly track | An allowed source is accepted or rejected with evidence; when accepted, the bar adds the qualified monthly used limit and reset information. |
 
 B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, B014–B020 never retroactively block an accepted B007 release.
 
@@ -37,7 +37,7 @@ Bundling an official Codex client is an [unscheduled post-release candidate](../
 
 On 2026-10-20, B011 and B012 exchanged assignments: B011 now owns Codex display and B012 qualifies Claude. [DOC-020's dated Codex report](../research/providers/codex-2026-10-19.md) and earlier acceptance reports retain their original brick numbers as historical evidence; use this roadmap for current dependencies.
 
-B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-limit). B019 qualifies or rejects an allowed source without changing production code. Only acceptance unblocks B020; rejection leaves B011's `month: TODO` unchanged.
+B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-limit). B019 qualifies or rejects an allowed source without changing production code. Only acceptance unblocks B020; rejection leaves B011 without a monthly field.
 
 ## Brick table
 

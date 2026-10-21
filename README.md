@@ -1,6 +1,6 @@
 # System Resource Monitor
 
-System Resource Monitor reserves a thin strip at the top or bottom of the primary monitor and shows the current CPU load, physical memory use, and the remaining limits of your Codex subscription. Windows keeps maximized windows out of the strip, as it does for the taskbar.
+System Resource Monitor reserves a thin strip at the top or bottom of the primary monitor and shows the current CPU load, physical memory use, and how much of your Codex subscription limits is used. Windows keeps maximized windows out of the strip, as it does for the taskbar.
 
 This release has no installer and does not start with Windows.
 
@@ -38,17 +38,18 @@ The other section keeps updating while one section shows a dash.
 
 ## Read the Codex section
 
-The Codex section reads your remaining Codex limits through the official standalone Codex client, version 0.159.0, with the login that client already has. The app never reads the client's login files and never contacts OpenAI itself. It asks the client once per minute; a request does not use any of your limits.
+The Codex section reads your used Codex limits through the official standalone Codex client, version 0.159.0, with the login that client already has. The app never reads the client's login files and never contacts OpenAI itself. It asks the client once per minute; a request does not use any of your limits.
 
-`Codex: 5H - 73% in 01 42 | W 96% | month: --` means:
+`Codex: 5h 27% in 01:42 | W 4%` means:
 
-- `5H - 73%`: 73 % of the 5-hour limit is left. `in 01 42` is the time until that limit resets, in hours and minutes, rounded up to the next minute. While the 5-hour window is unused (`5H - 100%`), no countdown is shown, because the window starts only with your next use.
-- `W 96%`: 96 % of the weekly limit is left.
-- `month: --`: the Codex client reports no monthly limit, so there is no monthly value. It does not mean zero.
+- `5h 27%`: 27 % of the 5-hour limit is used. `in 01:42` is the time until that limit resets, in hours and minutes, rounded up to the next minute. While the 5-hour window is unused (`5h 0%`), no countdown is shown, because the window starts only with your next use.
+- `W 4%`: 4 % of the weekly limit is used.
+
+The Codex client reports no monthly limit, so the section has no monthly value.
 
 Hover over the section for the exact local reset times.
 
-If the client cannot reach its usage service, the section shows the last values as `Codex (stale): …` for up to three minutes after the last successful reading. After that, and for any other problem, it shows `Codex: 5H - -- | W -- | month: --`. Hover over it for the reason:
+If the client cannot reach its usage service, the section shows the last values as `Codex (stale): …` for up to three minutes after the last successful reading. After that, and for any other problem, it shows `Codex: 5h -- | W --`. Hover over it for the reason:
 
 | Tooltip | Meaning |
 |---|---|

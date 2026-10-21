@@ -21,8 +21,8 @@ Status: in progress. This package implements [B011 — Codex limits](../B11-code
 
 ### 3. Present qualified values
 
-- Render the aggregate bucket as `Codex: [5h] 24% in HH:mm | [W] 67% | month: TODO` using the actual `usedPercent` values ([ADR 0021](../../adr/0021-used-limit-display.md)), only after validating the accepted 0–100 input. Derive `HH:mm` from the 300-minute `resetsAt` and the current time when 5-hour used is above 0%; round up to the next whole minute so a positive remainder never displays `00:00`. At 0%, render `[5h] 0%` without `in HH:mm`, even if `resetsAt` exists.
-- Keep `month: TODO` visible and explain in the tooltip that B010 did not qualify a monthly window. An unavailable snapshot renders `Codex: [5h] -- | [W] -- | month: TODO`. Show the exact local reset times for the qualified 5-hour and weekly windows in the tooltip, with a clear stale or unavailable explanation where needed. Do not invent a monthly or per-model percentage. Size the section for 0%, 100%, active countdown, `month: TODO`, and unavailable states at 100%, 150%, and 200% scaling.
+- Render the aggregate bucket as `Codex: 5h 24% in HH:mm | W 67%` using the actual `usedPercent` values ([ADR 0021](../../adr/0021-used-limit-display.md)), only after validating the accepted 0–100 input. Derive `HH:mm` from the 300-minute `resetsAt` and the current time when 5-hour used is above 0%; round up to the next whole minute so a positive remainder never displays `00:00`. At 0%, render `5h 0%` without `in HH:mm`, even if `resetsAt` exists.
+- Show no monthly field; B010 did not qualify a monthly window. An unavailable snapshot renders `Codex: 5h -- | W --`. Show the exact local reset times for the qualified 5-hour and weekly windows in the tooltip, with a clear stale or unavailable explanation where needed. Do not invent a monthly or per-model percentage. Size the section for 0%, 100%, active countdown, stale, and unavailable states at 100%, 150%, and 200% scaling.
 
 **Gate:** view-model and rendering checks prove the format, countdown boundary, 100% behavior, tooltip meaning, unqualified month, and no clipping; an unknown source never produces a percentage.
 

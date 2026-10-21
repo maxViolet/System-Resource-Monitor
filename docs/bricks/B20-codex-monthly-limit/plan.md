@@ -24,7 +24,7 @@ Status: planned and conditional on B019 acceptance. This package implements [B02
 
 ### 3. Replace the placeholder presentation
 
-- Replace `month: TODO` with the ADR-defined qualified monthly used limit only while it is current or explicitly stale under the accepted policy.
+- Add the ADR-defined qualified monthly used limit to the bar only while it is current or explicitly stale under the accepted policy.
 - Keep the exact monthly reset and window meaning in the tooltip. Preserve the existing 5-hour countdown and weekly value.
 - Cover 0%, 100%, unavailable, stale, reset boundaries, and the longest accepted text at 100%, 150%, and 200% scaling.
 

@@ -6,8 +6,7 @@ namespace SystemResourceMonitor.Desktop.Tests;
 
 public sealed class CodexSectionFormatTests
 {
-    private const string Month = "Monthly limit: not available; the qualified Codex source has no monthly window.";
-    private const string UnavailableText = "Codex: [5h] -- | [W] -- | month: TODO";
+    private const string UnavailableText = "Codex: 5h -- | W --";
 
     private static readonly DateTimeOffset Now = new(2026, 10, 20, 10, 0, 0, TimeSpan.Zero);
 
@@ -36,9 +35,9 @@ public sealed class CodexSectionFormatTests
     {
         var section = CodexSectionFormat.Format(Current(27, Now + new TimeSpan(1, 41, 30), 4), Now, Plus5);
 
-        Assert.Equal("Codex: [5h] 27% in 01:42 | [W] 4% | month: TODO", section.Text);
+        Assert.Equal("Codex: 5h 27% in 01:42 | W 4%", section.Text);
         Assert.Equal(
-            "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.\n" + Month,
+            "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
             section.ToolTip);
     }
 
@@ -47,7 +46,7 @@ public sealed class CodexSectionFormatTests
     {
         var section = CodexSectionFormat.Format(Current(100, Now + TimeSpan.FromMinutes(3), 0), Now, Plus5);
 
-        Assert.Equal("Codex: [5h] 100% in 00:03 | [W] 0% | month: TODO", section.Text);
+        Assert.Equal("Codex: 5h 100% in 00:03 | W 0%", section.Text);
     }
 
     [Fact]
@@ -57,9 +56,9 @@ public sealed class CodexSectionFormatTests
 
         var section = CodexSectionFormat.Format(state, Now, Plus5);
 
-        Assert.Equal("Codex: [5h] 0% | [W] 4% | month: TODO", section.Text);
+        Assert.Equal("Codex: 5h 0% | W 4%", section.Text);
         Assert.Equal(
-            "5-hour limit: 0% used; the window starts with the next use.\nWeekly limit: 4% used, resets 25 Oct 02:30.\n" + Month,
+            "5-hour limit: 0% used; the window starts with the next use.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
             section.ToolTip);
         Assert.Null(CodexSectionFormat.UntilCountdownChanges(state, Now));
     }
@@ -74,10 +73,10 @@ public sealed class CodexSectionFormatTests
 
         var section = CodexSectionFormat.Format(state, Now, Plus5);
 
-        Assert.Equal("Codex (stale): [5h] 27% in 01:42 | [W] 4% | month: TODO", section.Text);
+        Assert.Equal("Codex (stale): 5h 27% in 01:42 | W 4%", section.Text);
         Assert.Equal(
             "Stale: the Codex usage service could not be reached. Last update 20 Oct 14:59; these values are dropped at 20 Oct 15:02.\n"
-            + "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.\n" + Month,
+            + "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
             section.ToolTip);
     }
 
@@ -86,12 +85,12 @@ public sealed class CodexSectionFormatTests
     {
         var state = new CodexLimitsStale(Snapshot(0, Now + TimeSpan.FromMinutes(10), 50), Now, 0);
 
-        Assert.Equal("Codex (stale): [5h] 0% | [W] 50% | month: TODO", CodexSectionFormat.Format(state, Now, Plus5).Text);
+        Assert.Equal("Codex (stale): 5h 0% | W 50%", CodexSectionFormat.Format(state, Now, Plus5).Text);
         Assert.Null(CodexSectionFormat.UntilCountdownChanges(state, Now));
     }
 
     [Fact]
-    public void Every_unavailable_reason_shows_dashes_and_its_safe_explanation_with_the_monthly_line()
+    public void Every_unavailable_reason_shows_dashes_and_its_safe_explanation()
     {
         var reasons = Enum.GetValues<CodexUnavailableReason>();
         Assert.Equal(reasons.Length, Explanations.Count);
@@ -103,7 +102,7 @@ public sealed class CodexSectionFormatTests
             var section = CodexSectionFormat.Format(state, Now, Plus5);
 
             Assert.Equal(UnavailableText, section.Text);
-            Assert.Equal(Explanations[reason] + "\n" + Month, section.ToolTip);
+            Assert.Equal(Explanations[reason], section.ToolTip);
             Assert.Null(CodexSectionFormat.UntilCountdownChanges(state, Now));
         }
     }
@@ -129,7 +128,7 @@ public sealed class CodexSectionFormatTests
     {
         var section = CodexSectionFormat.Format(Current(27, Now + TimeSpan.FromTicks(remainderTicks), 4), Now, Plus5);
 
-        Assert.Equal($"Codex: [5h] 27% in {countdown} | [W] 4% | month: TODO", section.Text);
+        Assert.Equal($"Codex: 5h 27% in {countdown} | W 4%", section.Text);
     }
 
     [Theory]
@@ -174,15 +173,15 @@ public sealed class CodexSectionFormatTests
         try
         {
             var section = CodexSectionFormat.Format(state, Now, Plus5);
-            Assert.Equal("Codex: [5h] 27% in 01:42 | [W] 4% | month: TODO", section.Text);
+            Assert.Equal("Codex: 5h 27% in 01:42 | W 4%", section.Text);
             Assert.Equal(
-                "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.\n" + Month,
+                "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
                 section.ToolTip);
             Assert.StartsWith(
                 "Stale: the Codex usage service could not be reached. Last update 20 Oct 14:59; these values are dropped at 20 Oct 15:02.\n",
                 CodexSectionFormat.Format(stale, Now, Plus5).ToolTip);
             Assert.Equal(
-                "No Codex update for 3 minutes.\n" + Month,
+                "No Codex update for 3 minutes.",
                 CodexSectionFormat.Format(new CodexLimitsUnavailable(CodexUnavailableReason.Expired), Now, Plus5).ToolTip);
         }
         finally
