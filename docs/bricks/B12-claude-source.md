@@ -9,7 +9,7 @@
 
 ## Why
 
-Claude remaining limits may be shown only from an authorized, non-consuming, automatable source. Its source and failure behavior must be proven independently of Codex.
+Claude limits may be shown only from an authorized, non-consuming, automatable source. Its source and failure behavior must be proven independently of Codex.
 
 ## What done looks like
 

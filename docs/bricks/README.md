@@ -22,14 +22,14 @@ Every stage ends in an observable result. Stages 3–4 are independent tracks af
 |---|---|
 | 0. Runnable foundation | The solution builds, the architecture boundary is enforced, and the test host is ready to host lifecycle components introduced by later bricks. |
 | 1. Placement feasibility | An empty bar reliably reserves the primary monitor's edge, survives shell/display/fullscreen scenarios, and restores work area on exit. |
-| 2. First personal release (v1) | A self-contained Windows 11 x64 folder shows trustworthy CPU load, RAM usage, and remaining limits and reset times for each qualified Codex or Claude source, and passes every first-release gate. |
+| 2. First personal release (v1) | A self-contained Windows 11 x64 folder shows trustworthy CPU load, RAM usage, and used limits and reset times for each qualified Codex or Claude source, and passes every first-release gate. |
 | 3. GPU track | The selected adapter's GPU load is shown only when adapter/counter correlation is proven. |
 | 4. Installation track | Per-user install, optional autostart, upgrade, and uninstall work without elevating the bar. |
 | 5. Temperature track | A safe source is either accepted and exposed as temperature readings, or rejected with evidence; the bar remains unelevated. |
 | 6. Public distribution | A clean-profile package passes the public-release checks and has authenticated payload provenance. |
 | 7. Task strip | The bar shows a task button for each task on every monitor and a clock, while the Windows taskbar stays reachable. |
 | 8. Taskbar replacement | The bar shows every tray icon and its own volume, network, and battery indicators; the Windows taskbar is hidden while the bar runs and restored on every handled exit, or the feasibility gate rejects the phase. |
-| 9. Codex monthly track | An allowed source is accepted or rejected with evidence; when accepted, the bar replaces `month: --` with the qualified monthly value and reset information. |
+| 9. Codex monthly track | An allowed source is accepted or rejected with evidence; when accepted, the bar replaces `month: TODO` with the qualified monthly used limit and reset information. |
 
 B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, B014–B020 never retroactively block an accepted B007 release.
 
@@ -37,7 +37,7 @@ Bundling an official Codex client is an [unscheduled post-release candidate](../
 
 On 2026-10-20, B011 and B012 exchanged assignments: B011 now owns Codex display and B012 qualifies Claude. [DOC-020's dated Codex report](../research/providers/codex-2026-10-19.md) and earlier acceptance reports retain their original brick numbers as historical evidence; use this roadmap for current dependencies.
 
-B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-limit). B019 qualifies or rejects an allowed source without changing production code. Only acceptance unblocks B020; rejection leaves B011's `month: --` unchanged.
+B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-limit). B019 qualifies or rejects an allowed source without changing production code. Only acceptance unblocks B020; rejection leaves B011's `month: TODO` unchanged.
 
 ## Brick table
 
@@ -53,9 +53,9 @@ B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-li
 | B005 | [Independent metric monitoring](B05-metric-monitoring/README.md) | Core | B004 |
 | B006 | [CPU/RAM sources and bar presentation](B06-cpu-ram-presentation/README.md) | Core + Desktop | B005 |
 | B010 | [Qualify a Codex limit source](B10-codex-source/README.md) | Research | B004 |
-| B011 | [Codex remaining limits](B11-codex-limits/README.md) | Core + Desktop | B006; B010 accepted |
+| B011 | [Codex limits](B11-codex-limits/README.md) | Core + Desktop | B006; B010 accepted |
 | B012 | [Qualify a Claude limit source](B12-claude-source/README.md) | Research | B004 |
-| B013 | [Claude remaining limits](B13-claude-limits/README.md) | Core + Desktop | B006; B012 accepted |
+| B013 | [Claude limits](B13-claude-limits/README.md) | Core + Desktop | B006; B012 accepted |
 | B007 | [First-release evidence and self-contained publication](B07-first-release/README.md) | Release | B006; B010/B012 accepted/rejected; B011/B013 done/not applicable |
 | **Stage 3 — GPU track** ||||
 | B008 | [GPU adapter selection, correlation, and display](B08-gpu/README.md) | Core + Desktop | B007 |
@@ -72,7 +72,7 @@ B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-li
 | B018 | [Own tray, shell indicators, and hidden Windows taskbar](B18-taskbar-replacement/README.md) | Desktop + acceptance | B017 |
 | **Stage 9 — Codex monthly track** ||||
 | B019 | [Qualify a Codex monthly limit source](B19-codex-monthly-source/README.md) | Research | B007 done; B010 accepted |
-| B020 | [Codex monthly remaining limit](B20-codex-monthly-limit/README.md) | Core + Desktop | B011 done; B019 accepted |
+| B020 | [Codex monthly limit](B20-codex-monthly-limit/README.md) | Core + Desktop | B011 done; B019 accepted |
 
 `Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. Rejected B010, B012, B014, or B019 makes B011, B013, B015, or B020 respectively `not applicable`; rejected B018 closes the taskbar-replacement track.
 

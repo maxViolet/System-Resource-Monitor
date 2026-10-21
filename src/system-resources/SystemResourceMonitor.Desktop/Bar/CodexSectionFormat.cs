@@ -4,14 +4,18 @@ using SystemResourceMonitor.AIResources.Core.Codex;
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// Maps a <see cref="CodexLimitState"/> to the Codex bar section of ADR 0015 with invariant culture:
-/// <c>Codex: 5H - 76% in HH MM | W 33% | month: --</c>. Only the qualified aggregate 5-hour and weekly windows show
-/// values; the monthly field is always <c>--</c>. Tooltips never carry exception text, error codes, or account data.
+/// Maps a <see cref="CodexLimitState"/> to the Codex bar section of ADR 0021 with invariant culture:
+/// <c>Codex: [5h] 24% in HH:mm | [W] 67% | month: TODO</c>, where each share is the used share. Only the qualified
+/// aggregate 5-hour and weekly windows show values; the monthly field is always <c>TODO</c>. Tooltips never carry
+/// exception text, error codes, or account data.
 /// </summary>
 public static class CodexSectionFormat
 {
-    /// <summary>The value of an unavailable or unqualified field.</summary>
+    /// <summary>The value of an unavailable field.</summary>
     public const string Unavailable = "--";
+
+    /// <summary>The value of the unqualified monthly field; it never means zero.</summary>
+    public const string Unqualified = "TODO";
 
     private const string Label = "Codex:";
     private const string StaleLabel = "Codex (stale):";
@@ -56,7 +60,7 @@ public static class CodexSectionFormat
             CodexLimitsStale stale => stale.Snapshot,
             _ => null,
         };
-        if (snapshot is null || snapshot.ShortWindow.RemainingPercent >= 100)
+        if (snapshot is null || snapshot.ShortWindow.UsedPercent == 0)
         {
             return null;
         }
@@ -72,8 +76,8 @@ public static class CodexSectionFormat
     }
 
     /// <summary>
-    /// Every text width class the section can show: both labels, one- and two-digit shares with a countdown,
-    /// 100 % without one, every weekly width, each digit, and the unavailable text.
+    /// Every text width class the section can show: both labels, one-, two-, and three-digit shares with a countdown,
+    /// 0 % without one, every weekly width, each digit, and the unavailable text.
     /// </summary>
     public static IEnumerable<string> WidthCandidates()
     {
@@ -83,7 +87,7 @@ public static class CodexSectionFormat
             {
                 var one = digit.ToString();
                 var two = new string(digit, 2);
-                foreach (var shortWindow in (string[])[$"{one}% in {two} {two}", $"{two}% in {two} {two}", "100%"])
+                foreach (var shortWindow in (string[])[$"{one}% in {two}:{two}", $"{two}% in {two}:{two}", $"100% in {two}:{two}", "0%"])
                 {
                     foreach (var weekly in (string[])[one, two, "100"])
                     {
@@ -116,35 +120,35 @@ public static class CodexSectionFormat
     private static string Text(string label, CodexLimitSnapshot snapshot, DateTimeOffset now)
     {
         var shortWindow = snapshot.ShortWindow;
-        var weekly = string.Create(CultureInfo.InvariantCulture, $"{snapshot.WeeklyWindow.RemainingPercent}%");
-        if (shortWindow.RemainingPercent >= 100)
+        var weekly = string.Create(CultureInfo.InvariantCulture, $"{snapshot.WeeklyWindow.UsedPercent}%");
+        if (shortWindow.UsedPercent == 0)
         {
             // The unused window's reset time slides with each poll, so it has no countdown.
-            return Compose(label, "100%", weekly);
+            return Compose(label, "0%", weekly);
         }
 
         // A qualified 5-hour reset is at most 300 minutes away; the clamp only keeps an outlier inside two-digit hours.
         var minutes = Math.Min(CountdownMinutes(shortWindow.ResetsAt - now), (99 * 60) + 59);
         return Compose(label, string.Create(CultureInfo.InvariantCulture,
-            $"{shortWindow.RemainingPercent}% in {minutes / 60:00} {minutes % 60:00}"), weekly);
+            $"{shortWindow.UsedPercent}% in {minutes / 60:00}:{minutes % 60:00}"), weekly);
     }
 
-    /// <summary>The one section layout; the monthly field is always unavailable.</summary>
+    /// <summary>The one section layout; the monthly field is always unqualified.</summary>
     private static string Compose(string label, string shortWindow, string weekly) =>
-        $"{label} 5H - {shortWindow} | W {weekly} | month: {Unavailable}";
+        $"{label} [5h] {shortWindow} | [W] {weekly} | month: {Unqualified}";
 
     private static string Windows(CodexLimitSnapshot snapshot, TimeZoneInfo zone)
     {
         var shortWindow = snapshot.ShortWindow;
-        var shortLine = shortWindow.RemainingPercent >= 100
-            ? "5-hour limit: 100% left; the window starts with the next use."
+        var shortLine = shortWindow.UsedPercent == 0
+            ? "5-hour limit: 0% used; the window starts with the next use."
             : string.Create(CultureInfo.InvariantCulture,
-                $"5-hour limit: {shortWindow.RemainingPercent}% left, resets {Local(shortWindow.ResetsAt, zone)}.");
+                $"5-hour limit: {shortWindow.UsedPercent}% used, resets {Local(shortWindow.ResetsAt, zone)}.");
         return string.Create(CultureInfo.InvariantCulture,
-            $"{shortLine}\nWeekly limit: {snapshot.WeeklyWindow.RemainingPercent}% left, resets {Local(snapshot.WeeklyWindow.ResetsAt, zone)}.");
+            $"{shortLine}\nWeekly limit: {snapshot.WeeklyWindow.UsedPercent}% used, resets {Local(snapshot.WeeklyWindow.ResetsAt, zone)}.");
     }
 
-    /// <summary>Whole minutes rounded up, so a positive remainder never shows <c>00 00</c>; a passed reset shows zero.</summary>
+    /// <summary>Whole minutes rounded up, so a positive remainder never shows <c>00:00</c>; a passed reset shows zero.</summary>
     private static long CountdownMinutes(TimeSpan remaining) =>
         remaining <= TimeSpan.Zero ? 0 : (remaining.Ticks + TimeSpan.TicksPerMinute - 1) / TimeSpan.TicksPerMinute;
 

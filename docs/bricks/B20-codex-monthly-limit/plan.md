@@ -1,6 +1,6 @@
 # B020 implementation plan for coding agents
 
-Status: planned and conditional on B019 acceptance. This package implements [B020 — Codex monthly remaining limit](../B20-codex-monthly-limit.md). Read the accepted B019 report, [product plan — Codex monthly limit](../../plan.md#codex-monthly-limit), [implementation plan — Codex monthly limit](../../implementation-plan.md#codex-monthly-limit), [provider adapter requirements](../../implementation-plan.md#provider-adapters), [ADR 0015](../../adr/0015-codex-limit-display-from-qualified-windows.md), the full [B011 package](../B11-codex-limits/README.md), and [CONTEXT language](../../../CONTEXT.md#language). The brief's acceptance criteria and out-of-scope section are binding.
+Status: planned and conditional on B019 acceptance. This package implements [B020 — Codex monthly limit](../B20-codex-monthly-limit.md). Read the accepted B019 report, [product plan — Codex monthly limit](../../plan.md#codex-monthly-limit), [implementation plan — Codex monthly limit](../../implementation-plan.md#codex-monthly-limit), [provider adapter requirements](../../implementation-plan.md#provider-adapters), [ADR 0015](../../adr/0015-codex-limit-display-from-qualified-windows.md), [ADR 0021](../../adr/0021-used-limit-display.md), the full [B011 package](../B11-codex-limits/README.md), and [CONTEXT language](../../../CONTEXT.md#language). The brief's acceptance criteria and out-of-scope section are binding.
 
 ## Ordered work and gates
 
@@ -8,7 +8,7 @@ Status: planned and conditional on B019 acceptance. This package implements [B02
 
 - Confirm B011 is `done` and B019 is `accepted`; otherwise do not implement B020.
 - Copy no raw account output into the repository. Convert only the sanitized accepted shape into fixtures.
-- Create a new ADR that supersedes ADR 0015's monthly placeholder decision. Record whether monthly data shares B011's poll, replaces the qualified client version, or uses an independent source; define display text, reset meaning, freshness, partial failure, and migration behavior.
+- Create a new ADR that supersedes ADR 0021's monthly placeholder decision. Record whether monthly data shares B011's poll, replaces the qualified client version, or uses an independent source; define display text, reset meaning, freshness, partial failure, and migration behavior.
 - If a newer client is required, requalify trusted resolution, Authenticode identity, installation layout, and the existing 5-hour and weekly contract before changing production code.
 
 **Gate:** the ADR and tests can name one exact source contract, with no inferred values or unresolved source alternatives.
@@ -18,13 +18,13 @@ Status: planned and conditional on B019 acceptance. This package implements [B02
 - Represent monthly semantics explicitly; do not overload the 10080-minute weekly window or infer a duration.
 - Parse only the accepted identifier, shape, precision, reset format, and client version. Preserve B011's limits on bytes, lines, messages, depth, timeout, and process-tree ownership.
 - Share acquisition only when B019 and the ADR prove one request returns all windows under the same failure boundary. Otherwise poll the monthly source independently and preserve valid 5-hour and weekly state when monthly acquisition fails.
-- Apply the accepted used-to-remaining rounding rule before display. Missing monthly data is unavailable, never zero.
+- Display the monthly used limit under the accepted rounding rule, as ADR 0021 requires. Missing monthly data is unavailable, never zero.
 
 **Gate:** deterministic parser, state, no-overlap, partial-failure, timeout/path-failure, cancellation, and expiry tests pass without weakening B011 coverage.
 
 ### 3. Replace the placeholder presentation
 
-- Replace `month: --` with the ADR-defined qualified monthly value only while it is current or explicitly stale under the accepted policy.
+- Replace `month: TODO` with the ADR-defined qualified monthly used limit only while it is current or explicitly stale under the accepted policy.
 - Keep the exact monthly reset and window meaning in the tooltip. Preserve the existing 5-hour countdown and weekly value.
 - Cover 0%, 100%, unavailable, stale, reset boundaries, and the longest accepted text at 100%, 150%, and 200% scaling.
 

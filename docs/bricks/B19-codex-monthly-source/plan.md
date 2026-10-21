@@ -4,7 +4,7 @@ Status: planned. This package implements [B019 — Qualify a Codex monthly limit
 
 ## Outcome and handoff
 
-Close B019 as `accepted` or `rejected` with one dated, sanitized report at `docs/research/providers/codex-monthly-<YYYY-MM-DD>.md`. B019 adds no production code, tests, fixtures, or interfaces under `src/` or `tests/`. An accepted report is B020's source contract. A rejected report makes B020 `not applicable` and leaves `month: --` unchanged.
+Close B019 as `accepted` or `rejected` with one dated, sanitized report at `docs/research/providers/codex-monthly-<YYYY-MM-DD>.md`. B019 adds no production code, tests, fixtures, or interfaces under `src/` or `tests/`. An accepted report is B020's source contract. A rejected report makes B020 `not applicable` and leaves `month: TODO` unchanged.
 
 ## Rules for every step
 
@@ -42,7 +42,7 @@ Record credential files, browser state, session transcripts, direct endpoints, a
 
 - Prove two consecutive fresh polls return the monthly value and reset time without model work.
 - Establish whether the window is rolling, calendar-based, fixed-duration, or provider-named; record its identifier, units, timezone, precision, and reset behavior.
-- Compare the same poll with the official client display. If the source returns used share, determine the official rounding before computing remaining share.
+- Compare the same poll with the official client display. If the source returns only the remaining share, determine the official rounding before computing the used share that ADR 0021 displays.
 - Exercise signed-out, network-failure, absent-monthly, and malformed/unknown responses without touching the live login.
 - Run ten polls at B011's one-minute interval with no other Codex activity. Verify unchanged limits away from a reset and no new sessions or equivalent usage.
 - Record whether the monthly read can be added to B011's existing request and process, requires a replacement qualified client version, or requires an independent source. Recheck the 5-hour and weekly contract when the client or request changes.
@@ -65,4 +65,4 @@ If acceptance leaves meaningful alternatives for source composition, version mig
 
 ## Boundary for B020
 
-B020 owns the production contract, source composition, parsing, polling and freshness, replacement of `month: --`, desktop evidence, and affected resource gates. It must record a new ADR before code when the accepted monthly contract changes ADR 0015's display or source decision.
+B020 owns the production contract, source composition, parsing, polling and freshness, replacement of `month: TODO`, desktop evidence, and affected resource gates. It must record a new ADR before code when the accepted monthly contract changes ADR 0015's source decision or ADR 0021's display decision.

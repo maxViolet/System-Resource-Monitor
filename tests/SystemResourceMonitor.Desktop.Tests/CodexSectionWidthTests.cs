@@ -53,8 +53,8 @@ public sealed class CodexSectionWidthTests
             texts.Add(CodexSectionFormat.Format(new CodexLimitsUnavailable(reason), Now, TimeZoneInfo.Utc).Text);
         }
 
-        Assert.Contains("Codex: 5H - 1% in 04 59 | W 100% | month: --", texts);
-        Assert.Contains("Codex (stale): 5H - 100% | W 0% | month: --", texts);
+        Assert.Contains("Codex: [5h] 99% in 04:59 | [W] 0% | month: TODO", texts);
+        Assert.Contains("Codex (stale): [5h] 0% | [W] 100% | month: TODO", texts);
         return texts;
     }
 

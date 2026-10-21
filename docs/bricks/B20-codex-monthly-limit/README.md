@@ -1,4 +1,4 @@
-# Codex monthly remaining limit package
+# Codex monthly limit package
 
 - [Brick brief](../B20-codex-monthly-limit.md): scope, dependencies, acceptance criteria, and exclusions.
 - [Implementation plan](plan.md): ADR, implementation, migration, and acceptance order after B019 succeeds.

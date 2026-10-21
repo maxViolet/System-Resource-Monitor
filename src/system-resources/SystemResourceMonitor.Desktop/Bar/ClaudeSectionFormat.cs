@@ -3,7 +3,9 @@ using SystemResourceMonitor.AIResources.Core.Claude;
 
 namespace SystemResourceMonitor.Desktop.Bar;
 
-/// <summary>Formats the independent Claude section and every observed weekly window.</summary>
+/// <summary>
+/// Formats the independent Claude section of ADR 0021 and every observed weekly window; each share is the used share.
+/// </summary>
 public static class ClaudeSectionFormat
 {
     private const string TimeFormat = "d MMM HH:mm";
@@ -20,7 +22,7 @@ public static class ClaudeSectionFormat
             ClaudeLimitsStale stale => new MetricSection(Text("Claude (stale):", stale.Snapshot, now),
                 $"Stale: Claude could not be reached. Last update {Local(stale.MeasuredAt, zone)}.\n"
                 + WithMonthExplanation(stale.Snapshot, Windows(stale.Snapshot, zone))),
-            ClaudeLimitsUnavailable unavailable => new MetricSection("Claude: 5H - -- | W -- | month: --",
+            ClaudeLimitsUnavailable unavailable => new MetricSection("Claude: [5h] -- | [W] -- | month: TODO",
                 Explain(unavailable.Reason) + "\n" + MonthExplanation),
             _ => throw new ArgumentOutOfRangeException(nameof(state)),
         };
@@ -34,7 +36,7 @@ public static class ClaudeSectionFormat
             ClaudeLimitsStale stale => stale.Snapshot,
             _ => null,
         };
-        if (snapshot?.ShortWindow.ResetsAt is not { } reset || snapshot.ShortWindow.RemainingPercent == 100)
+        if (snapshot?.ShortWindow.ResetsAt is not { } reset || snapshot.ShortWindow.UsedPercent == 0)
             return null;
         var remaining = reset - now;
         if (remaining <= TimeSpan.Zero) return null;
@@ -45,28 +47,28 @@ public static class ClaudeSectionFormat
     {
         foreach (var label in new[] { "Claude:", "Claude (stale):" })
         {
-            foreach (var shortValue in new[] { "100%", "0% in 00 00", "99% in 99 59" })
+            foreach (var shortValue in new[] { "0%", "1% in 00:00", "100% in 99:59" })
             foreach (var week in new[] { "0%", "100%" })
-            foreach (var month in new[] { "--", "100%" })
-                yield return $"{label} 5H - {shortValue} | W {week} | month: {month}";
+            foreach (var month in new[] { "TODO", "100%" })
+                yield return $"{label} [5h] {shortValue} | [W] {week} | month: {month}";
         }
-        yield return "Claude: 5H - -- | W -- | month: --";
+        yield return "Claude: [5h] -- | [W] -- | month: TODO";
     }
 
     private static string Text(string label, ClaudeLimitSnapshot snapshot, DateTimeOffset now)
     {
         var shortWindow = snapshot.ShortWindow;
-        var shortText = shortWindow.RemainingPercent == 100 ? "100%" : ShortText(shortWindow, now);
-        var month = snapshot.MonthlyWindow is { } monthly ? $"{monthly.RemainingPercent}%" : "--";
-        return $"{label} 5H - {shortText} | W {snapshot.BindingWeeklyWindow.RemainingPercent}% | month: {month}";
+        var shortText = shortWindow.UsedPercent == 0 ? "0%" : ShortText(shortWindow, now);
+        var month = snapshot.MonthlyWindow is { } monthly ? $"{monthly.UsedPercent}%" : "TODO";
+        return $"{label} [5h] {shortText} | [W] {snapshot.BindingWeeklyWindow.UsedPercent}% | month: {month}";
     }
 
     private static string ShortText(ClaudeLimitWindow window, DateTimeOffset now)
     {
-        if (window.ResetsAt is not { } reset) return $"{window.RemainingPercent}%";
+        if (window.ResetsAt is not { } reset) return $"{window.UsedPercent}%";
         var minutes = Math.Min(CountdownMinutes(reset - now), 99 * 60 + 59);
         return string.Create(CultureInfo.InvariantCulture,
-            $"{window.RemainingPercent}% in {minutes / 60:00} {minutes % 60:00}");
+            $"{window.UsedPercent}% in {minutes / 60:00}:{minutes % 60:00}");
     }
 
     private static string Windows(ClaudeLimitSnapshot snapshot, TimeZoneInfo zone)
@@ -82,8 +84,8 @@ public static class ClaudeSectionFormat
 
     private static string Window(ClaudeLimitWindow window, TimeZoneInfo zone) =>
         window.ResetsAt is { } reset
-            ? $"{window.Label}: {window.RemainingPercent}% left, resets {Local(reset, zone)} (minute precision)."
-            : $"{window.Label}: {window.RemainingPercent}% left; reset time is not shown by Claude Code.";
+            ? $"{window.Label}: {window.UsedPercent}% used, resets {Local(reset, zone)} (minute precision)."
+            : $"{window.Label}: {window.UsedPercent}% used; reset time is not shown by Claude Code.";
 
     private static string Explain(ClaudeUnavailableReason reason) => reason switch
     {
