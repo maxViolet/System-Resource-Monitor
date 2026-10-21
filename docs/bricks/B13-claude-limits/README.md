@@ -1,4 +1,4 @@
-# Claude remaining limits package
+# Claude limits package
 
 - [Brick brief](../B13-claude-limits.md): scope, dependencies, acceptance criteria, and exclusions.
 - [Implementation plan](plan.md): gap closure after PR #41, ordered gates, and evidence reports.

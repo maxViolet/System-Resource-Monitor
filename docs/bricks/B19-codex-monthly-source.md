@@ -9,11 +9,11 @@
 
 ## Why
 
-B010 did not qualify a monthly Codex window. A percentage or reset time cannot replace `month: --` until an authorized, non-consuming source proves what “monthly” means and supplies the complete value.
+B010 did not qualify a monthly Codex window. A percentage or reset time cannot replace `month: TODO` until an authorized, non-consuming source proves what “monthly” means and supplies the complete value.
 
 ## What done looks like
 
-A dated qualification report at `docs/research/providers/codex-monthly-<YYYY-MM-DD>.md` either accepts one monthly source against every gate below or rejects the track after every allowed candidate is exhausted. Acceptance identifies the official client and version, a stable non-interactive invocation or locally written non-credential file, the window's exact semantics, remaining-value rule, reset time, failure contract, and compatibility with the existing qualified 5-hour and weekly windows.
+A dated qualification report at `docs/research/providers/codex-monthly-<YYYY-MM-DD>.md` either accepts one monthly source against every gate below or rejects the track after every allowed candidate is exhausted. Acceptance identifies the official client and version, a stable non-interactive invocation or locally written non-credential file, the window's exact semantics, used-value rule, reset time, failure contract, and compatibility with the existing qualified 5-hour and weekly windows.
 
 ## Context
 
@@ -25,7 +25,7 @@ B010's `codex-cli 0.159.0` contract remains historical evidence, not proof that 
 
 - [ ] The dated report inventories every allowed candidate and records client version, source, window name, duration or calendar rule, reset semantics, value precision, and constraints
 - [ ] Two consecutive non-interactive polls return the monthly remaining or used value and its reset time without starting model work
-- [ ] The monthly value and reset time are reconciled with the official client in the same verification window, including the verified used-to-remaining rounding rule when applicable
+- [ ] The monthly value and reset time are reconciled with the official client in the same verification window, including the verified remaining-to-used rounding rule when the source reports only the remaining share
 - [ ] Ten polls with no other Codex work leave limits unchanged and create no new sessions or equivalent usage
 - [ ] Sign-in, network, missing-monthly, and unknown-format outcomes are distinguishable, or the report rejects the candidate
 - [ ] The accepted mechanism reads no credential material, calls no undocumented endpoint, and records whether it can share B011's trusted client and poll

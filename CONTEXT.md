@@ -1,6 +1,6 @@
 # System Resource Monitor
 
-Glossary for an application that shows the computer's state and the remaining limits of personal subscriptions on a separate Windows bar.
+Glossary for an application that shows the computer's state and the used limits of personal subscriptions on a separate Windows bar.
 
 ## Language
 
@@ -57,25 +57,29 @@ _Avoid_: API account, credit balance
 The period over which the service accounts subscription usage. The short window lasts several hours; Claude Code calls it "Current session". A subscription may have several weekly windows, for example one for all models and one for a specific model. The actual set of windows for each provider is recorded in its independent source spike.
 _Avoid_: session, when meaning the accounting period
 
+**Used limit**:
+The consumed share of subscription usage in one limit window, as the integer percentage the official client reports. The bar and its tooltips show used limits ([ADR 0021](docs/adr/0021-used-limit-display.md)).
+_Avoid_: used capacity, consumption
+
 **Remaining limit**:
-The available share of subscription usage in one limit window, as a percentage. If the client reports the used share, remaining equals `100 − used`, where the used share is rounded to an integer the same way the official client rounds it.
-_Avoid_: used percentage
+The available share of subscription usage in one limit window, as a percentage: `100 − used limit`. It is not shown on the bar.
+_Avoid_: free share
 
 **Binding weekly window**:
-The subscription's weekly window with the lowest remaining limit; its remaining limit is shown on the bar as the weekly value.
+The subscription's weekly window with the highest used limit (the lowest remaining limit); its used limit is shown on the bar as the weekly value.
 _Avoid_: main window
 
 **Short-window countdown**:
-The whole minutes until an active short limit window resets, shown only below 100% remaining. Round up so a positive duration never appears as `00 00`; an unused 100% window has no countdown.
+The whole minutes until an active short limit window resets, shown as `HH:mm` only above 0% used. Round up so a positive duration never appears as `00:00`; an unused 0% window has no countdown.
 _Avoid_: reset time, when meaning the relative countdown
 
 **Limit snapshot**:
-The remaining limits and reset times of all limit windows of one subscription, obtained in a single poll.
-For Claude Code `/usage`, a window at 0% used may omit its reset time; this is an explicit unknown reset, not an unavailable remaining limit.
+The used limits and reset times of all limit windows of one subscription, obtained in a single poll.
+For Claude Code `/usage`, a window at 0% used may omit its reset time; this is an explicit unknown reset, not an unavailable used limit.
 _Avoid_: subscription balance
 
 **Unqualified limit window**:
-A requested limit period for which the accepted source supplies no trustworthy value. It appears as `--`: Codex monthly usage is unqualified in B010 and B019 owns any later monthly qualification; Claude monthly usage is unqualified when B012 qualifies no monthly window. It is distinct from an unavailable qualified snapshot and from zero remaining.
+A requested limit period for which the accepted source supplies no trustworthy value. It appears as `month: TODO`: Codex monthly usage is unqualified in B010 and B019 owns any later monthly qualification; Claude monthly usage is unqualified when B012 qualifies no monthly window. It is distinct from an unavailable qualified snapshot, which shows `--`, and from zero used.
 _Avoid_: zero, estimated limit
 
 **Stale limit snapshot**:
