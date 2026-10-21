@@ -26,6 +26,17 @@ public static partial class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (Environment.GetEnvironmentVariable("SRM_FAKE_CLAUDE_MODE") is not null)
+        {
+            if (args is ["auth", "status", "--json"]) return FakeClaudeAuth();
+            if (args is ["--safe-mode", "--tools", "", "--no-session-persistence", "--print",
+                "--output-format", "json", "/usage"]) return FakeClaudeUsage();
+            if (args is ["--fake-claude-grandchild"])
+            {
+                Thread.Sleep(Timeout.Infinite);
+                return Success;
+            }
+        }
         switch (args)
         {
             case ["--smoke"]:
@@ -70,6 +81,14 @@ public static partial class Program
             case ["--codex-probe", var count, var seconds] when int.TryParse(count, out var polls) && polls > 0
                 && TryParseSeconds(seconds, out var interval):
                 return CodexProbe(polls, interval);
+            case ["--claude-probe"]:
+                return ClaudeProbe(2, TimeSpan.Zero);
+            case ["--claude-image-probe", var imagePath]:
+                return ClaudeImageProbe(imagePath);
+            case ["--claude-probe", var claudeCount, var claudeSeconds]
+                when int.TryParse(claudeCount, out var claudePolls) && claudePolls > 0
+                && TryParseSeconds(claudeSeconds, out var claudeInterval):
+                return ClaudeProbe(claudePolls, claudeInterval);
             case ["app-server", "--listen", "stdio://"]:
                 return FakeCodexAppServer();
             case [FakeGrandchildArgument]:

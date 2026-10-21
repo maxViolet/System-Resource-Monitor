@@ -1,5 +1,6 @@
 using System.Windows.Threading;
 using SystemResourceMonitor.AIResources.Core.Codex;
+using SystemResourceMonitor.AIResources.Core.Claude;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Bar;
 using SystemResourceMonitor.Desktop.Settings;
@@ -20,7 +21,8 @@ public sealed class DesktopStartup(
     Action<string>? record = null,
     Action<BarWindow>? afterBarPositioned = null,
     Action? afterMetricRun = null,
-    CodexLimitMonitor? codex = null) : IDisposable
+    CodexLimitMonitor? codex = null,
+    ClaudeLimitMonitor? claude = null) : IDisposable
 {
     /// <summary>Per-session name: AppBar space and the work area belong to one session.</summary>
     public const string ProductionGuardName = @"Local\SystemResourceMonitor-1178D3BA-F66E-486A-8896-F6EBAF20FF05";
@@ -90,6 +92,7 @@ public sealed class DesktopStartup(
 
         StartMetrics(bar);
         StartCodex(bar);
+        StartClaude(bar);
         afterBarPositioned?.Invoke(bar);
     }
 
@@ -134,6 +137,18 @@ public sealed class DesktopStartup(
         bar.ShowCodex(codex.Current);
         shutdown.TrackOwner("codex-limits", codex.RunAsync(shutdown.Lifetime));
         record?.Invoke("codex-started");
+    }
+
+    private void StartClaude(BarWindow bar)
+    {
+        if (claude is null) return;
+        var relay = new MetricRelay<ClaudeLimitState>(
+            action => bar.Dispatcher.BeginInvoke(action),
+            state => shutdown.TryPublish(() => bar.ShowClaude(state)));
+        claude.Changed += (_, state) => relay.OnChanged(state);
+        bar.ShowClaude(claude.Current);
+        shutdown.TrackOwner("claude-limits", claude.RunAsync(shutdown.Lifetime));
+        record?.Invoke("claude-started");
     }
 
     private static string LoadIssueMessage(SettingsLoadIssue issue) => issue switch

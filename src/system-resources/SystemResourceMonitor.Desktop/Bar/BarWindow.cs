@@ -7,6 +7,7 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using System.Windows.Media;
 using SystemResourceMonitor.AIResources.Core.Codex;
+using SystemResourceMonitor.AIResources.Core.Claude;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Lifecycle;
 using SystemResourceMonitor.Desktop.Settings;
@@ -51,9 +52,12 @@ public sealed class BarWindow : Window, IShutdownBar
     private readonly TextBlock _ramSection = CreateSection();
     private readonly TextBlock _gpuSection = CreateSection();
     private readonly TextBlock _codexSection = CreateSection();
+    private readonly TextBlock _claudeSection = CreateSection();
     private readonly TimeProvider _time;
     private readonly DispatcherTimer _codexCountdown;
+    private readonly DispatcherTimer _claudeCountdown;
     private CodexLimitState _codex = CodexLimitsUnavailable.Initial;
+    private ClaudeLimitState _claude = ClaudeLimitsUnavailable.Initial;
 
     public BarWindow(
         BarEdge initialEdge,
@@ -71,6 +75,8 @@ public sealed class BarWindow : Window, IShutdownBar
         _time = time ?? TimeProvider.System;
         _codexCountdown = new DispatcherTimer(DispatcherPriority.Background, Dispatcher);
         _codexCountdown.Tick += (_, _) => RenderCodex();
+        _claudeCountdown = new DispatcherTimer(DispatcherPriority.Background, Dispatcher);
+        _claudeCountdown.Tick += (_, _) => RenderClaude();
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         ShowActivated = false;
@@ -84,10 +90,11 @@ public sealed class BarWindow : Window, IShutdownBar
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { _cpuSection, _ramSection, _gpuSection, _codexSection },
+            Children = { _cpuSection, _ramSection, _gpuSection, _codexSection, _claudeSection },
         };
         ShowMetrics(DashboardState.Initial);
         ShowCodex(CodexLimitsUnavailable.Initial);
+        ShowClaude(ClaudeLimitsUnavailable.Initial);
 
         // Create the handle on the primary monitor, which always contains (0, 0).
         WindowStartupLocation = WindowStartupLocation.Manual;
@@ -231,6 +238,14 @@ public sealed class BarWindow : Window, IShutdownBar
         RenderCodex();
     }
 
+    public void ShowClaude(ClaudeLimitState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        Dispatcher.VerifyAccess();
+        _claude = state;
+        RenderClaude();
+    }
+
     public void ReportStatus(string message)
     {
         if (!Dispatcher.CheckAccess())
@@ -257,6 +272,7 @@ public sealed class BarWindow : Window, IShutdownBar
         _shuttingDown = true;
         _fullscreenTimer?.Stop();
         _codexCountdown.Stop();
+        _claudeCountdown.Stop();
         _appBar?.Remove();
     }
 
@@ -307,6 +323,7 @@ public sealed class BarWindow : Window, IShutdownBar
         _ramSection.Width = WidestCandidate(MetricSectionFormat.WidthCandidates(MetricKind.Ram), pixelsPerDip);
         _gpuSection.Width = WidestCandidate(MetricSectionFormat.WidthCandidates(MetricKind.Gpu), pixelsPerDip);
         _codexSection.Width = WidestCandidate(CodexSectionFormat.WidthCandidates(), pixelsPerDip);
+        _claudeSection.Width = WidestCandidate(ClaudeSectionFormat.WidthCandidates(), pixelsPerDip);
     }
 
     /// <summary>The section width for <paramref name="candidates"/> at <paramref name="pixelsPerDip"/>, in DIPs.</summary>
@@ -339,6 +356,21 @@ public sealed class BarWindow : Window, IShutdownBar
         {
             _codexCountdown.Interval = untilChange;
             _codexCountdown.Start();
+        }
+    }
+
+    private void RenderClaude()
+    {
+        _claudeCountdown.Stop();
+        if (_shuttingDown) return;
+        var now = _time.GetUtcNow();
+        var content = ClaudeSectionFormat.Format(_claude, now, TimeZoneInfo.Local);
+        _claudeSection.Text = content.Text;
+        _claudeSection.ToolTip = content.ToolTip;
+        if (ClaudeSectionFormat.UntilCountdownChanges(_claude, now) is { } untilChange)
+        {
+            _claudeCountdown.Interval = untilChange;
+            _claudeCountdown.Start();
         }
     }
 

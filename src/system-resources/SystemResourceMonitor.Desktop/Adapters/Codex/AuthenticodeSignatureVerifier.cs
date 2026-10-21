@@ -16,7 +16,7 @@ internal interface ICodexSignatureVerifier
 /// signer recorded in the B010 report. Revocation is not checked and no URL is retrieved, so verification never
 /// reaches the network.
 /// </summary>
-internal sealed class AuthenticodeSignatureVerifier : ICodexSignatureVerifier
+internal sealed class AuthenticodeSignatureVerifier(string? expectedSigner = null) : ICodexSignatureVerifier
 {
     /// <summary>The signer of the qualified standalone client.</summary>
     public const string OpenAiSigner = "CN=\"OpenAI OpCo, LLC\", O=\"OpenAI OpCo, LLC\", L=San Francisco, S=California, C=US";
@@ -48,7 +48,8 @@ internal sealed class AuthenticodeSignatureVerifier : ICodexSignatureVerifier
                 var action = GenericVerifyV2;
                 try
                 {
-                    return WinVerifyTrust(0, &action, &data) == 0 && SignerSubject(data.hWVTStateData) == OpenAiSigner;
+                    return WinVerifyTrust(0, &action, &data) == 0
+                        && SignerSubject(data.hWVTStateData) == (expectedSigner ?? OpenAiSigner);
                 }
                 finally
                 {

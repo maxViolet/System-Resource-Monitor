@@ -30,6 +30,13 @@ internal static partial class CodexNativeMethods
     /// <summary>ProcThreadAttributeValue(13, FALSE, TRUE, FALSE): jobs the child belongs to before it runs (Windows 10+).</summary>
     internal const nuint PROC_THREAD_ATTRIBUTE_JOB_LIST = 0x2000D;
 
+    /// <summary>ProcThreadAttributeValue(7, FALSE, TRUE, FALSE): child image-loading policy.</summary>
+    internal const nuint PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY = 0x20007;
+
+    internal const ulong BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON = 1UL << 44;
+    internal const ulong IMAGE_LOAD_NO_REMOTE_ALWAYS_ON = 1UL << 52;
+    internal const ulong IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON = 1UL << 60;
+
     internal const uint WTD_UI_NONE = 2;
     internal const uint WTD_REVOKE_NONE = 0;
     internal const uint WTD_CHOICE_FILE = 1;
@@ -262,6 +269,10 @@ internal static partial class CodexNativeMethods
     [LibraryImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool CloseHandle(nint hObject);
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool GetExitCodeProcess(SafeProcessHandle hProcess, out uint lpExitCode);
 }
 
 /// <summary>An owned job-object handle. Closing it kills every process still in the job.</summary>
@@ -279,6 +290,15 @@ internal sealed class SafeJobHandle : SafeHandleZeroOrMinusOneIsInvalid
 internal sealed class SafeThreadHandle : SafeHandleZeroOrMinusOneIsInvalid
 {
     public SafeThreadHandle(nint handle)
+        : base(ownsHandle: true) => SetHandle(handle);
+
+    protected override bool ReleaseHandle() => CodexNativeMethods.CloseHandle(handle);
+}
+
+/// <summary>An owned child-process handle retained until its exit status is read.</summary>
+internal sealed class SafeProcessHandle : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public SafeProcessHandle(nint handle)
         : base(ownsHandle: true) => SetHandle(handle);
 
     protected override bool ReleaseHandle() => CodexNativeMethods.CloseHandle(handle);

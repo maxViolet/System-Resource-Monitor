@@ -15,21 +15,36 @@ namespace SystemResourceMonitor.Desktop.Adapters.Codex;
 /// </summary>
 internal sealed class CodexChildProcess : IDisposable
 {
-    private CodexChildProcess(Stream input, Stream output, Stream error)
+    private readonly SafeProcessHandle _process;
+
+    private CodexChildProcess(Stream input, Stream output, Stream error, SafeProcessHandle process)
     {
         Input = input;
         Output = output;
         Error = error;
+        _process = process;
     }
 
     public Stream Input { get; }
     public Stream Output { get; }
     public Stream Error { get; }
 
+    public uint ExitCode
+    {
+        get
+        {
+            if (!GetExitCodeProcess(_process, out var code))
+                throw new Win32Exception(Marshal.GetLastPInvokeError(), "Reading the child exit code failed.");
+            return code;
+        }
+    }
+
     public static unsafe CodexChildProcess Start(
         string path,
         ProcessTreeJob job,
-        IReadOnlyDictionary<string, string>? environment)
+        IReadOnlyDictionary<string, string>? environment,
+        IReadOnlyList<string>? arguments = null,
+        ulong? mitigationPolicy = null)
     {
         SafeFileHandle? childInput = null;
         SafeFileHandle? parentInput = null;
@@ -77,7 +92,8 @@ internal sealed class CodexChildProcess : IDisposable
             ClearInheritance(parentError);
 
             nuint attributeBytes = 0;
-            _ = InitializeProcThreadAttributeList(null, 2, 0, &attributeBytes);
+            var attributeCount = mitigationPolicy is null ? 2u : 3u;
+            _ = InitializeProcThreadAttributeList(null, attributeCount, 0, &attributeBytes);
             if (attributeBytes == 0)
             {
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "Sizing the Codex process attribute list failed.");
@@ -89,7 +105,7 @@ internal sealed class CodexChildProcess : IDisposable
                 throw new OutOfMemoryException();
             }
 
-            if (!InitializeProcThreadAttributeList(attributeList, 2, 0, &attributeBytes))
+            if (!InitializeProcThreadAttributeList(attributeList, attributeCount, 0, &attributeBytes))
             {
                 throw new Win32Exception(Marshal.GetLastPInvokeError(), "Initializing the Codex process attribute list failed.");
             }
@@ -102,12 +118,15 @@ internal sealed class CodexChildProcess : IDisposable
                 childError.DangerousGetHandle(),
             ];
             var jobHandle = job.Handle.DangerousGetHandle();
+            var policy = mitigationPolicy.GetValueOrDefault();
             fixed (nint* handles = inheritedHandles)
             {
                 if (!UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
                         (nuint)(inheritedHandles.Length * sizeof(nint)), 0, 0)
                     || !UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, &jobHandle,
-                        (nuint)sizeof(nint), 0, 0))
+                        (nuint)sizeof(nint), 0, 0)
+                    || (mitigationPolicy is not null && !UpdateProcThreadAttribute(attributeList, 0,
+                        PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, (nuint)sizeof(ulong), 0, 0)))
                 {
                     throw new Win32Exception(Marshal.GetLastPInvokeError(), "Configuring Codex process ownership failed.");
                 }
@@ -125,7 +144,7 @@ internal sealed class CodexChildProcess : IDisposable
                 },
                 lpAttributeList = (nint)attributeList,
             };
-            var commandLine = BuildCommandLine(path).ToCharArray();
+            var commandLine = BuildCommandLine(path, arguments ?? CodexContract.Arguments).ToCharArray();
             var environmentBlock = BuildEnvironmentBlock(environment);
             var workingDirectory = Path.GetTempPath();
             fixed (char* applicationName = path)
@@ -148,9 +167,6 @@ internal sealed class CodexChildProcess : IDisposable
 
             CloseHandle(processInformation.hThread);
             processInformation.hThread = 0;
-            CloseHandle(processInformation.hProcess);
-            processInformation.hProcess = 0;
-
             childInput.Dispose();
             childInput = null;
             childOutput.Dispose();
@@ -164,7 +180,9 @@ internal sealed class CodexChildProcess : IDisposable
             parentOutput = null;
             var error = new FileStream(parentError, FileAccess.Read, 4096, isAsync: false);
             parentError = null;
-            return new CodexChildProcess(input, output, error);
+            var process = new SafeProcessHandle(processInformation.hProcess);
+            processInformation.hProcess = 0;
+            return new CodexChildProcess(input, output, error, process);
         }
         finally
         {
@@ -202,6 +220,7 @@ internal sealed class CodexChildProcess : IDisposable
         Input.Dispose();
         Output.Dispose();
         Error.Dispose();
+        _process.Dispose();
     }
 
     private static void ClearInheritance(SafeFileHandle handle)
@@ -212,12 +231,15 @@ internal sealed class CodexChildProcess : IDisposable
         }
     }
 
-    private static string BuildCommandLine(string path)
+    private static string BuildCommandLine(string path, IReadOnlyList<string> arguments)
     {
         var commandLine = new StringBuilder(path.Length + 64).Append('"').Append(path).Append('"');
-        foreach (var argument in CodexContract.Arguments)
+        foreach (var argument in arguments)
         {
-            commandLine.Append(' ').Append(argument);
+            // The qualified commands use only simple tokens or an empty --tools value.
+            if (argument.Contains('"') || argument.Contains('\\'))
+                throw new ArgumentException("Unsupported child argument character.", nameof(arguments));
+            commandLine.Append(' ').Append('"').Append(argument).Append('"');
         }
 
         commandLine.Append('\0');
