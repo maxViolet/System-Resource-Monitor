@@ -111,25 +111,23 @@ internal sealed class CodexChildProcess : IDisposable
             }
             attributeListInitialized = true;
 
-            nint[] inheritedHandles =
-            [
-                childInput.DangerousGetHandle(),
-                childOutput.DangerousGetHandle(),
-                childError.DangerousGetHandle(),
-            ];
+            // The attribute list stores pointers, not copies, and CreateProcess reads them later: every attribute value
+            // lives on this stack frame, because a pinned managed array could move before the launch.
+            const int inheritedHandleCount = 3;
+            var inheritedHandles = stackalloc nint[inheritedHandleCount];
+            inheritedHandles[0] = childInput.DangerousGetHandle();
+            inheritedHandles[1] = childOutput.DangerousGetHandle();
+            inheritedHandles[2] = childError.DangerousGetHandle();
             var jobHandle = job.Handle.DangerousGetHandle();
             var policy = mitigationPolicy.GetValueOrDefault();
-            fixed (nint* handles = inheritedHandles)
+            if (!UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inheritedHandles,
+                    (nuint)(inheritedHandleCount * sizeof(nint)), 0, 0)
+                || !UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, &jobHandle,
+                    (nuint)sizeof(nint), 0, 0)
+                || (mitigationPolicy is not null && !UpdateProcThreadAttribute(attributeList, 0,
+                    PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, (nuint)sizeof(ulong), 0, 0)))
             {
-                if (!UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
-                        (nuint)(inheritedHandles.Length * sizeof(nint)), 0, 0)
-                    || !UpdateProcThreadAttribute(attributeList, 0, PROC_THREAD_ATTRIBUTE_JOB_LIST, &jobHandle,
-                        (nuint)sizeof(nint), 0, 0)
-                    || (mitigationPolicy is not null && !UpdateProcThreadAttribute(attributeList, 0,
-                        PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, (nuint)sizeof(ulong), 0, 0)))
-                {
-                    throw new Win32Exception(Marshal.GetLastPInvokeError(), "Configuring Codex process ownership failed.");
-                }
+                throw new Win32Exception(Marshal.GetLastPInvokeError(), "Configuring Codex process ownership failed.");
             }
 
             var startup = new STARTUPINFOEXW
