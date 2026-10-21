@@ -56,6 +56,67 @@ public sealed class ClaudeUsageReaderTests
         Assert.Null(ClaudeUsageReader.Read(Envelope(result), Observed));
     }
 
+    [Theory]
+    [InlineData(0, 100)]
+    [InlineData(100, 0)]
+    public void Displayed_integer_used_share_sets_the_remaining_share(int used, int remaining)
+    {
+        var snapshot = ClaudeUsageReader.Read(Envelope($"""
+            Current session: {used}% used · resets Oct 21, 12pm (Asia/Qyzylorda)
+            Current week (all models): {used}% used · resets Oct 22, 3am (Asia/Qyzylorda)
+            """), Observed);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(remaining, snapshot.ShortWindow.RemainingPercent);
+        Assert.Equal(remaining, snapshot.BindingWeeklyWindow.RemainingPercent);
+    }
+
+    [Theory]
+    [InlineData("Current session: 101% used · resets Oct 21, 12pm (Asia/Qyzylorda)\nCurrent week (all models): 0% used")]
+    [InlineData("Current session: 0% used\nCurrent week (all models): 101% used · resets Oct 22, 3am (Asia/Qyzylorda)")]
+    public void Used_share_above_one_hundred_is_unavailable(string result)
+    {
+        Assert.Null(ClaudeUsageReader.Read(Envelope(result), Observed));
+    }
+
+    [Theory]
+    [InlineData("3pm", true)]
+    [InlineData("3:01pm", true)]
+    [InlineData("3:02pm", false)]
+    [InlineData("4pm", false)]
+    public void Session_reset_more_than_the_short_window_plus_one_minute_ahead_is_unavailable(string time, bool accepted)
+    {
+        var snapshot = ClaudeUsageReader.Read(Envelope($"""
+            Current session: 10% used · resets Oct 21, {time} (Asia/Qyzylorda)
+            Current week (all models): 5% used · resets Oct 22, 3am (Asia/Qyzylorda)
+            """), Observed);
+
+        Assert.Equal(accepted, snapshot is not null);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{")]
+    [InlineData("[]")]
+    [InlineData("\"usage\"")]
+    [InlineData("{\"local_command\":\"usage\"}")]
+    public void Invalid_json_is_unavailable(string json)
+    {
+        Assert.Null(ClaudeUsageReader.Read(Encoding.UTF8.GetBytes(json), Observed));
+    }
+
+    [Fact]
+    public void Oversized_input_is_unavailable_before_parsing()
+    {
+        var valid = Envelope("Current session: 0% used\nCurrent week (all models): 0% used");
+        var padded = new byte[ClaudeUsageReader.MaxOutputBytes + 1];
+        padded.AsSpan().Fill((byte)' ');
+        valid.CopyTo(padded, 0);
+
+        Assert.NotNull(ClaudeUsageReader.Read(valid, Observed));
+        Assert.Null(ClaudeUsageReader.Read(padded, Observed));
+    }
+
     [Fact]
     public void Model_turn_is_never_accepted_as_a_usage_poll()
     {

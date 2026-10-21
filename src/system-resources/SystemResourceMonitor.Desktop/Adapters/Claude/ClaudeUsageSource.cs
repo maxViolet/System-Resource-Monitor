@@ -25,6 +25,7 @@ internal sealed class ClaudeUsageSource(
 
     public async Task<ClaudeReadResult> ReadAsync(CancellationToken cancellationToken)
     {
+        using var shutdown = new ShutdownWindow(time, cancellationToken);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -40,15 +41,17 @@ internal sealed class ClaudeUsageSource(
             cancellationToken.ThrowIfCancellationRequested();
             if (client is null) return new ClaudeReadFailed(reason);
 
-            var auth = await RunAsync(client, ClaudeContract.AuthArguments, cancellationToken).ConfigureAwait(false);
+            var auth = await RunAsync(client, ClaudeContract.AuthArguments, shutdown).ConfigureAwait(false);
             if (auth is null) return new ClaudeReadFailed(ClaudeUnavailableReason.TimedOut);
+            if (auth.Value.IsLaunchFailure) return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed);
             if (AuthState(auth.Value.Output, false)) return new ClaudeReadFailed(ClaudeUnavailableReason.SignedOut);
             if (auth.Value.ExitCode != 0 || !AuthState(auth.Value.Output, true))
                 return new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat);
 
             cancellationToken.ThrowIfCancellationRequested();
-            var usage = await RunAsync(client, ClaudeContract.UsageArguments, cancellationToken).ConfigureAwait(false);
+            var usage = await RunAsync(client, ClaudeContract.UsageArguments, shutdown).ConfigureAwait(false);
             if (usage is null) return new ClaudeReadFailed(ClaudeUnavailableReason.TimedOut);
+            if (usage.Value.IsLaunchFailure) return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed);
             if (usage.Value.ExitCode != 0 || usage.Value.Error.Length != 0)
                 return new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat);
             var snapshot = ClaudeUsageReader.Read(Encoding.UTF8.GetBytes(usage.Value.Output), time.GetUtcNow());
@@ -65,8 +68,9 @@ internal sealed class ClaudeUsageSource(
     }
 
     private async Task<ProcessResult?> RunAsync(ClaudeClient client, IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken)
+        ShutdownWindow shutdown)
     {
+        var cancellationToken = shutdown.Token;
         cancellationToken.ThrowIfCancellationRequested();
         var job = ProcessTreeJob.Create();
         var ended = false;
@@ -97,18 +101,26 @@ internal sealed class ClaudeUsageSource(
         {
             if (!ended)
             {
-                ended = await TerminateAsync(job).ConfigureAwait(false);
+                ended = await TerminateAsync(job, shutdown).ConfigureAwait(false);
             }
             if (ended) job.Dispose();
             else _unconfirmedJob = job;
         }
     }
 
-    private async Task<bool> TerminateAsync(ProcessTreeJob job)
+    private async Task<bool> TerminateAsync(ProcessTreeJob job, ShutdownWindow shutdown)
     {
         try { job.Terminate(); }
         catch (Win32Exception) { /* Job emptiness below decides whether termination completed. */ }
-        try { return await job.WaitForEmptyAsync(TerminationDeadline, time).ConfigureAwait(false); }
+        try
+        {
+            try { return await job.WaitForEmptyAsync(shutdown.Remaining(), time, shutdown.Token).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (shutdown.Token.IsCancellationRequested)
+            {
+                // Shutdown started before or during the wait: only the rest of its wait remains.
+                return await job.WaitForEmptyAsync(shutdown.Remaining(), time).ConfigureAwait(false);
+            }
+        }
         catch (Win32Exception) { return false; }
     }
 
@@ -139,5 +151,52 @@ internal sealed class ClaudeUsageSource(
         catch (JsonException) { return false; }
     }
 
-    private readonly record struct ProcessResult(string Output, string Error, uint ExitCode);
+    private readonly record struct ProcessResult(string Output, string Error, uint ExitCode)
+    {
+        /// <summary>
+        /// The client ended with an NTSTATUS error and printed nothing, as when the image-loading policy blocks one of
+        /// its images: it never ran, so this is a read failure, not an answer in an unknown format.
+        /// </summary>
+        public bool IsLaunchFailure => ExitCode >= 0xC0000000 && Output.Length == 0;
+    }
+
+    /// <summary>
+    /// The termination budget of one poll. Before cancellation it is the full <see cref="TerminationDeadline"/>; once
+    /// the poll is cancelled for shutdown it is what is left of the shutdown wait, measured from the cancellation, so a
+    /// terminated client never extends the wait.
+    /// </summary>
+    internal sealed class ShutdownWindow : IDisposable
+    {
+        private readonly Lock _gate = new();
+        private readonly TimeProvider _time;
+        private readonly CancellationTokenRegistration _registration;
+        private long? _cancelledAt;
+
+        public ShutdownWindow(TimeProvider time, CancellationToken cancellationToken)
+        {
+            _time = time;
+            Token = cancellationToken;
+            _registration = cancellationToken.Register(() =>
+            {
+                lock (_gate)
+                {
+                    _cancelledAt ??= _time.GetTimestamp();
+                }
+            });
+        }
+
+        public CancellationToken Token { get; }
+
+        public TimeSpan Remaining()
+        {
+            lock (_gate)
+            {
+                if (_cancelledAt is not { } cancelledAt) return TerminationDeadline;
+                var remaining = TerminationDeadline - _time.GetElapsedTime(cancelledAt);
+                return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+            }
+        }
+
+        public void Dispose() => _registration.Dispose();
+    }
 }

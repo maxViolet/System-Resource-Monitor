@@ -1,7 +1,9 @@
 using System.IO;
 using System.Diagnostics;
+using Microsoft.Extensions.Time.Testing;
 using SystemResourceMonitor.AIResources.Core.Claude;
 using SystemResourceMonitor.Desktop.Adapters.Claude;
+using SystemResourceMonitor.Desktop.Lifecycle;
 
 namespace SystemResourceMonitor.Desktop.Tests;
 
@@ -30,6 +32,76 @@ public sealed class ClaudeUsageSourceTests
             Assert.Equal(ClaudeUnavailableReason.UnknownFormat, ((ClaudeReadFailed)result).Reason);
         if (mode == "normal")
             Assert.Equal(100, ((ClaudeReadSucceeded)result).Snapshot.ShortWindow.RemainingPercent);
+    }
+
+    [Fact]
+    public async Task Stderr_over_its_own_bound_is_unknown_format_although_stdout_is_valid()
+    {
+        var result = await Source("large-stderr").ReadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(ClaudeUnavailableReason.UnknownFormat, Assert.IsType<ClaudeReadFailed>(result).Reason);
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task Enforced_image_policy_either_runs_protected_or_fails_without_an_unprotected_retry()
+    {
+        var log = Path.GetTempFileName();
+        try
+        {
+            var source = new ClaudeUsageSource(new FakeLocator(enforceImagePolicy: true), TimeProvider.System, null,
+                new Dictionary<string, string>
+                {
+                    ["SRM_FAKE_CLAUDE_MODE"] = "normal",
+                    ["SRM_FAKE_CLAUDE_LAUNCH_LOG"] = log,
+                });
+
+            var result = await source.ReadAsync(TestContext.Current.CancellationToken);
+
+            var launches = File.ReadAllLines(log);
+            Assert.DoesNotContain(launches, launch => launch.EndsWith(":unprotected", StringComparison.Ordinal));
+            if (result is ClaudeReadSucceeded)
+            {
+                Assert.Equal(["auth:protected", "usage:protected"], launches);
+            }
+            else
+            {
+                // A blocked image load ends the poll; the source never starts the client again without the policy.
+                Assert.Equal(ClaudeUnavailableReason.ReadFailed, Assert.IsType<ClaudeReadFailed>(result).Reason);
+                Assert.True(launches.Length <= 1);
+            }
+        }
+        finally { File.Delete(log); }
+    }
+
+    [Fact]
+    public void Termination_budget_is_the_rest_of_the_shutdown_wait_after_cancellation()
+    {
+        var time = new FakeTimeProvider();
+        using var cancellation = new CancellationTokenSource();
+        using var window = new ClaudeUsageSource.ShutdownWindow(time, cancellation.Token);
+
+        time.Advance(TimeSpan.FromSeconds(30));
+        Assert.Equal(ShutdownCoordinator.WaitDeadline, window.Remaining());
+
+        cancellation.Cancel();
+        time.Advance(TimeSpan.FromMilliseconds(1500));
+        Assert.Equal(ShutdownCoordinator.WaitDeadline - TimeSpan.FromMilliseconds(1500), window.Remaining());
+
+        time.Advance(ShutdownCoordinator.WaitDeadline);
+        Assert.Equal(TimeSpan.Zero, window.Remaining());
+    }
+
+    [Fact]
+    public void Termination_budget_of_an_already_cancelled_poll_starts_at_the_poll()
+    {
+        var time = new FakeTimeProvider();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        using var window = new ClaudeUsageSource.ShutdownWindow(time, cancellation.Token);
+
+        time.Advance(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(ShutdownCoordinator.WaitDeadline - TimeSpan.FromSeconds(1), window.Remaining());
     }
 
     [Fact(Timeout = 10000)]
@@ -65,8 +137,11 @@ public sealed class ClaudeUsageSourceTests
                 await Task.Delay(20, TestContext.Current.CancellationToken);
             Assert.True(grandchildId > 0, "The fake Claude grandchild did not start.");
 
+            var cancelled = Stopwatch.StartNew();
             cancellation.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => read);
+            // The terminated tree is confirmed inside the shutdown wait that the cancellation started.
+            Assert.True(cancelled.Elapsed <= ShutdownCoordinator.WaitDeadline, $"The read ended {cancelled.Elapsed} after cancellation.");
             Assert.False(IsRunning(grandchildId));
         }
         finally
@@ -122,14 +197,14 @@ public sealed class ClaudeUsageSourceTests
         }
     }
 
-    private sealed class FakeLocator : IClaudeClientLocator
+    private sealed class FakeLocator(bool enforceImagePolicy = false) : IClaudeClientLocator
     {
         public ClaudeClient? Locate(out ClaudeUnavailableReason reason)
         {
             reason = default;
             return new ClaudeClient(FakeClient,
                 File.OpenHandle(FakeClient, FileMode.Open, FileAccess.Read, FileShare.Read),
-                enforceImagePolicy: false);
+                enforceImagePolicy);
         }
     }
 }

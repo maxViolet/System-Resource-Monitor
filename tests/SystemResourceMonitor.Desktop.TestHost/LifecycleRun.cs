@@ -3,6 +3,8 @@ using System.IO;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using SystemResourceMonitor.AIResources.Core.Claude;
+using SystemResourceMonitor.AIResources.Core.Codex;
 using SystemResourceMonitor.Core.Metrics;
 using SystemResourceMonitor.Desktop.Adapters.Settings;
 using SystemResourceMonitor.Desktop.Bar;
@@ -20,13 +22,20 @@ internal sealed class LifecycleRun
     private readonly List<(string Marker, TimeSpan At)> _markers = [];
     private readonly List<string> _failures = [];
     private readonly ISettingsStore _settings;
+    private readonly CodexLimitMonitor? _codex;
+    private readonly ClaudeLimitMonitor? _claude;
     private BarWindow? _bar;
     private string? _textAtShutdown;
 
     /// <param name="settingsFactory">Creates the settings store in the isolated settings directory.</param>
     /// <param name="sources">Handle-free metric sources; by default, steady scripted CPU and RAM values.</param>
-    public LifecycleRun(Func<string, ISettingsStore>? settingsFactory = null, (IMetricSource Cpu, IMetricSource Ram, IMetricSource Gpu)? sources = null)
+    /// <param name="codex">The Codex limit monitor to compose, as production does; none by default.</param>
+    /// <param name="claude">The Claude limit monitor to compose, as production does; none by default.</param>
+    public LifecycleRun(Func<string, ISettingsStore>? settingsFactory = null, (IMetricSource Cpu, IMetricSource Ram, IMetricSource Gpu)? sources = null,
+        CodexLimitMonitor? codex = null, ClaudeLimitMonitor? claude = null)
     {
+        _codex = codex;
+        _claude = claude;
         Baseline = DesktopProbe.WorkArea();
         Info($"baseline-work-area {Baseline}");
         SettingsDirectory = Path.Combine(Path.GetTempPath(), "SystemResourceMonitor.TestHost", Guid.NewGuid().ToString("N"));
@@ -69,7 +78,8 @@ internal sealed class LifecycleRun
             afterBarPositioned?.Invoke(bar, shutdown);
         }
 
-        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, Monitor, Record, Positioned))
+        using (var startup = new DesktopStartup(GuardName, shutdown, _settings, app.Dispatcher, Monitor, Record, Positioned,
+            codex: _codex, claude: _claude))
         {
             app.Startup += async (_, _) => await startup.RunAsync();
             app.Run();
@@ -114,6 +124,12 @@ internal sealed class LifecycleRun
         bar.Content is StackPanel { Children: [TextBlock cpu, TextBlock ram, TextBlock gpu, ..] }
             ? (cpu, ram, gpu)
             : throw new InvalidOperationException("The bar content does not start with three metric sections.");
+
+    /// <summary>Finds the provider sections that follow the metric sections.</summary>
+    public static (TextBlock Codex, TextBlock Claude) ProviderSections(BarWindow bar) =>
+        bar.Content is StackPanel { Children: [TextBlock, TextBlock, TextBlock, TextBlock codex, TextBlock claude, ..] }
+            ? (codex, claude)
+            : throw new InvalidOperationException("The bar content does not hold the Codex and Claude sections.");
 
     private static string SectionTexts(BarWindow bar)
     {
