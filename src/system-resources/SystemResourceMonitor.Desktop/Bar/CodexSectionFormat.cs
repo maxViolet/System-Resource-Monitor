@@ -5,24 +5,18 @@ namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
 /// Maps a <see cref="CodexLimitState"/> to the Codex bar section of ADR 0021 with invariant culture:
-/// <c>Codex: [5h] 24% in HH:mm | [W] 67% | month: TODO</c>, where each share is the used share. Only the qualified
-/// aggregate 5-hour and weekly windows show values; the monthly field is always <c>TODO</c>. Tooltips never carry
-/// exception text, error codes, or account data.
+/// <c>Codex: 5h 24% in HH:mm | W 67%</c>, where each share is the used share. Only the qualified aggregate 5-hour and
+/// weekly windows are shown; the bar has no monthly field. Tooltips never carry exception text, error codes, or
+/// account data.
 /// </summary>
 public static class CodexSectionFormat
 {
     /// <summary>The value of an unavailable field.</summary>
     public const string Unavailable = "--";
 
-    /// <summary>The value of the unqualified monthly field; it never means zero.</summary>
-    public const string Unqualified = "TODO";
-
     private const string Label = "Codex:";
     private const string StaleLabel = "Codex (stale):";
     private const string TimeFormat = "d MMM HH:mm";
-
-    private static readonly string MonthExplanation =
-        "Monthly limit: not available; the qualified Codex source has no monthly window.";
 
     private static readonly string ExpiredExplanation = string.Create(
         CultureInfo.InvariantCulture, $"No Codex update for {CodexLimitMonitor.StaleLimit.TotalMinutes:0} minutes.");
@@ -36,14 +30,14 @@ public static class CodexSectionFormat
         {
             CodexLimitsCurrent current => new MetricSection(
                 Text(Label, current.Snapshot, now),
-                $"{Windows(current.Snapshot, zone)}\n{MonthExplanation}"),
+                Windows(current.Snapshot, zone)),
             CodexLimitsStale stale => new MetricSection(
                 Text(StaleLabel, stale.Snapshot, now),
                 $"Stale: the Codex usage service could not be reached. Last update {Local(stale.MeasuredAt, zone)}; "
-                + $"these values are dropped at {Local(stale.ExpiresAt, zone)}.\n{Windows(stale.Snapshot, zone)}\n{MonthExplanation}"),
+                + $"these values are dropped at {Local(stale.ExpiresAt, zone)}.\n{Windows(stale.Snapshot, zone)}"),
             CodexLimitsUnavailable unavailable => new MetricSection(
                 Compose(Label, Unavailable, Unavailable),
-                $"{Explain(unavailable.Reason)}\n{MonthExplanation}"),
+                Explain(unavailable.Reason)),
             _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown Codex limit state."),
         };
     }
@@ -133,9 +127,9 @@ public static class CodexSectionFormat
             $"{shortWindow.UsedPercent}% in {minutes / 60:00}:{minutes % 60:00}"), weekly);
     }
 
-    /// <summary>The one section layout; the monthly field is always unqualified.</summary>
+    /// <summary>The one section layout.</summary>
     private static string Compose(string label, string shortWindow, string weekly) =>
-        $"{label} [5h] {shortWindow} | [W] {weekly} | month: {Unqualified}";
+        $"{label} 5h {shortWindow} | W {weekly}";
 
     private static string Windows(CodexLimitSnapshot snapshot, TimeZoneInfo zone)
     {

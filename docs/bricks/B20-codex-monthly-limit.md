@@ -9,7 +9,7 @@
 
 ## Why
 
-B011 intentionally renders `month: TODO` because no trustworthy monthly source was qualified. Once B019 accepts a source, the app can replace that placeholder without weakening the existing 5-hour and weekly contract.
+B011 intentionally shows no monthly field because no trustworthy monthly source was qualified. Once B019 accepts a source, the app can add that field without weakening the existing 5-hour and weekly contract.
 
 ## What done looks like
 
@@ -27,7 +27,7 @@ Reuse B011's trusted resolver and process lifecycle only when B019 proves the sa
 - [ ] Parser and contract tests cover the qualified monthly value, reset time, semantics, rounding, absent field, malformed output, unknown version, and interaction with 5-hour and weekly values
 - [ ] Polling tests prove no overlap or usage consumption and prove source-specific failure cannot delay or erase still-valid independent windows
 - [ ] Timeout, cancellation, and shutdown tests cover every executable source; bounded path/read failures cover every local-file source
-- [ ] Display and tooltip tests replace `month: TODO` only for a qualified current value and cover unavailable, stale, reset-boundary, and DPI-width cases
+- [ ] Display and tooltip tests show the monthly field only for a qualified current value and cover unavailable, stale, reset-boundary, and DPI-width cases
 - [ ] Same-window manual checks compare every displayed value and reset time with the official client and explain the monthly window meaning
 - [ ] The ten-poll non-consumption check is repeated with the built adapter, and no new sessions or equivalent usage are created
 - [ ] Affected publish, shutdown, responsiveness, CPU, and memory gates are rerun on the exact artifact with all Codex windows enabled
@@ -35,4 +35,4 @@ Reuse B011's trusted resolver and process lifecycle only when B019 proves the sa
 
 ## Out of scope
 
-Per-model limits, billing balances, client bundling, browser automation, credential access, undocumented endpoints, and unrelated provider changes remain out of scope. If B019 is rejected, B020 is `not applicable` and B011 keeps `month: TODO`.
+Per-model limits, billing balances, client bundling, browser automation, credential access, undocumented endpoints, and unrelated provider changes remain out of scope. If B019 is rejected, B020 is `not applicable` and B011 keeps no monthly field.

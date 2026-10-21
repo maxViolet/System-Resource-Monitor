@@ -79,7 +79,7 @@ For Claude Code `/usage`, a window at 0% used may omit its reset time; this is a
 _Avoid_: subscription balance
 
 **Unqualified limit window**:
-A requested limit period for which the accepted source supplies no trustworthy value. It appears as `month: TODO`: Codex monthly usage is unqualified in B010 and B019 owns any later monthly qualification; Claude monthly usage is unqualified when B012 qualifies no monthly window. It is distinct from an unavailable qualified snapshot, which shows `--`, and from zero used.
+A requested limit period for which the accepted source supplies no trustworthy value. It is not shown on the bar: Codex monthly usage is unqualified in B010 and B019 owns any later monthly qualification; Claude monthly usage is unqualified when B012 qualifies no monthly window. It is distinct from an unavailable qualified snapshot, which shows `--`, and from zero used.
 _Avoid_: zero, estimated limit
 
 **Stale limit snapshot**:

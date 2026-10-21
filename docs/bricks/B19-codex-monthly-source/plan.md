@@ -4,7 +4,7 @@ Status: planned. This package implements [B019 — Qualify a Codex monthly limit
 
 ## Outcome and handoff
 
-Close B019 as `accepted` or `rejected` with one dated, sanitized report at `docs/research/providers/codex-monthly-<YYYY-MM-DD>.md`. B019 adds no production code, tests, fixtures, or interfaces under `src/` or `tests/`. An accepted report is B020's source contract. A rejected report makes B020 `not applicable` and leaves `month: TODO` unchanged.
+Close B019 as `accepted` or `rejected` with one dated, sanitized report at `docs/research/providers/codex-monthly-<YYYY-MM-DD>.md`. B019 adds no production code, tests, fixtures, or interfaces under `src/` or `tests/`. An accepted report is B020's source contract. A rejected report makes B020 `not applicable` and leaves the bar without a monthly field.
 
 ## Rules for every step
 
@@ -65,4 +65,4 @@ If acceptance leaves meaningful alternatives for source composition, version mig
 
 ## Boundary for B020
 
-B020 owns the production contract, source composition, parsing, polling and freshness, replacement of `month: TODO`, desktop evidence, and affected resource gates. It must record a new ADR before code when the accepted monthly contract changes ADR 0015's source decision or ADR 0021's display decision.
+B020 owns the production contract, source composition, parsing, polling and freshness, the new monthly bar field, desktop evidence, and affected resource gates. It must record a new ADR before code when the accepted monthly contract changes ADR 0015's source decision or ADR 0021's display decision.
