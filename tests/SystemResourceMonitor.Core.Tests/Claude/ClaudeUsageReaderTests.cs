@@ -51,6 +51,8 @@ public sealed class ClaudeUsageReaderTests
     [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nMonthly limit: 40% used")]
     [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nMonthly limit: 60% remaining")]
     [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nRolling month 5% used")]
+    [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nMonthly allowance - 40%")]
+    [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nExtra usage (12%)")]
     [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nExtra usage - 12% Used")]
     [InlineData("Current session: 0% used\nCurrent week (all models): 0% used\nWeekly Opus 70% left")]
     [InlineData("Current session: 0% used\nCurrent week (Fable): 0% used")]
