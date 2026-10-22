@@ -19,7 +19,9 @@ public static partial class ClaudeUsageReader
     [GeneratedRegex(@"^(?<date>[A-Z][a-z]{2} \d{1,2}),? (?<time>\d{1,2}(?::\d{2})?[ap]m) \((?<zone>[^()]{1,64})\)$", RegexOptions.CultureInvariant)]
     private static partial Regex ResetLine();
 
-    [GeneratedRegex(@"^[A-Za-z][^\r\n:]{1,80}:\s*\d{1,3}%(?:\s|$)", RegexOptions.CultureInvariant)]
+    // Any other labelled share or used/remaining share is an unqualified row, with or without a colon.
+    [GeneratedRegex(@"^[A-Za-z][^\r\n:]{1,80}:\s*\d{1,3}%(?:\s|$)|\b\d{1,3}%\s*(?:used|remaining|left)\b",
+        RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex OtherUsageLine();
 
     public static ClaudeLimitSnapshot? Read(ReadOnlySpan<byte> utf8, DateTimeOffset observedAt)
