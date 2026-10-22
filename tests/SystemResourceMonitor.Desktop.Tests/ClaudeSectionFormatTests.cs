@@ -54,7 +54,7 @@ public sealed class ClaudeSectionFormatTests
     [InlineData(ClaudeUnavailableReason.NetworkFailed, "Claude could not be reached.")]
     [InlineData(ClaudeUnavailableReason.UnknownFormat, "Claude answered in an unsupported format.")]
     [InlineData(ClaudeUnavailableReason.UnsupportedVersion,
-        "The installed Claude Code version is not qualified. Supported: 2.1.304, 2.1.306.")]
+        "The installed Claude Code version is not supported. Requires 2.1.304 or later.")]
     [InlineData(ClaudeUnavailableReason.ClientNotFound, "The native Claude Code client is not installed.")]
     [InlineData(ClaudeUnavailableReason.ClientUntrusted, "The Claude Code executable failed verification.")]
     [InlineData(ClaudeUnavailableReason.TimedOut, "Claude Code did not answer in time.")]
