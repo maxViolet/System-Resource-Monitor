@@ -1,12 +1,12 @@
 # B013 implementation plan for coding agents
 
-Status: in progress. [PR #41](https://github.com/maxViolet/System-Resource-Monitor/pull/41) implemented the adapter, parser, monitor, and bar section. This plan closes the remaining gaps in [B013 — Claude limits](../B13-claude-limits.md). Read the brief, [subscription product plan](../../plan.md#3-deliver-subscription-limits), [provider adapter requirements](../../implementation-plan.md#provider-adapters), [ADR 0017](../../adr/0017-claude-limit-display-in-codex-style.md), [ADR 0021](../../adr/0021-used-limit-display.md), [ADR 0018](../../adr/0018-claude-usage-client-output.md), [ADR 0019](../../adr/0019-claude-child-image-load-policy.md), [ADR 0020](../../adr/0020-qualify-claude-code-2-1-306.md), and the dated B012 reports for [2.1.304](../../research/providers/claude-2026-10-21.md) and [2.1.306](../../research/providers/claude-2.1.306-2026-10-21.md) before implementation. The brief's acceptance criteria and out-of-scope section are binding.
+Status: in progress. [PR #41](https://github.com/maxViolet/System-Resource-Monitor/pull/41) implemented the adapter, parser, monitor, and bar section. This plan closes the remaining gaps in [B013 — Claude limits](../B13-claude-limits.md). Read the brief, [subscription product plan](../../plan.md#3-deliver-subscription-limits), [provider adapter requirements](../../implementation-plan.md#provider-adapters), [ADR 0017](../../adr/0017-claude-limit-display-in-codex-style.md), [ADR 0021](../../adr/0021-used-limit-display.md), [ADR 0018](../../adr/0018-claude-usage-client-output.md), [ADR 0019](../../adr/0019-claude-child-image-load-policy.md), [ADR 0020](../../adr/0020-qualify-claude-code-2-1-306.md), [ADR 0022](../../adr/0022-claude-code-minimum-version.md), and the dated B012 reports for [2.1.304](../../research/providers/claude-2026-10-21.md) and [2.1.306](../../research/providers/claude-2.1.306-2026-10-21.md) before implementation. The brief's acceptance criteria and out-of-scope section are binding.
 
 ## Ordered work and gates
 
 ### 1. Freeze the contract
 
-- Accept only file versions `2.1.304.0` and `2.1.306.0`, the fixed ADR 0018 arguments, and the ADR 0019 child image-loading policy. Monthly and other new rows remain unknown format; exercise the qualified-monthly display only with constructed snapshots.
+- Accept signed file versions `2.1.304.0` and later ([ADR 0022](../../adr/0022-claude-code-minimum-version.md)), the fixed ADR 0018 arguments, and the ADR 0019 child image-loading policy. Monthly and other new rows remain unknown format; exercise the qualified-monthly display only with constructed snapshots.
 - `ClaudeUsageSource` does not produce `NetworkFailed` until a pinned client gives an explicit, verified network response; enabling it requires separate qualification. Prove the stale path at monitor level with a fake source.
 - A reset that has already passed renders `in 00:00`, matching `CodexSectionFormat` ([ADR 0021](../../adr/0021-used-limit-display.md)).
 
@@ -38,4 +38,4 @@ Status: in progress. [PR #41](https://github.com/maxViolet/System-Resource-Monit
 
 ## Boundary
 
-Monthly-window qualification, network-failure classification, other plan tiers, client versions, or locales, Codex changes, and B012's 2.1.306 acceptance checkbox are outside this plan. App-only resource gates belong to B007; record Claude child private bytes as an observation only.
+Monthly-window qualification, network-failure classification, other plan tiers, client versions, or locales, Codex changes, and B012's release non-consumption checkbox are outside this plan. App-only resource gates belong to B007; record Claude child private bytes as an observation only.

@@ -42,20 +42,32 @@ public sealed class ClaudeClientLocatorTests : IDisposable
         Assert.Equal(1, _signature.Calls);
     }
 
-    [Fact]
-    public void Qualified_2_1_306_client_is_accepted()
+    [Theory]
+    [InlineData("2.1.306.0")]
+    [InlineData("2.1.307.0")]
+    [InlineData("2.1.310.0")]
+    [InlineData("2.2.0.0")]
+    [InlineData("3.0.0.0")]
+    public void Minimum_or_later_client_is_accepted(string version)
     {
         WriteImage();
-        using var client = Locator(version: "2.1.306.0").Locate(out _);
+        using var client = Locator(version: version).Locate(out _);
         Assert.NotNull(client);
         Assert.Equal(1, _signature.Calls);
     }
 
-    [Fact]
-    public void Changed_version_is_rejected_before_signature_verification()
+    [Theory]
+    [InlineData("2.1.303.0")]
+    [InlineData("2.0.999.0")]
+    [InlineData("1.9.0.0")]
+    [InlineData("2.1.304")]
+    [InlineData("")]
+    [InlineData("not-a-version")]
+    [InlineData(null)]
+    public void Older_or_unreadable_version_is_rejected_before_signature_verification(string? version)
     {
         WriteImage();
-        Assert.Null(Locator(version: "2.1.307.0").Locate(out var reason));
+        Assert.Null(new ClaudeClientLocator(_root, _userSid, _signature, _ => version).Locate(out var reason));
         Assert.Equal(ClaudeUnavailableReason.UnsupportedVersion, reason);
         Assert.Equal(0, _signature.Calls);
     }

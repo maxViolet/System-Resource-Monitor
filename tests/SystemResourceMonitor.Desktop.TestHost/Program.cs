@@ -21,7 +21,7 @@ public static partial class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram|gpu] | --metric-display [seconds] | --native-reads <seconds> | --gpu-probe | --gpu-correlation <seconds> | --codex-probe <polls> <interval-seconds>";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram|gpu] | --metric-display [seconds] | --native-reads <seconds> | --gpu-probe | --gpu-correlation <seconds> | --codex-probe <polls> <interval-seconds> | --claude-independence";
 
     [STAThread]
     public static int Main(string[] args)
@@ -81,6 +81,8 @@ public static partial class Program
             case ["--codex-probe", var count, var seconds] when int.TryParse(count, out var polls) && polls > 0
                 && TryParseSeconds(seconds, out var interval):
                 return CodexProbe(polls, interval);
+            case ["--claude-independence"]:
+                return ClaudeIndependence();
             case ["--claude-probe"]:
                 return ClaudeProbe(2, TimeSpan.Zero);
             case ["--claude-image-probe", var imagePath]:

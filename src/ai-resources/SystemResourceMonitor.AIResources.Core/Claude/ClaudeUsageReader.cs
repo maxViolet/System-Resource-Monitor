@@ -10,13 +10,17 @@ public static partial class ClaudeUsageReader
     public const int MaxOutputBytes = 64 * 1024;
     private static readonly JsonDocumentOptions JsonOptions = new() { MaxDepth = 8 };
 
+    /// <summary>The latest accepted session reset: the 300-minute window plus the observed one-minute display variation.</summary>
+    private static readonly TimeSpan MaxSessionResetAhead = TimeSpan.FromMinutes(ClaudeContract.ShortWindowMinutes + 1);
+
     [GeneratedRegex(@"^Current (?<kind>session|week \([^\r\n)]{1,60}\)): (?<used>\d{1,3})% used(?: · resets (?<reset>[^\r\n]{1,100}))?$", RegexOptions.CultureInvariant)]
     private static partial Regex WindowLine();
 
     [GeneratedRegex(@"^(?<date>[A-Z][a-z]{2} \d{1,2}),? (?<time>\d{1,2}(?::\d{2})?[ap]m) \((?<zone>[^()]{1,64})\)$", RegexOptions.CultureInvariant)]
     private static partial Regex ResetLine();
 
-    [GeneratedRegex(@"^[A-Za-z][^\r\n:]{1,80}:\s*\d{1,3}%(?:\s|$)", RegexOptions.CultureInvariant)]
+    // Any percentage outside a recognized window is an unqualified row.
+    [GeneratedRegex(@"\d+%", RegexOptions.CultureInvariant)]
     private static partial Regex OtherUsageLine();
 
     public static ClaudeLimitSnapshot? Read(ReadOnlySpan<byte> utf8, DateTimeOffset observedAt)
@@ -67,7 +71,8 @@ public static partial class ClaudeUsageReader
                 var kind = match.Groups["kind"].Value;
                 var resetText = match.Groups["reset"].Value;
                 var reset = resetText.Length == 0 ? null : ParseReset(resetText, observedAt);
-                if ((resetText.Length > 0 && reset is null) || (used > 0 && reset is null))
+                if ((resetText.Length > 0 && reset is null) || (used > 0 && reset is null)
+                    || (kind == "session" && reset > observedAt + MaxSessionResetAhead))
                 {
                     return null;
                 }

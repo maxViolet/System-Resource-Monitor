@@ -64,7 +64,7 @@ internal sealed class ClaudeClientLocator : IClaudeClientLocator
         {
             if (!CanonicalMatches(handle) || !TrustedChain())
             { reason = ClaudeUnavailableReason.ClientUntrusted; return null; }
-            if (!ClaudeContract.IsQualifiedFileVersion(_fileVersion(_path)))
+            if (!ClaudeContract.IsSupportedFileVersion(_fileVersion(_path)))
             { reason = ClaudeUnavailableReason.UnsupportedVersion; return null; }
             // Another principal can write the installer's directory, so signature verification is repeated
             // on every poll while this handle denies modification of the file being started.

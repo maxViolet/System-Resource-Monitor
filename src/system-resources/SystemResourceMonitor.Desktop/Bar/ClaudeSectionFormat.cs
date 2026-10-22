@@ -79,16 +79,17 @@ public static class ClaudeSectionFormat
     private static string Window(ClaudeLimitWindow window, TimeZoneInfo zone) =>
         window.ResetsAt is { } reset
             ? $"{window.Label}: {window.UsedPercent}% used, resets {Local(reset, zone)} (minute precision)."
-            : $"{window.Label}: {window.UsedPercent}% used; reset time is not shown by Claude Code.";
+            : $"{window.Label}: {window.UsedPercent}% used; Claude Code shows no reset time for an unused window.";
 
-    private static string Explain(ClaudeUnavailableReason reason) => reason switch
+    /// <summary>The safe tooltip for <paramref name="reason"/>; an undefined reason throws.</summary>
+    internal static string Explain(ClaudeUnavailableReason reason) => reason switch
     {
         ClaudeUnavailableReason.NotYetSampled => "Waiting for the first Claude reading.",
         ClaudeUnavailableReason.SignedOut => "Claude is signed out. Sign in with Claude Code.",
         ClaudeUnavailableReason.NetworkFailed => "Claude could not be reached.",
         ClaudeUnavailableReason.UnknownFormat => "Claude answered in an unsupported format.",
         ClaudeUnavailableReason.UnsupportedVersion =>
-            $"The installed Claude Code version is not qualified. Supported: {string.Join(", ", ClaudeContract.QualifiedVersions)}.",
+            $"The installed Claude Code version is not supported. Requires {ClaudeContract.MinimumVersion.ToString(3)} or later.",
         ClaudeUnavailableReason.ClientNotFound => "The native Claude Code client is not installed.",
         ClaudeUnavailableReason.ClientUntrusted => "The Claude Code executable failed verification.",
         ClaudeUnavailableReason.TimedOut => "Claude Code did not answer in time.",

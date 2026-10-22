@@ -5,7 +5,7 @@
 | **Area** | Core + Desktop |
 | **Depends on** | B006; B012 accepted |
 | **Unblocks** | B007 |
-| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [ADR 0017](../adr/0017-claude-limit-display-in-codex-style.md), [ADR 0021](../adr/0021-used-limit-display.md), [ADR 0018](../adr/0018-claude-usage-client-output.md), [ADR 0019](../adr/0019-claude-child-image-load-policy.md), [ADR 0020](../adr/0020-qualify-claude-code-2-1-306.md), [B012 qualification brick and dated reports](B12-claude-source.md) |
+| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [ADR 0017](../adr/0017-claude-limit-display-in-codex-style.md), [ADR 0021](../adr/0021-used-limit-display.md), [ADR 0018](../adr/0018-claude-usage-client-output.md), [ADR 0019](../adr/0019-claude-child-image-load-policy.md), [ADR 0022](../adr/0022-claude-code-minimum-version.md), [B012 qualification brick and dated reports](B12-claude-source.md) |
 
 ## Why
 
@@ -17,7 +17,7 @@ The Claude section shows `Claude: 5h 24% in HH:mm | W 18%` with the actual used 
 
 ## Context
 
-Build only against B012's selected client versions, [ADR 0018](../adr/0018-claude-usage-client-output.md), [ADR 0019](../adr/0019-claude-child-image-load-policy.md), and [ADR 0020](../adr/0020-qualify-claude-code-2-1-306.md). Keep parsing separate from source acquisition and use sanitized fixtures. Start the verified executable directly without a shell, using fixed argument tokens, a kill-on-close Windows job, and the required image-loading policy. Resolve only the pinned native install path; check its canonical target, reparse points, trusted owner, version, and publisher signature before each poll. Drain stdout/stderr concurrently with byte limits and a request timeout. Never log raw account output. Unknown versions or formats are unavailable.
+Build only against B012's selected source, [ADR 0018](../adr/0018-claude-usage-client-output.md), [ADR 0019](../adr/0019-claude-child-image-load-policy.md), and the minimum client version in [ADR 0022](../adr/0022-claude-code-minimum-version.md). Keep parsing separate from source acquisition and use sanitized fixtures. Start the verified executable directly without a shell, using fixed argument tokens, a kill-on-close Windows job, and the required image-loading policy. Resolve only the fixed native install path; check its canonical target, reparse points, trusted owner, version, and publisher signature before each poll. Drain stdout/stderr concurrently with byte limits and a request timeout. Never log raw account output. Older versions and unknown formats are unavailable.
 
 Anthropic documents the 300-minute session window used by `5h`. Above 0% used, derive `HH:mm` from the client-displayed minute-precision reset and round up to the next whole minute so a positive duration never displays `00:00`. A 0%-used window may omit reset text; the tooltip says so, and a 0%-used short window has no countdown. Keep every weekly window in the snapshot and tooltip even though the bar shows only the binding weekly value. A missing monthly window does not make the qualified short or weekly fields unavailable.
 

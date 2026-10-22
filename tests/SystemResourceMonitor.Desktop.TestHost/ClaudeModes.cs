@@ -6,6 +6,7 @@ using Microsoft.Win32.SafeHandles;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace SystemResourceMonitor.Desktop.TestHost;
 
@@ -13,6 +14,7 @@ public static partial class Program
 {
     private static int FakeClaudeAuth()
     {
+        RecordClaudeLaunch("auth");
         var mode = Environment.GetEnvironmentVariable("SRM_FAKE_CLAUDE_MODE");
         var signedOut = mode == "signed-out";
         Console.WriteLine(JsonSerializer.Serialize(new { loggedIn = !signedOut }));
@@ -21,7 +23,13 @@ public static partial class Program
 
     private static int FakeClaudeUsage()
     {
+        RecordClaudeLaunch("usage");
         var mode = Environment.GetEnvironmentVariable("SRM_FAKE_CLAUDE_MODE");
+        if (mode == "large-stderr")
+        {
+            // Stdout stays a valid answer, so only the independent stderr bound can reject the poll.
+            Console.Error.Write(new string('x', ClaudeUsageReader.MaxOutputBytes + 1));
+        }
         if (mode == "hang")
         {
             using var grandchild = Process.Start(new ProcessStartInfo(Environment.ProcessPath!, "--fake-claude-grandchild")
@@ -44,6 +52,29 @@ public static partial class Program
         }, new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
         return mode == "usage-nonzero" ? AssertionFailed : Success;
     }
+
+    /// <summary>
+    /// Appends the invocation and whether this process runs under the Microsoft-signed-only image policy, so a test can
+    /// prove that every launch of a policy-enforcing source was protected.
+    /// </summary>
+    private static unsafe void RecordClaudeLaunch(string invocation)
+    {
+        if (Environment.GetEnvironmentVariable("SRM_FAKE_CLAUDE_LAUNCH_LOG") is not { Length: > 0 } log) return;
+        uint flags = 0;
+        var protectedLaunch = GetProcessMitigationPolicy(GetCurrentProcess(), ProcessSignaturePolicy, &flags, sizeof(uint))
+            && (flags & MicrosoftSignedOnly) != 0;
+        File.AppendAllText(log, $"{invocation}:{(protectedLaunch ? "protected" : "unprotected")}\n");
+    }
+
+    private const int ProcessSignaturePolicy = 8;
+    private const uint MicrosoftSignedOnly = 1;
+
+    [LibraryImport("kernel32.dll")]
+    private static partial nint GetCurrentProcess();
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static unsafe partial bool GetProcessMitigationPolicy(nint process, int policy, void* buffer, nuint length);
 
     private static int ClaudeProbe(int count, TimeSpan interval)
     {

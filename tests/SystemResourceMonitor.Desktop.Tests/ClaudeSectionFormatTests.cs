@@ -18,8 +18,63 @@ public sealed class ClaudeSectionFormatTests
         var section = ClaudeSectionFormat.Format(state, Now, Zone);
 
         Assert.Equal("Claude: 5h 0% | W 0%", section.Text);
-        Assert.Contains("reset time is not shown", section.ToolTip);
+        Assert.Equal("Current session: 0% used; Claude Code shows no reset time for an unused window.\n"
+            + "Current week (all models): 0% used; Claude Code shows no reset time for an unused window.", section.ToolTip);
         Assert.Null(ClaudeSectionFormat.UntilCountdownChanges(state, Now));
+    }
+
+    [Fact]
+    public void Unused_short_window_with_a_reported_reset_still_has_no_countdown()
+    {
+        var state = Current(0, Now.AddHours(5));
+
+        Assert.Equal("Claude: 5h 0% | W 5%", ClaudeSectionFormat.Format(state, Now, Zone).Text);
+        Assert.Null(ClaudeSectionFormat.UntilCountdownChanges(state, Now));
+    }
+
+    [Fact]
+    public void Tooltip_lists_every_window_at_minute_precision()
+    {
+        var snapshot = new ClaudeLimitSnapshot(
+            ClaudeLimitWindow.Create("Current session", 24, Now.AddMinutes(61).AddSeconds(1))!,
+            [ClaudeLimitWindow.Create("Current week (all models)", 5, Now.AddDays(1))!,
+             ClaudeLimitWindow.Create("Current week (Fable)", 40, Now.AddDays(2))!],
+            ClaudeLimitWindow.Create("Current month", 18, Now.AddDays(7))!);
+
+        Assert.Equal("Current session: 24% used, resets 21 Oct 11:01 (minute precision).\n"
+            + "Current week (all models): 5% used, resets 22 Oct 10:00 (minute precision).\n"
+            + "Current week (Fable): 40% used, resets 23 Oct 10:00 (minute precision).\n"
+            + "Current month: 18% used, resets 28 Oct 10:00 (minute precision).",
+            ClaudeSectionFormat.Format(new ClaudeLimitsCurrent(snapshot, Now, 0), Now, Zone).ToolTip);
+    }
+
+    [Theory]
+    [InlineData(ClaudeUnavailableReason.NotYetSampled, "Waiting for the first Claude reading.")]
+    [InlineData(ClaudeUnavailableReason.SignedOut, "Claude is signed out. Sign in with Claude Code.")]
+    [InlineData(ClaudeUnavailableReason.NetworkFailed, "Claude could not be reached.")]
+    [InlineData(ClaudeUnavailableReason.UnknownFormat, "Claude answered in an unsupported format.")]
+    [InlineData(ClaudeUnavailableReason.UnsupportedVersion,
+        "The installed Claude Code version is not supported. Requires 2.1.304 or later.")]
+    [InlineData(ClaudeUnavailableReason.ClientNotFound, "The native Claude Code client is not installed.")]
+    [InlineData(ClaudeUnavailableReason.ClientUntrusted, "The Claude Code executable failed verification.")]
+    [InlineData(ClaudeUnavailableReason.TimedOut, "Claude Code did not answer in time.")]
+    [InlineData(ClaudeUnavailableReason.ReadFailed, "Claude Code could not be read.")]
+    [InlineData(ClaudeUnavailableReason.Expired, "No Claude update for three minutes.")]
+    public void Every_unavailable_reason_has_a_safe_explanation(ClaudeUnavailableReason reason, string explanation)
+    {
+        var section = ClaudeSectionFormat.Format(new ClaudeLimitsUnavailable(reason), Now, Zone);
+
+        Assert.Equal("Claude: 5h -- | W --", section.Text);
+        Assert.Equal(explanation, section.ToolTip);
+    }
+
+    [Fact]
+    public void Every_reason_is_explained_distinctly()
+    {
+        var explanations = Enum.GetValues<ClaudeUnavailableReason>().Select(ClaudeSectionFormat.Explain).ToList();
+
+        Assert.Equal(explanations.Count, explanations.Distinct().Count());
+        Assert.Throws<ArgumentOutOfRangeException>(() => ClaudeSectionFormat.Explain((ClaudeUnavailableReason)99));
     }
 
     [Fact]
@@ -56,7 +111,11 @@ public sealed class ClaudeSectionFormatTests
     [Theory]
     [InlineData(1L, "00:01")]
     [InlineData(TimeSpan.TicksPerMinute, "00:01")]
+    [InlineData(TimeSpan.TicksPerSecond, "00:01")]
     [InlineData(TimeSpan.TicksPerMinute + 1, "00:02")]
+    [InlineData(60 * TimeSpan.TicksPerMinute, "01:00")]
+    [InlineData(61 * TimeSpan.TicksPerMinute + TimeSpan.TicksPerSecond, "01:02")]
+    [InlineData(299 * TimeSpan.TicksPerMinute, "04:59")]
     [InlineData(300 * TimeSpan.TicksPerMinute, "05:00")]
     [InlineData(200 * TimeSpan.TicksPerHour, "99:59")]
     [InlineData(0L, "00:00")]
