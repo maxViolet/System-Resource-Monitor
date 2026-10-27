@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Resource Monitor — bar design</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Segoe UI", Arial, sans-serif; background: #10141b; color: #ecf0f5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, select:focus-visible { outline: 2px solid #7dc4ff; outline-offset: 2px; }
+    [hidden] { display: none !important; }
+    .page { max-width: 1500px; margin: auto; padding: 40px 28px 64px; }
+    .eyebrow { color: #82b9ff; font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; font-size: 32px; font-weight: 600; letter-spacing: -.035em; }
+    .intro { max-width: 770px; color: #adbacb; line-height: 1.55; margin: 0 0 28px; }
+    .controls { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-bottom: 18px; }
+    .control { display: grid; gap: 7px; color: #9eacbe; font-size: 12px; }
+    .control select, .segmented { height: 36px; border: 1px solid #334050; border-radius: 7px; background: #1b2532; color: #e8edf4; }
+    .control select { min-width: 116px; padding: 0 28px 0 10px; }
+    .segmented { display: flex; padding: 2px; }
+    .segmented button { min-width: 82px; padding: 0 11px; border: 0; border-radius: 5px; background: transparent; color: #a7b5c5; }
+    .segmented button[aria-pressed="true"] { background: #365376; color: #fff; }
+    button.segmented { padding: 0 11px; }
+    .demo-frame { overflow-x: auto; border: 1px solid #303b4a; border-radius: 11px; background: #18212c; box-shadow: 0 25px 65px #0004; }
+    .demo-screen { position: relative; min-height: 260px; background: radial-gradient(circle at 22% 70%, #294364 0, transparent 42%), linear-gradient(135deg,#182231,#111923 70%); }
+    .bar { position: absolute; top: 0; left: 0; display: flex; align-items: center; width: 100%; height: 24px; padding: 0 8px 0 0; background: #1e1e1e; box-shadow: 0 1px #ffffff1a; color: #e6e6e6; font: 12px "Segoe UI", Arial, sans-serif; white-space: nowrap; }
+    .metrics { display: flex; align-items: center; flex: none; height: 100%; }
+    .metric { flex: none; padding: 0 8px; height: 100%; display: flex; align-items: center; color: #e6e6e6; }
+    .metric:nth-child(1) { width: 64px; }
+    .metric:nth-child(2) { width: 68px; }
+    .metric:nth-child(3) { width: 65px; }
+    .metric:nth-child(4) { width: 300px; }
+    .metric:nth-child(5) { width: 300px; }
+    .metric b { font-weight: 400; color: #9facbc; margin-right: 4px; }
+    .divider { flex: none; width: 1px; height: 14px; background: #536172; opacity: .7; margin: 0 6px; }
+    .tasks { display: flex; align-items: center; justify-content: center; gap: 2px; flex: 1 1 auto; min-width: 0; height: 100%; }
+    .task { position: relative; display: flex; align-items: center; flex: none; width: 32px; height: 22px; padding: 0 7px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #c9d2dd; text-align: left; }
+    .task:hover, .icon-button:hover { background: #353e49; }
+    .task.active, .task-overflow.active { background: #3c495b; border-color: #56687d; color: #fff; box-shadow: inset 0 -2px #7dc4ff; }
+    .task.flashing { background: #704923; border-color: #bb823b; color: #fff; }
+    .task.flashing::after { content: ""; position: absolute; right: 3px; top: 2px; width: 4px; height: 4px; border-radius: 50%; background: #fff; }
+    .app-icon { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 16px; height: 16px; border-radius: 3px; background: var(--app-color, #5379b0); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; }
+    .icon-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 22px; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #e4eaf2; }
+    .icon-button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .task-overflow { width: 28px; font-size: 16px; }
+    .right, .tray { display: flex; align-items: center; flex: none; height: 100%; gap: 1px; }
+    .tray-icon { width: 19px; height: 19px; font-size: 9px; font-weight: 700; }
+    .tray-icon span { display: grid; place-items: center; width: 13px; height: 13px; border-radius: 3px; background: var(--app-color,#6e8098); color: #fff; }
+    .clock { min-width: 56px; height: 100%; padding-left: 8px; display: grid; place-items: center; color: #f1f4f7; font-variant-numeric: tabular-nums; }
+    .menu-anchor { position: relative; height: 100%; display: flex; align-items: center; }
+    .menu { position: absolute; top: 27px; right: 0; z-index: 2; width: 280px; max-height: 210px; overflow-y: auto; padding: 5px; border: 1px solid #556477; border-radius: 7px; background: #242d39; box-shadow: 0 15px 36px #0009; }
+    .menu button { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 28px; border: 0; border-radius: 4px; padding: 4px 7px; background: transparent; color: #eaf0f6; text-align: left; font-size: 12px; }
+    .menu button:hover, .menu button[aria-current="true"] { background: #3c495b; }
+    .menu button[aria-current="true"] { box-shadow: inset 0 -2px #7dc4ff; }
+    .menu button span:last-child { overflow-wrap: anywhere; white-space: normal; }
+    .windows-taskbar { position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 14px; background: #253445; border-top: 1px solid #a8c1db33; color: #b9c8d8; font-size: 11px; }
+    .window-mark { width: 14px; height: 14px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; }
+    .window-mark i { background: #91bdf0; }
+    .keyboard-panel { position: absolute; z-index: 3; top: 34px; right: 22px; width: 270px; max-height: 185px; overflow-y: auto; padding: 9px; border: 1px solid #617993; border-radius: 7px; background: #253141; box-shadow: 0 15px 36px #0009; }
+    .keyboard-panel strong { display: block; margin: 0 0 5px; font-size: 12px; }
+    .keyboard-panel p { margin: 0 0 7px; color: #b6c4d3; font-size: 11px; line-height: 1.35; }
+    .keyboard-panel button { display: block; width: 100%; height: 26px; border: 0; border-radius: 3px; padding: 0 7px; background: transparent; color: #eaf0f6; text-align: left; font-size: 12px; }
+    .keyboard-panel button:hover, .keyboard-panel button[aria-current="true"] { background: #425a74; }
+    .screen-label { display: flex; justify-content: space-between; padding: 52px 22px 22px; color: #a9b8ca; font-size: 12px; }
+    .status { margin: 14px 0 30px; color: #acc0d6; font-size: 13px; }
+    .notes { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+    .note { border: 1px solid #303d4d; border-radius: 8px; padding: 15px; background: #18212c; }
+    .note h2 { margin: 0 0 7px; font-size: 14px; font-weight: 600; }
+    .note p { margin: 0; color: #adbacb; font-size: 12px; line-height: 1.5; }
+    @media(max-width:700px) { .page { padding: 22px 14px; } h1 { font-size: 26px; } .notes { grid-template-columns: 1fr; } }
+    @media(prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="eyebrow">System Resource Monitor · Visual prototype</div>
+    <h1>One bar, three delivery states</h1>
+    <p class="intro">The bar is shown at its 24 DIP height. The current state reflects the latest checked desktop code; B017 and B018 preview planned behavior. Sample values, letter-block task icons, and tray icons are illustrative. The prototype is not WPF layout or Windows acceptance evidence.</p>
+    <div class="controls">
+      <div class="control"><span>Delivery state</span><div class="segmented"><button id="phase-now" aria-pressed="true">Current</button><button id="phase-a" aria-pressed="false">B017 · Tasks</button><button id="phase-b" aria-pressed="false">B018 · Tray</button></div></div>
+      <label class="control">Screen width <select id="width"><option value="1440">1440 DIP</option><option value="1920">1920 DIP</option><option value="1280">1280 DIP</option></select></label>
+      <label class="control" id="task-control">Open tasks <select id="count"><option value="1">1 task</option><option value="10" selected>10 tasks</option><option value="40">40 tasks</option></select></label>
+      <label class="control" id="limit-control">Sample qualified limits <select id="limits"><option value="yes">Shown</option><option value="no">Hidden</option></select></label>
+      <label class="control" id="tray-control">Tray icons <select id="tray-count"><option value="1">1 icon</option><option value="6">6 icons</option><option value="20" selected>20 icons</option></select></label>
+      <div class="control" id="active-control"><span>State preview</span><button id="activate-last" class="segmented" type="button">Activate last task</button></div>
+      <div class="control" id="keyboard-control"><span>Access preview</span><button id="keyboard-mode" class="segmented" type="button" aria-expanded="false">Keyboard surface</button></div>
+    </div>
+    <div class="demo-frame"><div id="screen" class="demo-screen">
+      <div class="bar" aria-label="System Resource Monitor bar">
+        <div class="metrics" aria-label="System metrics and qualified limits">
+          <span class="metric" title="Current CPU load"><b>CPU</b> 12%</span>
+          <span class="metric" title="RAM 10.2 / 16.0 GiB used"><b>RAM</b> 64%</span>
+          <span class="metric" title="Discrete GPU load"><b>GPU</b> 18%</span>
+          <span id="codex-metric" class="metric" title="Example Codex used limits">Codex: 5h 24% in 02:14 | W 67%</span>
+          <span id="claude-metric" class="metric" title="Example Claude used limits">Claude: 5h 42% in 01:33 | W 85%</span>
+        </div>
+        <span class="divider" id="left-divider" hidden aria-hidden="true"></span>
+        <div id="tasks" class="tasks" aria-label="Task strip" hidden></div>
+        <span class="divider" id="task-divider" hidden aria-hidden="true"></span>
+        <div class="right">
+          <div id="tray" class="tray" hidden></div>
+          <div id="indicators" class="tray" hidden>
+            <button class="icon-button" aria-label="Volume 45 percent" title="Volume 45% · click to mute" type="button"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4zM17 9a5 5 0 0 1 0 6"/></svg></button>
+            <button class="icon-button" aria-label="Network connected" title="Network connected" type="button"><svg viewBox="0 0 24 24"><path d="M3 9a14 14 0 0 1 18 0M6 12a9 9 0 0 1 12 0M9 15a5 5 0 0 1 6 0"/><path d="M12 19h.01"/></svg></button>
+            <button class="icon-button" aria-label="Battery 82 percent, charging" title="Battery 82% · charging" type="button"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 10v4M11 9l-2 4h3l-1 3"/></svg></button>
+          </div>
+          <span class="divider" id="right-divider" hidden aria-hidden="true"></span>
+          <span id="clock" class="clock" title="Tuesday, October 27, 2026" hidden>10:42</span>
+        </div>
+      </div>
+      <div id="keyboard-panel" class="keyboard-panel" hidden></div>
+      <div class="screen-label"><span>Desktop preview</span><span id="screen-size">1440 DIP</span></div>
+      <div id="windows-taskbar" class="windows-taskbar"><span class="window-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Windows taskbar stays available</span></div>
+    </div></div>
+    <p id="status" class="status" role="status"></p>
+    <div class="notes">
+      <section class="note"><h2>Current bar</h2><p>CPU, RAM, GPU, Codex, and Claude sections reflect the checked desktop code. Its separate native tray icon owns position and exit; future task, clock, and in-bar tray features are not active.</p></section>
+      <section class="note"><h2>Task behavior</h2><p>Each task is a 32 DIP icon. The real bar will use the window icon, or a neutral fallback. Hover for the full title; overflow lists titles and marks a hidden active task.</p></section>
+      <section class="note"><h2>Phase boundary</h2><p>B017 keeps the Windows taskbar available. B018 hides it only after tray recovery is proven and restores it if the replacement tray fails.</p></section>
+    </div>
+  </main>
+  <script>
+    const titles = ['Visual Studio', 'File Explorer', 'Browser — Dashboard', 'Browser — Docs', 'Terminal', 'Mail', 'Notes', 'Settings', 'Music', 'Calendar'];
+    const colors = ['#6955ad','#d49b39','#3475ac','#3475ac','#303b47','#a45d4c','#657486','#657486','#8c689c','#608363'];
+    const trayNames = ['Sync','Chat','Cloud','Security','Audio','Monitor','Backup','Updates','VPN','Drive','Print','Calendar','Mail','Notes','Music','Capture','Power','Search','Share','Support'];
+    const state = {phase:'now', active:0, minimized:false};
+    const byId = id => document.getElementById(id);
+    const screen = byId('screen');
+    const taskRegion = byId('tasks');
+    const tray = byId('tray');
+    const panel = byId('keyboard-panel');
+    const status = byId('status');
+
+    function titleAt(i) { return titles[i % titles.length] + (i >= titles.length ? ' ' + (Math.floor(i / titles.length) + 1) : ''); }
+    function icon(i) {
+      const el = document.createElement('span');
+      el.className = 'app-icon';
+      el.style.setProperty('--app-color', colors[i % colors.length]);
+      el.setAttribute('aria-hidden', 'true');
+      if (i === 6) {
+        el.innerHTML = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="1"/><path d="M2 6h12"/></svg>';
+      } else {
+        el.textContent = titleAt(i)[0];
+      }
+      return el;
+    }
+    function closeMenus() {
+      document.querySelectorAll('.menu').forEach(menu => menu.hidden = true);
+      document.querySelectorAll('.menu-anchor > button').forEach(button => button.setAttribute('aria-expanded', 'false'));
+    }
+    function addMenu(anchor, items, label) {
+      const menu = document.createElement('div');
+      menu.className = 'menu'; menu.hidden = true; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', label);
+      items.forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button'; button.setAttribute('role', 'menuitem');
+        if (item.active) button.setAttribute('aria-current', 'true');
+        button.append(icon(item.index));
+        const title = document.createElement('span'); title.textContent = item.title; button.append(title);
+        button.addEventListener('click', () => { item.action(); closeMenus(); });
+        menu.append(button);
+      });
+      anchor.append(menu);
+      return menu;
+    }
+    function toggleMenu(menu) { const wasOpen = !menu.hidden; closeMenus(); menu.hidden = wasOpen; menu.parentElement.querySelector('button').setAttribute('aria-expanded', String(!wasOpen)); }
+    function makeTrayButton(name, index) {
+      const button = document.createElement('button');
+      button.className = 'icon-button tray-icon'; button.type = 'button'; button.title = name; button.setAttribute('aria-label', name);
+      const glyph = document.createElement('span'); glyph.style.setProperty('--app-color', colors[(index + 3) % colors.length]); glyph.textContent = name[0]; button.append(glyph);
+      return button;
+    }
+    function renderTray(total, visible) {
+      tray.replaceChildren();
+      if (total > visible) {
+        const anchor = document.createElement('div'); anchor.className = 'menu-anchor';
+        const more = document.createElement('button'); more.className = 'icon-button'; more.type = 'button'; more.textContent = '^'; more.title = 'Tray overflow'; more.setAttribute('aria-label', 'Tray overflow'); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false'); anchor.append(more);
+        const items = trayNames.slice(visible, total).map((name, offset) => ({index:visible + offset, title:name, action:() => {}}));
+        const menu = addMenu(anchor, items, 'Tray overflow'); more.addEventListener('click', () => toggleMenu(menu)); tray.append(anchor);
+      }
+      trayNames.slice(0, visible).forEach((name, i) => tray.append(makeTrayButton(name, i)));
+    }
+    function showKeyboardPanel(count, totalTray) {
+      panel.replaceChildren();
+      const heading = document.createElement('strong'); heading.textContent = 'Separate keyboard surface'; panel.append(heading);
+      const explanation = document.createElement('p'); explanation.textContent = 'Visual preview only. The entry command is chosen and checked in the B017 plan.'; panel.append(explanation);
+      for (let i = 0; i < count; i++) {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = titleAt(i);
+        if (state.active === i && !state.minimized) button.setAttribute('aria-current', 'true');
+        button.addEventListener('click', () => { state.active = i; state.minimized = false; render(); panel.querySelectorAll('button')[i]?.focus(); });
+        panel.append(button);
+      }
+      if (state.phase === 'b') {
+        const trayHeading = document.createElement('strong'); trayHeading.textContent = 'Tray and shell indicators'; panel.append(trayHeading);
+        trayNames.slice(0, totalTray).forEach(name => { const button = document.createElement('button'); button.type = 'button'; button.textContent = name; panel.append(button); });
+        ['Volume', 'Network', 'Battery'].forEach(name => { const button = document.createElement('button'); button.type = 'button'; button.textContent = name; panel.append(button); });
+      }
+    }
+    function render() {
+      closeMenus();
+      const width = Number(byId('width').value);
+      const count = Number(byId('count').value);
+      const totalTray = Number(byId('tray-count').value);
+      const isCurrent = state.phase === 'now';
+      const isB = state.phase === 'b';
+      if (state.active >= count) { state.active = 0; state.minimized = false; }
+      screen.style.width = width + 'px'; byId('screen-size').textContent = width + ' DIP';
+      for (const phase of ['now','a','b']) byId('phase-' + phase).setAttribute('aria-pressed', String(state.phase === phase));
+      for (const id of ['task-control','limit-control','active-control','keyboard-control']) byId(id).hidden = isCurrent;
+      byId('tray-control').hidden = !isB;
+      byId('windows-taskbar').hidden = isB;
+      byId('codex-metric').hidden = byId('claude-metric').hidden = !isCurrent && byId('limits').value === 'no';
+      byId('left-divider').hidden = byId('task-divider').hidden = taskRegion.hidden = isCurrent;
+      byId('clock').hidden = isCurrent;
+      tray.hidden = byId('indicators').hidden = byId('right-divider').hidden = !isB;
+      if (isCurrent) {
+        taskRegion.replaceChildren(); tray.replaceChildren(); panel.hidden = true; byId('keyboard-mode').setAttribute('aria-expanded', 'false');
+        status.textContent = 'Current checked desktop code: CPU, RAM, GPU, Codex, Claude, and a separate native tray icon. No task strip, clock, or in-bar tray yet.';
+        return;
+      }
+
+      taskRegion.replaceChildren();
+      let visibleTray = isB ? Math.min(totalTray, 6) : 0;
+      if (isB) {
+        renderTray(totalTray, visibleTray);
+        if (taskRegion.getBoundingClientRect().width < 28) {
+          for (let candidate = visibleTray - 1; candidate >= 0; candidate--) {
+            renderTray(totalTray, candidate);
+            visibleTray = candidate;
+            if (taskRegion.getBoundingClientRect().width >= 28) break;
+          }
+        }
+      } else {
+        tray.replaceChildren();
+      }
+
+      const available = Math.max(0, taskRegion.getBoundingClientRect().width);
+      const allFit = count * 32 + (count - 1) * 2 <= available;
+      const visible = allFit ? count : Math.max(0, Math.min(count, Math.floor((available - 28) / 34)));
+      const hidden = count - visible;
+      for (let i = 0; i < visible; i++) {
+        const button = document.createElement('button'); button.type = 'button';
+        button.className = 'task' + (state.active === i && !state.minimized ? ' active' : '') + (i === 2 && state.active !== 2 ? ' flashing' : '');
+        button.title = titleAt(i); button.setAttribute('aria-label', titleAt(i)); button.setAttribute('aria-pressed', String(state.active === i && !state.minimized)); button.append(icon(i));
+        button.addEventListener('click', () => { if (state.active === i) state.minimized = !state.minimized; else { state.active = i; state.minimized = false; } render(); });
+        button.addEventListener('auxclick', event => { if (event.button === 1) { event.preventDefault(); status.textContent = 'Prototype: middle click would ask “' + titleAt(i) + '” to close.'; } });
+        taskRegion.append(button);
+      }
+      if (hidden > 0) {
+        const anchor = document.createElement('div'); anchor.className = 'menu-anchor';
+        const more = document.createElement('button'); more.className = 'icon-button task-overflow' + (state.active >= visible && !state.minimized ? ' active' : ''); more.type = 'button'; more.textContent = '»'; more.title = hidden + ' more tasks'; more.setAttribute('aria-label', hidden + ' more tasks'); more.setAttribute('aria-haspopup', 'menu'); more.setAttribute('aria-expanded', 'false'); anchor.append(more);
+        const items = Array.from({length:hidden}, (_, offset) => { const i = visible + offset; return {index:i, title:titleAt(i), active:state.active === i && !state.minimized, action:() => {state.active = i; state.minimized = false; render();}}; });
+        const menu = addMenu(anchor, items, 'Task overflow'); more.addEventListener('click', () => toggleMenu(menu)); taskRegion.append(anchor);
+      }
+      if (!panel.hidden) showKeyboardPanel(count, totalTray);
+      status.textContent = (isB ? 'B018' : 'B017') + ' · ' + count + ' tasks · ' + visible + ' icon-only buttons, ' + hidden + ' in ».' + (isB ? ' ' + visibleTray + ' visible tray icons, ' + (totalTray - visibleTray) + ' in ^.' : ' Windows taskbar remains available.');
+    }
+    byId('phase-now').addEventListener('click', () => { state.phase = 'now'; render(); });
+    byId('phase-a').addEventListener('click', () => { state.phase = 'a'; render(); });
+    byId('phase-b').addEventListener('click', () => { state.phase = 'b'; render(); });
+    for (const id of ['width','count','limits','tray-count']) byId(id).addEventListener('change', render);
+    byId('activate-last').addEventListener('click', () => { state.active = Number(byId('count').value) - 1; state.minimized = false; render(); });
+    byId('keyboard-mode').addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+      byId('keyboard-mode').setAttribute('aria-expanded', String(!panel.hidden));
+      if (!panel.hidden) { showKeyboardPanel(Number(byId('count').value), Number(byId('tray-count').value)); panel.querySelector('button')?.focus(); }
+    });
+    panel.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { panel.hidden = true; byId('keyboard-mode').setAttribute('aria-expanded', 'false'); byId('keyboard-mode').focus(); }
+    });
+    document.addEventListener('click', event => { if (!event.target.closest('.menu-anchor')) closeMenus(); });
+    render();
+  </script>
+</body>
+</html>

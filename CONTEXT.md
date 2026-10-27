@@ -13,7 +13,7 @@ An open top-level window that Windows shows as a button on the Windows taskbar.
 _Avoid_: process, application, when meaning one window
 
 **Task button**:
-The bar's control for one task: its icon, trimmed title, and active or flashing state.
+The bar's 32-DIP icon-only control for one task, with active or attention state. Its tooltip and accessible name give the full window title.
 _Avoid_: taskbar button, when meaning the bar's control
 
 **Task strip**:
