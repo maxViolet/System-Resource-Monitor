@@ -73,6 +73,10 @@ _Avoid_: main window
 The whole minutes until an active short limit window resets, shown as `HH:mm` only above 0% used. Round up so a positive duration never appears as `00:00`; an unused 0% window has no countdown.
 _Avoid_: reset time, when meaning the relative countdown
 
+**Weekly reset countdown**:
+The time until the binding weekly window resets, shown beside its used limit when that limit is above 0% and a qualified reset time is known.
+_Avoid_: weekly usage duration
+
 **Limit snapshot**:
 The used limits and reset times of all limit windows of one subscription, obtained in a single poll.
 For Claude Code `/usage`, a window at 0% used may omit its reset time; this is an explicit unknown reset, not an unavailable used limit.

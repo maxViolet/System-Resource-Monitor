@@ -49,7 +49,7 @@ public sealed class ClaudeSectionWidthTests
             texts.Add(ClaudeSectionFormat.Format(new ClaudeLimitsUnavailable(reason), Now, TimeZoneInfo.Utc).Text);
         }
 
-        Assert.Contains("Claude: 5h 100% in 04:59 | W 100%", texts);
+        Assert.Contains("Claude: 5h 100% in 04:59 | W 100% in 06 00", texts);
         Assert.Contains("Claude (stale): 5h 0% | W 0%", texts);
         return texts;
     }
