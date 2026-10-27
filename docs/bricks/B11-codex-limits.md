@@ -5,7 +5,7 @@
 | **Area** | Core + Desktop |
 | **Depends on** | B006; B010 accepted |
 | **Unblocks** | B007 |
-| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [ADR 0015](../adr/0015-codex-limit-display-from-qualified-windows.md), [ADR 0021](../adr/0021-used-limit-display.md), [ADR 0023](../adr/0023-weekly-limit-countdown-display.md), [ADR 0016](../adr/0016-codex-client-resolution.md), [B010 qualification and dated report](B10-codex-source/README.md) |
+| **Sources** | [Product plan — Deliver subscription limits](../plan.md#3-deliver-subscription-limits), [Implementation plan — Provider adapters](../implementation-plan.md#provider-adapters), [ADR 0015](../adr/0015-codex-limit-display-from-qualified-windows.md), [ADR 0021](../adr/0021-used-limit-display.md), [ADR 0023](../adr/0023-weekly-limit-countdown-display.md), [ADR 0024](../adr/0024-weekly-countdown-units.md), [ADR 0016](../adr/0016-codex-client-resolution.md), [B010 qualification and dated report](B10-codex-source/README.md) |
 
 ## Why
 
@@ -13,7 +13,7 @@ Once the source is qualified, the app can expose Codex limits without coupling p
 
 ## What done looks like
 
-The Codex section shows the qualified aggregate 5-hour and weekly used limits, the active 5-hour countdown, and the weekly reset countdown, as defined in ADR 0021 and ADR 0023. The bar has no monthly field. Its tooltip shows the exact qualified reset times and explains unavailable fields. Polling occurs once per minute without consuming usage. Sign-in failure is unavailable on the first failed poll; network failure may retain explicitly stale qualified values only until three minutes after the last success, then displays unavailable values without waiting for another poll.
+The Codex section shows the qualified aggregate 5-hour and weekly used limits, the active 5-hour countdown, and the weekly reset countdown, as defined in ADR 0021, ADR 0023, and ADR 0024. The bar has no monthly field. Its tooltip shows the exact qualified reset times and explains unavailable fields. Polling occurs once per minute without consuming usage. Sign-in failure is unavailable on the first failed poll; network failure may retain explicitly stale qualified values only until three minutes after the last success, then displays unavailable values without waiting for another poll.
 
 ## Context
 
@@ -26,7 +26,7 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 ## Acceptance criteria
 
 - [ ] Parser tests cover both qualified window durations and reset times, `usedPercent` within 0–100, malformed/unknown output, and rejection of unqualified buckets or versions
-- [ ] Display tests cover the ADR 0021 and ADR 0023 format without a monthly field, the 0% 5-hour and weekly states without countdowns, weekly hour rounding, far-future and reset boundaries, active countdown updates, stale values, and unavailable values without clipping
+- [ ] Display tests cover the ADR 0021, ADR 0023, and ADR 0024 format without a monthly field, the 0% 5-hour and weekly states without countdowns, weekly hour rounding, far-future and reset boundaries, active countdown updates, stale values, and unavailable values without clipping
 - [ ] Polls do not overlap; Codex failure never delays CPU, RAM, GPU, or Claude acquisition/expiry
 - [ ] Fake-time tests prove first-poll sign-in unavailability and independent three-minute network expiry without a later poll
 - [ ] Timeout and shutdown tests prove process-tree termination, confirmed exit inside the deadline, and no late publication

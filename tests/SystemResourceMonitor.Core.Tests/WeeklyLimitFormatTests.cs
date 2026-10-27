@@ -7,11 +7,12 @@ public sealed class WeeklyLimitFormatTests
     private static readonly DateTimeOffset Now = new(2026, 10, 27, 12, 0, 0, TimeSpan.Zero);
 
     [Theory]
-    [InlineData(1, 12, 0, 0, "W 33% in 01 12")]
-    [InlineData(1, 12, 20, 0, "W 33% in 01 13")]
-    [InlineData(0, 0, 0, 1, "W 33% in 00 01")]
-    [InlineData(0, 23, 1, 0, "W 33% in 01 00")]
-    [InlineData(6, 23, 1, 0, "W 33% in 07 00")]
+    [InlineData(1, 12, 0, 0, "W 33% in 1d 12h")]
+    [InlineData(1, 12, 20, 0, "W 33% in 1d 13h")]
+    [InlineData(0, 0, 0, 1, "W 33% in 0d 1h")]
+    [InlineData(0, 23, 1, 0, "W 33% in 1d 0h")]
+    [InlineData(6, 22, 0, 0, "W 33% in 6d 22h")]
+    [InlineData(6, 23, 1, 0, "W 33% in 7d 0h")]
     public void Positive_time_rounds_up_before_splitting_days_and_hours(
         int days, int hours, int minutes, int seconds, string expected)
     {
@@ -25,8 +26,8 @@ public sealed class WeeklyLimitFormatTests
     {
         var reset = Now.AddDays(1).AddHours(12).AddMinutes(20);
 
-        Assert.Equal("W 33% in 01 13", WeeklyLimitFormat.Format(33, reset, Now));
-        Assert.Equal("W 33% in 01 12", WeeklyLimitFormat.Format(33, reset, Now.AddMinutes(20)));
+        Assert.Equal("W 33% in 1d 13h", WeeklyLimitFormat.Format(33, reset, Now));
+        Assert.Equal("W 33% in 1d 12h", WeeklyLimitFormat.Format(33, reset, Now.AddMinutes(20)));
     }
 
     [Theory]
@@ -47,7 +48,7 @@ public sealed class WeeklyLimitFormatTests
 
     [Theory]
     [InlineData(0, "W 0%")]
-    [InlineData(100, "W 100% in 00 01")]
+    [InlineData(100, "W 100% in 0d 1h")]
     public void Boundary_percentages_still_show_the_weekly_reset(int percent, string expected)
     {
         Assert.Equal(expected, WeeklyLimitFormat.Format(percent, Now.AddSeconds(1), Now));
@@ -97,6 +98,6 @@ public sealed class WeeklyLimitFormatTests
 
         Assert.Equal("W --", WeeklyLimitFormat.Format(33, reset, Now, max));
         Assert.Null(WeeklyLimitFormat.UntilCountdownChanges(33, reset, Now, max));
-        Assert.Equal("W 33% in 07 01", WeeklyLimitFormat.Format(33, Now + max, Now, max));
+        Assert.Equal("W 33% in 7d 1h", WeeklyLimitFormat.Format(33, Now + max, Now, max));
     }
 }

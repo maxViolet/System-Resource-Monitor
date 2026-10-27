@@ -28,7 +28,7 @@ public sealed class ClaudeSectionFormatTests
     {
         var state = Current(0, Now.AddHours(5));
 
-        Assert.Equal("Claude: 5h 0% | W 5% in 01 00", ClaudeSectionFormat.Format(state, Now, Zone).Text);
+        Assert.Equal("Claude: 5h 0% | W 5% in 1d 0h", ClaudeSectionFormat.Format(state, Now, Zone).Text);
         Assert.Equal(TimeSpan.FromHours(1), ClaudeSectionFormat.UntilCountdownChanges(state, Now));
     }
 
@@ -86,7 +86,7 @@ public sealed class ClaudeSectionFormatTests
              ClaudeLimitWindow.Create("Current week (Fable)", 40, Now.AddDays(2))!]);
         var section = ClaudeSectionFormat.Format(new ClaudeLimitsCurrent(snapshot, Now, 0), Now, Zone);
 
-        Assert.Equal("Claude: 5h 24% in 01:02 | W 40% in 02 00", section.Text);
+        Assert.Equal("Claude: 5h 24% in 01:02 | W 40% in 2d 0h", section.Text);
         Assert.Contains("Current week (all models)", section.ToolTip);
         Assert.Contains("Current week (Fable)", section.ToolTip);
     }
@@ -102,7 +102,7 @@ public sealed class ClaudeSectionFormatTests
         var unavailable = ClaudeSectionFormat.Format(
             new ClaudeLimitsUnavailable(ClaudeUnavailableReason.UnknownFormat), Now, Zone);
 
-        Assert.Equal("Claude (stale): 5h 50% in 01:00 | W 20% in 01 00", stale.Text);
+        Assert.Equal("Claude (stale): 5h 50% in 01:00 | W 20% in 1d 0h", stale.Text);
         Assert.Contains("Current month: 10% used", stale.ToolTip);
         Assert.Equal("Claude: 5h -- | W --", unavailable.Text);
         Assert.Contains("unsupported format", unavailable.ToolTip);
@@ -124,7 +124,7 @@ public sealed class ClaudeSectionFormatTests
     {
         var state = Current(24, Now + TimeSpan.FromTicks(remainderTicks));
 
-        Assert.Equal($"Claude: 5h 24% in {countdown} | W 5% in 01 00", ClaudeSectionFormat.Format(state, Now, Zone).Text);
+        Assert.Equal($"Claude: 5h 24% in {countdown} | W 5% in 1d 0h", ClaudeSectionFormat.Format(state, Now, Zone).Text);
     }
 
     [Theory]
@@ -156,7 +156,7 @@ public sealed class ClaudeSectionFormatTests
             [ClaudeLimitWindow.Create("Current week (all models)", 20, Now.AddSeconds(20))!]);
         var state = new ClaudeLimitsCurrent(snapshot, Now, 0);
 
-        Assert.Equal("Claude: 5h 24% in 02:00 | W 20% in 00 01",
+        Assert.Equal("Claude: 5h 24% in 02:00 | W 20% in 0d 1h",
             ClaudeSectionFormat.Format(state, Now, Zone).Text);
         Assert.Equal(TimeSpan.FromSeconds(20), ClaudeSectionFormat.UntilCountdownChanges(state, Now));
         Assert.Equal("Claude: 5h 24% in 02:00 | W 20%",

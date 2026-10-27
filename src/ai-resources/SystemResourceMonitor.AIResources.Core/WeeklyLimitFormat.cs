@@ -46,7 +46,7 @@ public static class WeeklyLimitFormat
         var wholeHours = (remaining.Ticks + TimeSpan.TicksPerHour - 1) / TimeSpan.TicksPerHour;
         var days = wholeHours / 24;
         var hours = wholeHours % 24;
-        return string.Create(CultureInfo.InvariantCulture, $"{prefix} in {days:D2} {hours:D2}");
+        return string.Create(CultureInfo.InvariantCulture, $"{prefix} in {days}d {hours}h");
     }
 
     /// <summary>Time until the displayed whole hour changes; null when there is no running countdown.</summary>

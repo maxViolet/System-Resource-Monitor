@@ -57,8 +57,8 @@ public static class ClaudeSectionFormat
                 var two = new string(digit, 2);
                 foreach (var shortValue in new[] { "0%", $"{one}% in {two}:{two}", $"{two}% in {two}:{two}",
                              $"100% in {two}:{two}" })
-                foreach (var week in new[] { $"W {one}% in {two} {two}", $"W {two}% in {two} {two}",
-                             $"W 100% in {two} {two}", $"W {one}%", $"W {two}%", "W 100%", "W --" })
+                foreach (var week in new[] { $"W {one}% in {one}d {two}h", $"W {two}% in {one}d {two}h",
+                             $"W 100% in {one}d {two}h", $"W {one}%", $"W {two}%", "W 100%", "W --" })
                     yield return $"{label} 5h {shortValue} | {week}";
             }
         }

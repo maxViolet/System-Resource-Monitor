@@ -6,7 +6,7 @@ namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
 /// Maps a <see cref="CodexLimitState"/> to the Codex bar section of ADR 0021 with invariant culture:
-/// <c>Codex: 5h 24% in HH:mm | W 67% in DD HH</c>, where each share is the used share. Only the qualified aggregate 5-hour and
+/// <c>Codex: 5h 24% in HH:mm | W 67% in 1d 12h</c>, where each share is the used share. Only the qualified aggregate 5-hour and
 /// weekly windows are shown; the bar has no monthly field. Tooltips never carry exception text, error codes, or
 /// account data.
 /// </summary>
@@ -94,8 +94,8 @@ public static class CodexSectionFormat
                 var two = new string(digit, 2);
                 foreach (var shortWindow in (string[])[$"{one}% in {two}:{two}", $"{two}% in {two}:{two}", $"100% in {two}:{two}", "0%"])
                 {
-                    foreach (var weekly in (string[])[$"W {one}% in {two} {two}", $"W {two}% in {two} {two}",
-                                 $"W 100% in {two} {two}", $"W {one}%", $"W {two}%", "W 100%"])
+                    foreach (var weekly in (string[])[$"W {one}% in {one}d {two}h", $"W {two}% in {one}d {two}h",
+                                 $"W 100% in {one}d {two}h", $"W {one}%", $"W {two}%", "W 100%"])
                     {
                         yield return Compose(label, shortWindow, weekly);
                     }
