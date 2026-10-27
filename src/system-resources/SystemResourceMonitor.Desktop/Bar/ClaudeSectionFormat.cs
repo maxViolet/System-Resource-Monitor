@@ -1,4 +1,5 @@
 using System.Globalization;
+using SystemResourceMonitor.AIResources.Core;
 using SystemResourceMonitor.AIResources.Core.Claude;
 
 namespace SystemResourceMonitor.Desktop.Bar;
@@ -35,20 +36,31 @@ public static class ClaudeSectionFormat
             ClaudeLimitsStale stale => stale.Snapshot,
             _ => null,
         };
-        if (snapshot?.ShortWindow.ResetsAt is not { } reset || snapshot.ShortWindow.UsedPercent == 0)
-            return null;
+        if (snapshot is null) return null;
+        var weeklyWindow = snapshot.BindingWeeklyWindow;
+        var weeklyChange = WeeklyLimitFormat.UntilCountdownChanges(weeklyWindow.UsedPercent, weeklyWindow.ResetsAt, now);
+        if (snapshot.ShortWindow.ResetsAt is not { } reset || snapshot.ShortWindow.UsedPercent == 0)
+            return weeklyChange;
         var remaining = reset - now;
-        if (remaining <= TimeSpan.Zero) return null;
-        return remaining - TimeSpan.FromMinutes(CountdownMinutes(remaining) - 1);
+        if (remaining <= TimeSpan.Zero) return weeklyChange;
+        var shortChange = remaining - TimeSpan.FromMinutes(CountdownMinutes(remaining) - 1);
+        return weeklyChange is { } week ? TimeSpan.FromTicks(Math.Min(shortChange.Ticks, week.Ticks)) : shortChange;
     }
 
     public static IEnumerable<string> WidthCandidates()
     {
         foreach (var label in new[] { "Claude:", "Claude (stale):" })
         {
-            foreach (var shortValue in new[] { "0%", "1% in 00:00", "100% in 99:59" })
-            foreach (var week in new[] { "0%", "100%" })
-                yield return $"{label} 5h {shortValue} | W {week}";
+            foreach (var digit in "0123456789")
+            {
+                var one = digit.ToString();
+                var two = new string(digit, 2);
+                foreach (var shortValue in new[] { "0%", $"{one}% in {two}:{two}", $"{two}% in {two}:{two}",
+                             $"100% in {two}:{two}" })
+                foreach (var week in new[] { $"W {one}% in {two} {two}", $"W {two}% in {two} {two}",
+                             $"W 100% in {two} {two}", $"W {one}%", $"W {two}%", "W 100%", "W --" })
+                    yield return $"{label} 5h {shortValue} | {week}";
+            }
         }
         yield return "Claude: 5h -- | W --";
     }
@@ -57,7 +69,8 @@ public static class ClaudeSectionFormat
     {
         var shortWindow = snapshot.ShortWindow;
         var shortText = shortWindow.UsedPercent == 0 ? "0%" : ShortText(shortWindow, now);
-        return $"{label} 5h {shortText} | W {snapshot.BindingWeeklyWindow.UsedPercent}%";
+        var week = snapshot.BindingWeeklyWindow;
+        return $"{label} 5h {shortText} | {WeeklyLimitFormat.Format(week.UsedPercent, week.ResetsAt, now)}";
     }
 
     private static string ShortText(ClaudeLimitWindow window, DateTimeOffset now)

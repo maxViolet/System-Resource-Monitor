@@ -1,11 +1,12 @@
 using System.Globalization;
+using SystemResourceMonitor.AIResources.Core;
 using SystemResourceMonitor.AIResources.Core.Codex;
 
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
 /// Maps a <see cref="CodexLimitState"/> to the Codex bar section of ADR 0021 with invariant culture:
-/// <c>Codex: 5h 24% in HH:mm | W 67%</c>, where each share is the used share. Only the qualified aggregate 5-hour and
+/// <c>Codex: 5h 24% in HH:mm | W 67% in DD HH</c>, where each share is the used share. Only the qualified aggregate 5-hour and
 /// weekly windows are shown; the bar has no monthly field. Tooltips never carry exception text, error codes, or
 /// account data.
 /// </summary>
@@ -17,6 +18,8 @@ public static class CodexSectionFormat
     private const string Label = "Codex:";
     private const string StaleLabel = "Codex (stale):";
     private const string TimeFormat = "d MMM HH:mm";
+    private static readonly TimeSpan MaximumWeeklyResetAhead =
+        TimeSpan.FromMinutes(CodexContract.WeeklyWindowMinutes + 1);
 
     private static readonly string ExpiredExplanation = string.Create(
         CultureInfo.InvariantCulture, $"No Codex update for {CodexLimitMonitor.StaleLimit.TotalMinutes:0} minutes.");
@@ -30,13 +33,13 @@ public static class CodexSectionFormat
         {
             CodexLimitsCurrent current => new MetricSection(
                 Text(Label, current.Snapshot, now),
-                Windows(current.Snapshot, zone)),
+                Windows(current.Snapshot, zone, now)),
             CodexLimitsStale stale => new MetricSection(
                 Text(StaleLabel, stale.Snapshot, now),
                 $"Stale: the Codex usage service could not be reached. Last update {Local(stale.MeasuredAt, zone)}; "
-                + $"these values are dropped at {Local(stale.ExpiresAt, zone)}.\n{Windows(stale.Snapshot, zone)}"),
+                + $"these values are dropped at {Local(stale.ExpiresAt, zone)}.\n{Windows(stale.Snapshot, zone, now)}"),
             CodexLimitsUnavailable unavailable => new MetricSection(
-                Compose(Label, Unavailable, Unavailable),
+                Compose(Label, Unavailable, "W --"),
                 Explain(unavailable.Reason)),
             _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown Codex limit state."),
         };
@@ -54,19 +57,27 @@ public static class CodexSectionFormat
             CodexLimitsStale stale => stale.Snapshot,
             _ => null,
         };
-        if (snapshot is null || snapshot.ShortWindow.UsedPercent == 0)
+        if (snapshot is null)
         {
             return null;
+        }
+
+        var weeklyChange = WeeklyLimitFormat.UntilCountdownChanges(snapshot.WeeklyWindow.UsedPercent,
+            snapshot.WeeklyWindow.ResetsAt, now, MaximumWeeklyResetAhead);
+        if (snapshot.ShortWindow.UsedPercent == 0)
+        {
+            return weeklyChange;
         }
 
         var remaining = snapshot.ShortWindow.ResetsAt - now;
         if (remaining <= TimeSpan.Zero)
         {
-            return null;
+            return weeklyChange;
         }
 
         // The text shows whole minutes rounded up, so it changes when the remainder crosses the next lower minute.
-        return remaining - TimeSpan.FromMinutes(CountdownMinutes(remaining) - 1);
+        var shortChange = remaining - TimeSpan.FromMinutes(CountdownMinutes(remaining) - 1);
+        return weeklyChange is { } week ? TimeSpan.FromTicks(Math.Min(shortChange.Ticks, week.Ticks)) : shortChange;
     }
 
     /// <summary>
@@ -83,15 +94,16 @@ public static class CodexSectionFormat
                 var two = new string(digit, 2);
                 foreach (var shortWindow in (string[])[$"{one}% in {two}:{two}", $"{two}% in {two}:{two}", $"100% in {two}:{two}", "0%"])
                 {
-                    foreach (var weekly in (string[])[one, two, "100"])
+                    foreach (var weekly in (string[])[$"W {one}% in {two} {two}", $"W {two}% in {two} {two}",
+                                 $"W 100% in {two} {two}", $"W {one}%", $"W {two}%", "W 100%"])
                     {
-                        yield return Compose(label, shortWindow, $"{weekly}%");
+                        yield return Compose(label, shortWindow, weekly);
                     }
                 }
             }
         }
 
-        yield return Compose(Label, Unavailable, Unavailable);
+        yield return Compose(Label, Unavailable, "W --");
     }
 
     /// <summary>The safe tooltip for <paramref name="reason"/>; an undefined reason throws.</summary>
@@ -114,7 +126,8 @@ public static class CodexSectionFormat
     private static string Text(string label, CodexLimitSnapshot snapshot, DateTimeOffset now)
     {
         var shortWindow = snapshot.ShortWindow;
-        var weekly = string.Create(CultureInfo.InvariantCulture, $"{snapshot.WeeklyWindow.UsedPercent}%");
+        var weekly = WeeklyLimitFormat.Format(snapshot.WeeklyWindow.UsedPercent, snapshot.WeeklyWindow.ResetsAt,
+            now, MaximumWeeklyResetAhead);
         if (shortWindow.UsedPercent == 0)
         {
             // The unused window's reset time slides with each poll, so it has no countdown.
@@ -129,17 +142,21 @@ public static class CodexSectionFormat
 
     /// <summary>The one section layout.</summary>
     private static string Compose(string label, string shortWindow, string weekly) =>
-        $"{label} 5h {shortWindow} | W {weekly}";
+        $"{label} 5h {shortWindow} | {weekly}";
 
-    private static string Windows(CodexLimitSnapshot snapshot, TimeZoneInfo zone)
+    private static string Windows(CodexLimitSnapshot snapshot, TimeZoneInfo zone, DateTimeOffset now)
     {
         var shortWindow = snapshot.ShortWindow;
         var shortLine = shortWindow.UsedPercent == 0
             ? "5-hour limit: 0% used; the window starts with the next use."
             : string.Create(CultureInfo.InvariantCulture,
                 $"5-hour limit: {shortWindow.UsedPercent}% used, resets {Local(shortWindow.ResetsAt, zone)}.");
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{shortLine}\nWeekly limit: {snapshot.WeeklyWindow.UsedPercent}% used, resets {Local(snapshot.WeeklyWindow.ResetsAt, zone)}.");
+        var weeklyWindow = snapshot.WeeklyWindow;
+        var weeklyLine = weeklyWindow.ResetsAt - now > MaximumWeeklyResetAhead
+            ? "Weekly limit: reset time is outside the qualified seven-day window."
+            : string.Create(CultureInfo.InvariantCulture,
+                $"Weekly limit: {weeklyWindow.UsedPercent}% used, resets {Local(weeklyWindow.ResetsAt, zone)}.");
+        return $"{shortLine}\n{weeklyLine}";
     }
 
     /// <summary>Whole minutes rounded up, so a positive remainder never shows <c>00:00</c>; a passed reset shows zero.</summary>
