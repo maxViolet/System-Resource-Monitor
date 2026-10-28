@@ -39,6 +39,118 @@ public sealed class ClaudeUsageReaderTests
         Assert.Equal(60, snapshot.BindingWeeklyWindow.RemainingPercent);
     }
 
+    [Fact]
+    public void Local_usage_insights_do_not_hide_qualified_limit_rows()
+    {
+        var snapshot = ClaudeUsageReader.Read(Envelope("""
+            You are currently using your subscription to power your Claude Code usage
+
+            Current session: 25% used · resets Oct 21, 12pm (Asia/Qyzylorda)
+            Current week (all models): 5% used · resets Oct 22, 3am (Asia/Qyzylorda)
+
+            What's contributing to your limits usage?
+            Approximate · sessions on this machine only · shares overlap
+            Last 24h · 42 requests · 10 sessions
+            20%  Start fresh when you switch tasks · run /clear
+            """), Observed);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(25, snapshot.ShortWindow.UsedPercent);
+        Assert.Equal(5, snapshot.BindingWeeklyWindow.UsedPercent);
+    }
+
+    [Fact]
+    public void Complete_local_insights_block_is_ignored_without_changing_limit_selection()
+    {
+        var snapshot = ClaudeUsageReader.Read(Envelope("""
+            Current session: 25% used · resets Oct 21, 12pm (Asia/Qyzylorda)
+            Current week (all models): 5% used · resets Oct 22, 3am (Asia/Qyzylorda)
+            Current week (Fable): 40% used · resets Oct 23, 3am (Asia/Qyzylorda)
+
+            What's contributing to your limits usage?
+            Approximate · sessions on this machine only · shares overlap
+
+            Last 24h · 1 request · 1 session
+            20%  Start fresh when you switch tasks · run /clear
+            30%  Turn off skills you don't use · 20k tokens per request
+            Top skills: /caveman:caveman 12%, /another.skill 8%
+
+            Last 7d · 1,234 requests · 1,234 sessions
+            20%  Start fresh when you switch tasks · run /clear
+            30%  Turn off skills you don't use · 20k tokens per request
+            Top skills: /caveman:caveman 12%, /another.skill 8%
+            Top subagents: caveman:cavecrew-reviewer 5%
+            """), Observed);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(2, snapshot.WeeklyWindows.Count);
+        Assert.Equal(40, snapshot.BindingWeeklyWindow.UsedPercent);
+    }
+
+    [Fact]
+    public void Current_local_insights_heading_and_advice_rows_are_accepted()
+    {
+        var snapshot = ClaudeUsageReader.Read(InsightsEnvelope("""
+            What's contributing to your usage?
+            Approximate · sessions on this machine only · shares overlap
+            Last 24h · 1 request · 1 session
+            20%  Compact before you step away · run /compact
+            30%  Run /sonnet on a cheaper model
+            """), Observed);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(5, snapshot.BindingWeeklyWindow.UsedPercent);
+    }
+
+    [Theory]
+    [InlineData("Monthly limit: 40% used")]
+    [InlineData("Current month: 40% used")]
+    [InlineData("20%  New advice text")]
+    [InlineData("Top skills: /example 101%")]
+    public void Unknown_percentage_in_local_insights_is_unavailable(string line)
+    {
+        var result = """
+            Current session: 25% used · resets Oct 21, 12pm (Asia/Qyzylorda)
+            Current week (all models): 5% used · resets Oct 22, 3am (Asia/Qyzylorda)
+            What's contributing to your limits usage?
+            Approximate · sessions on this machine only · shares overlap
+            """ + "\n" + line;
+
+        Assert.Null(ClaudeUsageReader.Read(Envelope(result), Observed));
+    }
+
+    [Fact]
+    public void Missing_local_insights_notice_is_unavailable()
+    {
+        Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("What's contributing to your limits usage?\n"
+            + "Last 24h · 1 request · 1 session"), Observed));
+    }
+
+    [Fact]
+    public void Local_insights_heading_before_subscription_rows_is_unavailable()
+    {
+        Assert.Null(ClaudeUsageReader.Read(Envelope("""
+            What's contributing to your limits usage?
+            Approximate · sessions on this machine only · shares overlap
+            Current session: 25% used · resets Oct 21, 12pm (Asia/Qyzylorda)
+            Current week (all models): 5% used · resets Oct 22, 3am (Asia/Qyzylorda)
+            """), Observed));
+    }
+
+    [Fact]
+    public void Local_insights_heading_without_notice_or_rows_is_unavailable()
+    {
+        Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("What's contributing to your limits usage?"), Observed));
+    }
+
+    [Fact]
+    public void Unknown_non_percentage_line_in_local_insights_is_unavailable()
+    {
+        Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("What's contributing to your limits usage?\n"
+            + "Approximate · sessions on this machine only · shares overlap\n"
+            + "Unexpected details are shown here."), Observed));
+    }
+
     [Theory]
     [InlineData("Current session: 1% used\nCurrent week (all models): 0% used")]
     [InlineData("Current session: 100% used\nCurrent week (all models): 0% used")]
@@ -161,4 +273,9 @@ public sealed class ClaudeUsageReaderTests
     {
         local_command = "usage", num_turns = 0, duration_api_ms = 0, total_cost_usd = 0, is_error = false, result,
     }));
+
+    private static byte[] InsightsEnvelope(string result) => Envelope("""
+        Current session: 25% used · resets Oct 21, 12pm (Asia/Qyzylorda)
+        Current week (all models): 5% used · resets Oct 22, 3am (Asia/Qyzylorda)
+        """ + "\n" + result);
 }

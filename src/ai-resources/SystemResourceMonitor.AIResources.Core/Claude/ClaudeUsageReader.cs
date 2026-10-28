@@ -23,6 +23,24 @@ public static partial class ClaudeUsageReader
     [GeneratedRegex(@"\d+%", RegexOptions.CultureInvariant)]
     private static partial Regex OtherUsageLine();
 
+    private const string LocalInsightsNotice = "Approximate · sessions on this machine only · shares overlap";
+
+    // Claude Code 2.1.311 appends local attribution after the subscription windows. Its percentages are not limits.
+    [GeneratedRegex(@"^What's contributing to your (?:limits )?usage\?$", RegexOptions.CultureInvariant)]
+    private static partial Regex LocalInsightsHeading();
+
+    [GeneratedRegex(@"^Last \d{1,3}[hd] · \d{1,3}(?:,\d{3})* requests? · \d{1,3}(?:,\d{3})* sessions?$", RegexOptions.CultureInvariant)]
+    private static partial Regex InsightPeriodLine();
+
+    [GeneratedRegex(@"^\d{1,3}%  (?:Start fresh when you switch tasks · run /clear|Turn off skills you don't use · \d+k tokens per request|Compact before you step away · run /[A-Za-z0-9_.:-]{1,128}|Run /[A-Za-z0-9_.:-]{1,128} on a cheaper model)$", RegexOptions.CultureInvariant)]
+    private static partial Regex InsightAdviceLine();
+
+    [GeneratedRegex(@"^Top skills: /[A-Za-z0-9_.:-]{1,128} \d{1,3}%(?:, /[A-Za-z0-9_.:-]{1,128} \d{1,3}%)*$", RegexOptions.CultureInvariant)]
+    private static partial Regex InsightSkillsLine();
+
+    [GeneratedRegex(@"^Top subagents: [A-Za-z0-9_.:-]{1,128} \d{1,3}%(?:, [A-Za-z0-9_.:-]{1,128} \d{1,3}%)*$", RegexOptions.CultureInvariant)]
+    private static partial Regex InsightSubagentsLine();
+
     public static ClaudeLimitSnapshot? Read(ReadOnlySpan<byte> utf8, DateTimeOffset observedAt)
     {
         if (utf8.IsEmpty || utf8.Length > MaxOutputBytes)
@@ -52,9 +70,28 @@ public static partial class ClaudeUsageReader
             ClaudeLimitWindow? shortWindow = null;
             var weekly = new List<ClaudeLimitWindow>();
             var labels = new HashSet<string>(StringComparer.Ordinal);
+            var localInsights = 0;
             foreach (var raw in text.Split('\n'))
             {
                 var line = raw.Trim();
+                if (line.Length == 0) continue;
+                if (localInsights == 1)
+                {
+                    if (line != LocalInsightsNotice) return null;
+                    localInsights = 2;
+                    continue;
+                }
+                if (localInsights == 2)
+                {
+                    if (!IsLocalInsightLine(line)) return null;
+                    continue;
+                }
+                if (LocalInsightsHeading().IsMatch(line))
+                {
+                    if (shortWindow is null || !labels.Contains("Current week (all models)")) return null;
+                    localInsights = 1;
+                    continue;
+                }
                 if (!line.StartsWith("Current ", StringComparison.Ordinal))
                 {
                     if (OtherUsageLine().IsMatch(line)) return null;
@@ -89,7 +126,7 @@ public static partial class ClaudeUsageReader
                 else return null;
             }
 
-            return shortWindow is not null && labels.Contains("Current week (all models)") && weekly.Count > 0
+            return localInsights != 1 && shortWindow is not null && labels.Contains("Current week (all models)") && weekly.Count > 0
                 ? new ClaudeLimitSnapshot(shortWindow, weekly)
                 : null;
         }
@@ -121,6 +158,18 @@ public static partial class ClaudeUsageReader
         }
 
         return null;
+    }
+
+    private static bool IsLocalInsightLine(string line)
+    {
+        if (!InsightPeriodLine().IsMatch(line) && !InsightAdviceLine().IsMatch(line)
+            && !InsightSkillsLine().IsMatch(line) && !InsightSubagentsLine().IsMatch(line)) return false;
+        foreach (Match percent in OtherUsageLine().Matches(line))
+        {
+            if (!int.TryParse(percent.Value.AsSpan()[..^1], NumberStyles.None,
+                    CultureInfo.InvariantCulture, out var value) || value > 100) return false;
+        }
+        return true;
     }
 
     private static bool String(JsonElement root, string property, string expected) =>

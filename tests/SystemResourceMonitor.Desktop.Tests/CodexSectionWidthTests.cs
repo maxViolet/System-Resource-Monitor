@@ -54,7 +54,7 @@ public sealed class CodexSectionWidthTests
         }
 
         Assert.Contains("Codex: 5h 99% in 04:59 | W 0%", texts);
-        Assert.Contains("Codex (stale): 5h 0% | W 100% in 06 00", texts);
+        Assert.Contains("Codex (stale): 5h 0% | W 100% in 6d 0h", texts);
         return texts;
     }
 

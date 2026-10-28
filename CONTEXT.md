@@ -74,8 +74,12 @@ The whole minutes until an active short limit window resets, shown as `HH:mm` on
 _Avoid_: reset time, when meaning the relative countdown
 
 **Weekly reset countdown**:
-The time until the binding weekly window resets, shown beside its used limit when that limit is above 0% and a qualified reset time is known.
+The time until the binding weekly window resets, shown beside its used limit as `Dd Hh` without leading zeroes when that limit is above 0% and a qualified reset time is known ([ADR 0024](docs/adr/0024-weekly-countdown-units.md)).
 _Avoid_: weekly usage duration
+
+**Local usage insights**:
+Claude Code's approximate, overlapping attribution of sessions on this machine. Its percentages are not subscription limit windows and are never shown in the bar ([ADR 0025](docs/adr/0025-claude-local-usage-insights.md)).
+_Avoid_: subscription limits
 
 **Limit snapshot**:
 The used limits and reset times of all limit windows of one subscription, obtained in a single poll.

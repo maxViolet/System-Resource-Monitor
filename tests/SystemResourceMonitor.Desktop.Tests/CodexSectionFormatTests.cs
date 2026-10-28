@@ -35,7 +35,7 @@ public sealed class CodexSectionFormatTests
     {
         var section = CodexSectionFormat.Format(Current(27, Now + new TimeSpan(1, 41, 30), 4), Now, Plus5);
 
-        Assert.Equal("Codex: 5h 27% in 01:42 | W 4% in 04 12", section.Text);
+        Assert.Equal("Codex: 5h 27% in 01:42 | W 4% in 4d 12h", section.Text);
         Assert.Equal(
             "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
             section.ToolTip);
@@ -56,7 +56,7 @@ public sealed class CodexSectionFormatTests
 
         var section = CodexSectionFormat.Format(state, Now, Plus5);
 
-        Assert.Equal("Codex: 5h 0% | W 4% in 04 12", section.Text);
+        Assert.Equal("Codex: 5h 0% | W 4% in 4d 12h", section.Text);
         Assert.Equal(
             "5-hour limit: 0% used; the window starts with the next use.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
             section.ToolTip);
@@ -73,7 +73,7 @@ public sealed class CodexSectionFormatTests
 
         var section = CodexSectionFormat.Format(state, Now, Plus5);
 
-        Assert.Equal("Codex (stale): 5h 27% in 01:42 | W 4% in 04 12", section.Text);
+        Assert.Equal("Codex (stale): 5h 27% in 01:42 | W 4% in 4d 12h", section.Text);
         Assert.Equal(
             "Stale: the Codex usage service could not be reached. Last update 20 Oct 14:59; these values are dropped at 20 Oct 15:02.\n"
             + "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
@@ -85,7 +85,7 @@ public sealed class CodexSectionFormatTests
     {
         var state = new CodexLimitsStale(Snapshot(0, Now + TimeSpan.FromMinutes(10), 50), Now, 0);
 
-        Assert.Equal("Codex (stale): 5h 0% | W 50% in 04 12", CodexSectionFormat.Format(state, Now, Plus5).Text);
+        Assert.Equal("Codex (stale): 5h 0% | W 50% in 4d 12h", CodexSectionFormat.Format(state, Now, Plus5).Text);
         Assert.Equal(TimeSpan.FromMinutes(30), CodexSectionFormat.UntilCountdownChanges(state, Now));
     }
 
@@ -128,7 +128,7 @@ public sealed class CodexSectionFormatTests
     {
         var section = CodexSectionFormat.Format(Current(27, Now + TimeSpan.FromTicks(remainderTicks), 4), Now, Plus5);
 
-        Assert.Equal($"Codex: 5h 27% in {countdown} | W 4% in 04 12", section.Text);
+        Assert.Equal($"Codex: 5h 27% in {countdown} | W 4% in 4d 12h", section.Text);
     }
 
     [Theory]
@@ -172,7 +172,7 @@ public sealed class CodexSectionFormatTests
             CodexLimitWindow.Create(4, Now.AddSeconds(20))!);
         var state = new CodexLimitsCurrent(snapshot, Now, 0);
 
-        Assert.Equal("Codex: 5h 27% in 02:00 | W 4% in 00 01",
+        Assert.Equal("Codex: 5h 27% in 02:00 | W 4% in 0d 1h",
             CodexSectionFormat.Format(state, Now, Plus5).Text);
         Assert.Equal(TimeSpan.FromSeconds(20), CodexSectionFormat.UntilCountdownChanges(state, Now));
         Assert.Equal("Codex: 5h 27% in 02:00 | W 4%",
@@ -203,7 +203,7 @@ public sealed class CodexSectionFormatTests
         try
         {
             var section = CodexSectionFormat.Format(state, Now, Plus5);
-            Assert.Equal("Codex: 5h 27% in 01:42 | W 4% in 04 12", section.Text);
+            Assert.Equal("Codex: 5h 27% in 01:42 | W 4% in 4d 12h", section.Text);
             Assert.Equal(
                 "5-hour limit: 27% used, resets 20 Oct 16:41.\nWeekly limit: 4% used, resets 25 Oct 02:30.",
                 section.ToolTip);
