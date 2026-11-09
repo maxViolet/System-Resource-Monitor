@@ -76,6 +76,12 @@ B019/B020 are the post-release [Codex monthly track](../plan.md#codex-monthly-li
 
 `Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. Rejected B010, B012, B014, or B019 makes B011, B013, B015, or B020 respectively `not applicable`; rejected B018 closes the taskbar-replacement track.
 
+## Side tasks
+
+| Owner | Task | Status |
+|---|---|---|
+| B013 | [B013.1 - Accept Claude 2.1.319 context advice](B13-claude-limits/B13.1-claude-2.1.319-context-advice.md) | planned |
+
 ## Dependency graph
 
 ```mermaid
