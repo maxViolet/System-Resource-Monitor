@@ -32,7 +32,7 @@ public static partial class ClaudeUsageReader
     [GeneratedRegex(@"^Last \d{1,3}[hd] · \d{1,3}(?:,\d{3})* requests? · \d{1,3}(?:,\d{3})* sessions?$", RegexOptions.CultureInvariant)]
     private static partial Regex InsightPeriodLine();
 
-    [GeneratedRegex(@"^\d{1,3}%  (?:Start fresh when you switch tasks · run /clear|Turn off skills you don't use · \d+k tokens per request|Compact before you step away · run /[A-Za-z0-9_.:-]{1,128}|Run /[A-Za-z0-9_.:-]{1,128} on a cheaper model)$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\d{1,3}%  (?:Start fresh when you switch tasks · run /clear|Turn off skills you don't use · \d+k tokens per request|Compact before you step away · run /[A-Za-z0-9_.:-]{1,128}|Run /[A-Za-z0-9_.:-]{1,128} on a cheaper model|See what fills your context · run /context)$", RegexOptions.CultureInvariant)]
     private static partial Regex InsightAdviceLine();
 
     [GeneratedRegex(@"^Top skills: /[A-Za-z0-9_.:-]{1,128} \d{1,3}%(?:, /[A-Za-z0-9_.:-]{1,128} \d{1,3}%)*$", RegexOptions.CultureInvariant)]
