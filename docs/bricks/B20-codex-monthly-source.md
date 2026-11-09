@@ -1,10 +1,10 @@
-# B019 — Qualify a Codex monthly limit source
+# B020 — Qualify a Codex monthly limit source
 
 | | |
 |---|---|
 | **Area** | Research |
 | **Depends on** | B007 done; B010 accepted |
-| **Unblocks** | B020 when accepted |
+| **Unblocks** | B021 when accepted |
 | **Sources** | [Product plan — Codex monthly limit](../plan.md#codex-monthly-limit), [Implementation plan — Codex monthly limit](../implementation-plan.md#codex-monthly-limit), [ADR 0015](../adr/0015-codex-limit-display-from-qualified-windows.md), [B010 qualification report](../research/providers/codex-2026-10-19.md) |
 
 ## Why
@@ -30,8 +30,8 @@ B010's `codex-cli 0.159.0` contract remains historical evidence, not proof that 
 - [ ] Sign-in, network, missing-monthly, and unknown-format outcomes are distinguishable, or the report rejects the candidate
 - [ ] The accepted mechanism reads no credential material, calls no undocumented endpoint, and records whether it can share B011's trusted client and poll
 - [ ] If a newer client is required, its Authenticode identity, installation metadata, canonical path behavior, and effect on the qualified 5-hour and weekly contract are recorded
-- [ ] If no allowed candidate passes every gate, the report marks B019 `rejected` and B020 becomes `not applicable`; one failed candidate does not reject an untested allowed candidate
+- [ ] If no allowed candidate passes every gate, the report marks B020 `rejected` and B021 becomes `not applicable`; one failed candidate does not reject an untested allowed candidate
 
 ## Out of scope
 
-Production parsing, polling, freshness, UI changes, and release/resource gates belong to B020. Per-model limits, billing balances, a bundled client, browser automation, credential access, and direct undocumented API calls remain out of scope.
+Production parsing, polling, freshness, UI changes, and release/resource gates belong to B021. Per-model limits, billing balances, a bundled client, browser automation, credential access, and direct undocumented API calls remain out of scope.

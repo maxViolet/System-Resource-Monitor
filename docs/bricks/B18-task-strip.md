@@ -1,10 +1,10 @@
-# B017 — Task strip and clock
+# B018 — Task strip and clock
 
 | | |
 |---|---|
 | **Area** | Desktop |
-| **Depends on** | B007 |
-| **Unblocks** | B018; optionally B016 |
+| **Depends on** | B014 |
+| **Unblocks** | B019; optionally B017 |
 | **Sources** | [Product plan — Shared bar design](../plan.md#shared-bar-design), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0008](../adr/0008-replace-taskbar-buttons-in-phases.md), [ADR 0009](../adr/0009-managedshell-for-tasks-and-tray.md), [ADR 0023](../adr/0023-icon-only-task-buttons.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
@@ -21,7 +21,7 @@ Take tasks only from ManagedShell's task services in Desktop, as ADR 0009 requir
 
 A task button is always 32 device-independent pixels (DIP) wide and shows only the window icon, or a neutral window icon if the task has none. The full window title is in its tooltip and accessible name. Keep task-button order stable on activation, append new tasks at the end, and close gaps without re-sorting. Show the active state and a steady, non-animated attention marker when a task is flashing; distinguish both without color alone. Task buttons are centred in the space between the fixed-width left sections and the clock. Move trailing tasks that do not fit to `»`, which lists their full titles. If the active task is in `»`, mark both `»` and its menu item as active. Overflow never shrinks or moves the metric and limit sections.
 
-Activating a task must bring its window to the foreground even though the bar is a non-activating window. The visible bar never takes focus when a task button is clicked or when the task list changes. A separately focusable surface entered by a keyboard command must let the user select tasks and open `»`. The B017 package plan must fix that command after checking conflicts and feasibility before implementation.
+Activating a task must bring its window to the foreground even though the bar is a non-activating window. The visible bar never takes focus when a task button is clicked or when the task list changes. A separately focusable surface entered by a keyboard command must let the user select tasks and open `»`. The B018 package plan must fix that command after checking conflicts and feasibility before implementation.
 
 Before implementing the layout, measure and record the minimum supported width in the real WPF bar with the widest allowed metric and limit values, both regional time formats, and 40 tasks. At that width, the fixed sections, clock, and `»` remain reachable. Do not infer the bound from the HTML prototype; a narrower target needs a revised design decision before implementation.
 
@@ -37,12 +37,12 @@ The task list survives Explorer restart, display and DPI changes, and primary-mo
 - [ ] Click, click on the active task, and middle click activate, minimize, and ask to close the window; the bar never takes focus
 - [ ] With 1, 10, and 40 tasks, every task button stays 32 DIP and icon-only; trailing tasks move to `»`, which marks a hidden active task, and the left sections and clock keep their position and width
 - [ ] A task without a window icon uses the neutral fallback; duplicate icons keep separate buttons and remain identifiable by their full titles; activation does not reorder buttons, new tasks append, and flashing shows a steady marker distinguishable from active state without color alone
-- [ ] The B017 package plan records the keyboard entry command and conflict/feasibility result before implementation; keyboard-only use can select tasks and open/use `»` through the focusable surface, while ordinary pointer use leaves the visible bar non-activating
-- [ ] The B017 package plan records a measured WPF minimum supported width before layout implementation; with 40 tasks at that width, the fixed sections, clock, and `»` remain reachable without clipping
+- [ ] The B018 package plan records the keyboard entry command and conflict/feasibility result before implementation; keyboard-only use can select tasks and open/use `»` through the focusable surface, while ordinary pointer use leaves the visible bar non-activating
+- [ ] The B018 package plan records a measured WPF minimum supported width before layout implementation; with 40 tasks at that width, the fixed sections, clock, and `»` remain reachable without clipping
 - [ ] The clock shows the regional short time format in both a 24-hour and a 12-hour regional setting, follows format, time zone, and system-time changes within one minute boundary, and its tooltip shows the full date
 - [ ] Explorer restart, resolution and DPI changes, and primary-monitor change leave a complete, current task list; the evidence is recorded under `docs/acceptance/`
 - [ ] All affected B007 gates, including CPU and memory budgets with the task strip enabled, pass and are recorded
 
 ## Out of scope
 
-Hiding the Windows taskbar, the bar's own tray, and the shell indicators belong to B018. Task grouping, pinned applications, thumbnails, jump lists, and `ITaskbarList3` progress or overlay icons are not authorized by the product plan. A calendar or any action on clicking the clock is not authorized.
+Hiding the Windows taskbar, the bar's own tray, and the shell indicators belong to B019. Task grouping, pinned applications, thumbnails, jump lists, and `ITaskbarList3` progress or overlay icons are not authorized by the product plan. A calendar or any action on clicking the clock is not authorized.

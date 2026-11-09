@@ -36,4 +36,4 @@ Status: in progress. This package implements [B011 — Codex limits](../B11-code
 
 ## Boundary
 
-B010's qualification report remains historical evidence. B012 qualifies Claude independently; B013 implements it only after acceptance. B019/B020 own any later Codex monthly qualification and delivery. A bundled Codex client or model split needs separate qualification and a separate decision.
+B010's qualification report remains historical evidence. B012 qualifies Claude independently; B013 implements it only after acceptance. B020/B021 own any later Codex monthly qualification and delivery. A bundled Codex client or model split needs separate qualification and a separate decision.

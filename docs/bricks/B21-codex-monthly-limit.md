@@ -1,15 +1,15 @@
-# B020 — Codex monthly limit
+# B021 — Codex monthly limit
 
 | | |
 |---|---|
 | **Area** | Core + Desktop |
-| **Depends on** | B011 done; B019 accepted |
+| **Depends on** | B011 done; B020 accepted |
 | **Unblocks** | — |
-| **Sources** | [Product plan — Codex monthly limit](../plan.md#codex-monthly-limit), [Implementation plan — Codex monthly limit](../implementation-plan.md#codex-monthly-limit), [Provider adapters](../implementation-plan.md#provider-adapters), [ADR 0015](../adr/0015-codex-limit-display-from-qualified-windows.md), [ADR 0021](../adr/0021-used-limit-display.md), [B019 qualification brick](B19-codex-monthly-source.md) |
+| **Sources** | [Product plan — Codex monthly limit](../plan.md#codex-monthly-limit), [Implementation plan — Codex monthly limit](../implementation-plan.md#codex-monthly-limit), [Provider adapters](../implementation-plan.md#provider-adapters), [ADR 0015](../adr/0015-codex-limit-display-from-qualified-windows.md), [ADR 0021](../adr/0021-used-limit-display.md), [B020 qualification brick](B20-codex-monthly-source.md) |
 
 ## Why
 
-B011 intentionally shows no monthly field because no trustworthy monthly source was qualified. Once B019 accepts a source, the app can add that field without weakening the existing 5-hour and weekly contract.
+B011 intentionally shows no monthly field because no trustworthy monthly source was qualified. Once B020 accepts a source, the app can add that field without weakening the existing 5-hour and weekly contract.
 
 ## What done looks like
 
@@ -17,9 +17,9 @@ The Codex section shows the qualified monthly used limit and exposes its exact r
 
 ## Context
 
-Implement only B019's accepted client version, invocation or local non-credential file, response contract, monthly semantics, and rounding rule. Before code, create a new ADR that supersedes ADR 0015 where the monthly source changes source composition, client version, or freshness, and ADR 0021 where it changes display semantics. Never read credentials, call undocumented endpoints, or derive monthly usage from weekly data.
+Implement only B020's accepted client version, invocation or local non-credential file, response contract, monthly semantics, and rounding rule. Before code, create a new ADR that supersedes ADR 0015 where the monthly source changes source composition, client version, or freshness, and ADR 0021 where it changes display semantics. Never read credentials, call undocumented endpoints, or derive monthly usage from weekly data.
 
-Reuse B011's trusted resolver and process lifecycle only when B019 proves the same client and poll contract. Otherwise keep source failures and freshness independent so a monthly failure does not erase valid 5-hour or weekly values. Unknown versions, absent monthly fields, and unknown formats are unavailable.
+Reuse B011's trusted resolver and process lifecycle only when B020 proves the same client and poll contract. Otherwise keep source failures and freshness independent so a monthly failure does not erase valid 5-hour or weekly values. Unknown versions, absent monthly fields, and unknown formats are unavailable.
 
 ## Acceptance criteria
 
@@ -35,4 +35,4 @@ Reuse B011's trusted resolver and process lifecycle only when B019 proves the sa
 
 ## Out of scope
 
-Per-model limits, billing balances, client bundling, browser automation, credential access, undocumented endpoints, and unrelated provider changes remain out of scope. If B019 is rejected, B020 is `not applicable` and B011 keeps no monthly field.
+Per-model limits, billing balances, client bundling, browser automation, credential access, undocumented endpoints, and unrelated provider changes remain out of scope. If B020 is rejected, B021 is `not applicable` and B011 keeps no monthly field.

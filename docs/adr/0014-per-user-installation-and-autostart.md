@@ -24,4 +24,4 @@ The first personal release runs from an extracted self-contained folder. B009 ad
 
 ## Consequences
 
-The package includes separate scripts and a payload manifest in addition to the self-contained Desktop folder. The installed executable must have the same identity as the tested candidate. Sign-in startup can be delayed or disabled by Windows or the user; the acceptance run checks the Startup Apps state and observes an actual sign-in. Public package authenticity remains B016 work.
+The package includes separate scripts and a payload manifest in addition to the self-contained Desktop folder. The installed executable must have the same identity as the tested candidate. Sign-in startup can be delayed or disabled by Windows or the user; the acceptance run checks the Startup Apps state and observes an actual sign-in. Public package authenticity remains B017 work.

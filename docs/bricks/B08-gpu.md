@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Core + Desktop |
 | **Depends on** | B007 |
-| **Unblocks** | B014; optionally B016 |
+| **Unblocks** | B015; optionally B017 |
 | **Sources** | [Product plan — GPU](../plan.md#gpu), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0012](../adr/0012-discrete-gpu-selected-by-dxcore-and-correlated-by-luid.md), [ADR 0013](../adr/0013-foreign-empty-gpu-engine-instances.md), [CONTEXT — Language](../../CONTEXT.md#language) |
 
 ## Why
@@ -19,7 +19,7 @@ The bar shows GPU load for the one discrete adapter and never for an integrated 
 
 Add GPU contracts only in this brick. Keep adapter enumeration and PDH interop in Desktop, reuse queries rather than rebuilding them per poll, and publish through the existing Core monitoring seam. Record selected adapter identity, correlation method, Task Manager comparison method, sample count, and numeric tolerance before declaring acceptance.
 
-If reliable correlation cannot be established, record the ambiguity, show GPU as unavailable, and mark this brick `rejected`. Rejection does not authorize a different adapter-selection rule and does not block B014.
+If reliable correlation cannot be established, record the ambiguity, show GPU as unavailable, and mark this brick `rejected`. Rejection does not authorize a different adapter-selection rule and does not block B015.
 
 ## Acceptance criteria
 
@@ -33,4 +33,4 @@ If reliable correlation cannot be established, record the ambiguity, show GPU as
 
 ## Out of scope
 
-Temperature sensors belong to B014–B015. Multi-adapter display and guessed aggregation across adapters are not authorized by the product plan.
+Temperature sensors belong to B015–B016. Multi-adapter display and guessed aggregation across adapters are not authorized by the product plan.

@@ -6,7 +6,7 @@ Status: planned. This package implements [B009 — Per-user installation and aut
 
 Install the self-contained Windows 11 x64 Desktop payload for the current user, optionally start it at sign-in, upgrade it safely, and uninstall it without elevation. The canonical application directory is `%LocalAppData%\Programs\SystemResourceMonitor`; the executable is `SystemResourceMonitor.Desktop.exe` inside it. Settings remain in `%LocalAppData%\SystemResourceMonitor\settings.json`, outside the application directory. Uninstall always retains settings and any `settings.invalid-*.json` backups. The [implementation plan](../../implementation-plan.md#installation-and-autostart) owns these shared choices.
 
-The scripts own only their installed payload and one `HKCU` Run value. Do not change Core/Desktop behavior or their boundary to implement installation. Do not add machine-wide installation, elevation of the bar, MSIX/MSI, automatic update, or public package provenance. B016 owns public distribution. A change to shared behavior or a design choice with meaningful alternatives follows the documentation and ADR process in `AGENTS.md`.
+The scripts own only their installed payload and one `HKCU` Run value. Do not change Core/Desktop behavior or their boundary to implement installation. Do not add machine-wide installation, elevation of the bar, MSIX/MSI, automatic update, or public package provenance. B017 owns public distribution. A change to shared behavior or a design choice with meaningful alternatives follows the documentation and ADR process in `AGENTS.md`.
 
 ## Ordered work
 

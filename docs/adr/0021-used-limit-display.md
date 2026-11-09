@@ -1,6 +1,6 @@
 # Show used limits in one compact format for both providers
 
-Status: accepted, 2026-10-21. Supersedes the display decisions of [ADR 0015](0015-codex-limit-display-from-qualified-windows.md) (the bar text, the 100% no-countdown rule, and the visible `month: --` field) and of [ADR 0017](0017-claude-limit-display-in-codex-style.md) (the bar text, the remaining-share values, the countdown rule, and the `month` field), and the display clause of [ADR 0020](0020-qualify-claude-code-2-1-306.md) (remaining shares and `month: --`). Their source, client, process, binding-weekly, monthly-qualification, and freshness decisions remain in force. Applies to [subscription limits](../plan.md#3-deliver-subscription-limits), [B011](../bricks/B11-codex-limits.md), [B013](../bricks/B13-claude-limits.md), and [B020](../bricks/B20-codex-monthly-limit.md).
+Status: accepted, 2026-10-21. Supersedes the display decisions of [ADR 0015](0015-codex-limit-display-from-qualified-windows.md) (the bar text, the 100% no-countdown rule, and the visible `month: --` field) and of [ADR 0017](0017-claude-limit-display-in-codex-style.md) (the bar text, the remaining-share values, the countdown rule, and the `month` field), and the display clause of [ADR 0020](0020-qualify-claude-code-2-1-306.md) (remaining shares and `month: --`). Their source, client, process, binding-weekly, monthly-qualification, and freshness decisions remain in force. Applies to [subscription limits](../plan.md#3-deliver-subscription-limits), [B011](../bricks/B11-codex-limits.md), [B013](../bricks/B13-claude-limits.md), and [B021](../bricks/B21-codex-monthly-limit.md).
 
 ## Context
 
@@ -25,4 +25,4 @@ ADR 0015 and ADR 0017 show each provider as `5H - 76% in HH MM | W 33% | month: 
 
 ## Consequences
 
-The Desktop section formatters, their width candidates, and their tests change; Core snapshots and parsers do not, because both already hold the used share. Manual account checks compare the displayed used limits directly with the official client's used values. The published-app evidence recorded before this decision shows the superseded format and remains dated history. B020 must record a new ADR that adds a monthly field to the bar in the used-limit form if B019 qualifies a Codex monthly source.
+The Desktop section formatters, their width candidates, and their tests change; Core snapshots and parsers do not, because both already hold the used share. Manual account checks compare the displayed used limits directly with the official client's used values. The published-app evidence recorded before this decision shows the superseded format and remains dated history. B021 must record a new ADR that adds a monthly field to the bar in the used-limit form if B020 qualifies a Codex monthly source.
