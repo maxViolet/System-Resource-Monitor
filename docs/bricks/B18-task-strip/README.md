@@ -1,6 +1,6 @@
 # Task strip and clock package
 
-- [Brick brief](../B17-task-strip.md): scope, dependencies, acceptance criteria, and exclusions.
+- [Brick brief](../B18-task-strip.md): scope, dependencies, acceptance criteria, and exclusions.
 - Implementation plan: pending. Create `plan.md` here when this brick is selected, after reading its brief and linked sources.
 - Evidence: add a dated report under `docs/acceptance/` when implementation begins; distinguish automated, Windows integration, and manual desktop results.
 

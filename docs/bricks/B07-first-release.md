@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Release |
 | **Depends on** | B006; B010/B012 accepted/rejected; B011/B013 done/not applicable |
-| **Unblocks** | B008, B009, B016, B017 |
+| **Unblocks** | B008, B009, B014, B017, B020 |
 | **Sources** | [Product plan — Release rule](../plan.md#release-rule), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates), [Automated verification and handoff](../implementation-plan.md#automated-verification-and-handoff), [ADR 0011](../adr/0011-exit-when-a-collector-run-faults.md) |
 
 ## Why
@@ -38,4 +38,4 @@ Commit only sanitized reports under `docs/acceptance/`, as defined in the implem
 
 ## Out of scope
 
-GPU, installation/autostart, temperatures, and public distribution are independent later tracks. Failing one of those later tracks cannot revoke the completed first release.
+GPU, installation/autostart, the shared bar redesign, temperatures, public distribution, the task strip, taskbar replacement, and Codex monthly qualification are independent later tracks. Failing one of those later tracks cannot revoke the completed first release.

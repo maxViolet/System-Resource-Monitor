@@ -8,9 +8,9 @@ Desktop takes a dependency on the [ManagedShell](https://www.nuget.org/packages/
 
 - Only Desktop references ManagedShell. Neither Core project references it, and no ManagedShell type crosses a Core port.
 - Use only its task services in phase A and its tray services in phase B. Do not use its AppBar, fullscreen, or shell-replacement features: the AppBar, fullscreen reconciliation, and shell recovery from B002–B004 remain the bar's own implementation. A ManagedShell feature that registers a second AppBar or changes the work area must not be enabled.
-- Pin the exact version in `packages.lock.json` and keep `RestoreLockedMode`. The package is pre-1.0, so treat an upgrade as a change that reruns the affected B017 and B018 checks.
+- Pin the exact version in `packages.lock.json` and keep `RestoreLockedMode`. The package is pre-1.0, so treat an upgrade as a change that reruns the affected B018 and B019 checks.
 - Include the Apache-2.0 license and notice in any published folder that contains ManagedShell.
-- That the tray services recover every icon of applications already running when the bar starts is not yet proven on Windows 11. B018 proves it in a feasibility gate before the Windows taskbar is hidden; a failed gate rejects phase B and leaves this dependency used for tasks only.
+- That the tray services recover every icon of applications already running when the bar starts is not yet proven on Windows 11. B019 proves it in a feasibility gate before the Windows taskbar is hidden; a failed gate rejects phase B and leaves this dependency used for tasks only.
 
 ## Reason and alternatives
 
