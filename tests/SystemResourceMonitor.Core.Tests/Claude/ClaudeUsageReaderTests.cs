@@ -117,6 +117,14 @@ public sealed class ClaudeUsageReaderTests
         Assert.Equal(5, snapshot.BindingWeeklyWindow.UsedPercent);
     }
 
+    [Fact]
+    public void Context_advice_outside_local_insights_is_unavailable()
+    {
+        Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("""
+            42%  See what fills your context · run /context
+            """), Observed));
+    }
+
     [Theory]
     [InlineData("101%  See what fills your context · run /context")]
     [InlineData("x%  See what fills your context · run /context")]
