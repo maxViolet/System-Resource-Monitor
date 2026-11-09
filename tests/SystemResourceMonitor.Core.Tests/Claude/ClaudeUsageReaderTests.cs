@@ -102,6 +102,32 @@ public sealed class ClaudeUsageReaderTests
         Assert.Equal(5, snapshot.BindingWeeklyWindow.UsedPercent);
     }
 
+    [Fact]
+    public void Context_advice_is_ignored_without_changing_subscription_limits()
+    {
+        var snapshot = ClaudeUsageReader.Read(InsightsEnvelope("""
+            What's contributing to your usage?
+            Approximate · sessions on this machine only · shares overlap
+            Last 24h · 42 requests · 10 sessions
+            42%  See what fills your context · run /context
+            """), Observed);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(25, snapshot.ShortWindow.UsedPercent);
+        Assert.Equal(5, snapshot.BindingWeeklyWindow.UsedPercent);
+    }
+
+    [Theory]
+    [InlineData("101%  See what fills your context · run /context")]
+    [InlineData("x%  See what fills your context · run /context")]
+    [InlineData("42% See what fills your context · run /context")]
+    [InlineData("42%  See what fills your context · run /other")]
+    public void Malformed_or_unknown_context_advice_is_unavailable(string advice)
+    {
+        Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("What's contributing to your usage?\n"
+            + "Approximate · sessions on this machine only · shares overlap\n" + advice), Observed));
+    }
+
     [Theory]
     [InlineData("Monthly limit: 40% used")]
     [InlineData("Current month: 40% used")]
