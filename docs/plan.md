@@ -42,7 +42,7 @@ Accept each built provider adapter only after a manual check on an authorized ac
 
 ## Independent later slices
 
-The following work may proceed in any order after the first release. None can retroactively block the accepted first release.
+The following work starts after the first release and follows the dependencies stated for each phase. Independent tracks may proceed in any order. None can retroactively block the accepted first release.
 
 ### Bundled Codex candidate
 
@@ -72,7 +72,7 @@ Replace the Windows taskbar in two phases while Explorer remains the shell ([ADR
 
 #### Shared bar design
 
-This section is the shared design contract for the existing bar and both later phases. B014 implements its current-state WPF layout before B018 and B019 add task and tray behavior. The [HTML prototype](../prototype/task-strip-design.html) illustrates it with sample values and icons; its simulated interactions and widths are not Windows 11 or WPF acceptance evidence. The bar remains 24 device-independent pixels (DIP) high, with the existing `#1E1E1E` background, `#E6E6E6` primary text, and 12-DIP Segoe UI text. It spans the primary monitor at the chosen top or bottom edge. System metrics and each qualified limit keep fixed section widths; an unqualified provider has no section, and an unavailable qualified reading uses its documented unavailable display rather than a guessed value.
+This section is the shared design contract for the existing bar and both later phases. B014 replaces the current left-aligned WPF layout with separate fixed left, flexible centre, and right-hand regions while retaining the published bar's current appearance. The centre and right-hand regions stay empty until B018 and B019 fill them in order. The [HTML prototype](../prototype/task-strip-design.html) illustrates the visible states with sample values and icons; its simulated interactions and widths are not Windows 11 or WPF acceptance evidence. The bar remains 24 device-independent pixels (DIP) high, with the existing `#1E1E1E` background, `#E6E6E6` primary text, and 12-DIP Segoe UI text. It spans the primary monitor at the chosen top or bottom edge. System metrics and each qualified limit keep fixed section widths; an unqualified provider has no section, and an unavailable qualified reading uses its documented unavailable display rather than a guessed value.
 
 | Delivery state | Left | Centre | Right | Windows taskbar |
 |---|---|---|---|---|

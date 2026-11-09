@@ -78,7 +78,7 @@
   <main class="page">
     <div class="eyebrow">System Resource Monitor · Visual prototype</div>
     <h1>One bar, three delivery states</h1>
-    <p class="intro">The bar is shown at its 24 DIP height. The current state reflects the latest checked desktop code; B018 and B019 preview planned behavior. Sample values, letter-block task icons, and tray icons are illustrative. The prototype is not WPF layout or Windows acceptance evidence.</p>
+    <p class="intro">The bar is shown at its 24 DIP height. Current illustrates the shipped appearance. B014 keeps that appearance while introducing three WPF layout regions; B018 and B019 preview later behavior. Sample values, letter-block task icons, and tray icons are illustrative. The prototype is not WPF layout or Windows acceptance evidence.</p>
     <div class="controls">
       <div class="control"><span>Delivery state</span><div class="segmented"><button id="phase-now" aria-pressed="true">Current</button><button id="phase-a" aria-pressed="false">B018 · Tasks</button><button id="phase-b" aria-pressed="false">B019 · Tray</button></div></div>
       <label class="control">Screen width <select id="width"><option value="1440">1440 DIP</option><option value="1920">1920 DIP</option><option value="1280">1280 DIP</option></select></label>
@@ -117,7 +117,7 @@
     </div></div>
     <p id="status" class="status" role="status"></p>
     <div class="notes">
-      <section class="note"><h2>Current bar</h2><p>CPU, RAM, GPU, Codex, and Claude sections reflect the checked desktop code. Its separate native tray icon owns position and exit; future task, clock, and in-bar tray features are not active.</p></section>
+      <section class="note"><h2>Current bar</h2><p>CPU, RAM, GPU, Codex, and Claude sections illustrate the checked desktop appearance, which B014 preserves. B014's empty centre and right-hand WPF hosts are structural and are not shown here. The separate native tray icon owns position and exit; future task, clock, and in-bar tray features are not active.</p></section>
       <section class="note"><h2>Task behavior</h2><p>Each task is a 32 DIP icon. The real bar will use the window icon, or a neutral fallback. Hover for the full title; overflow lists titles and marks a hidden active task.</p></section>
       <section class="note"><h2>Phase boundary</h2><p>B018 keeps the Windows taskbar available. B019 hides it only after tray recovery is proven and restores it if the replacement tray fails.</p></section>
     </div>
@@ -218,7 +218,7 @@
       tray.hidden = byId('indicators').hidden = byId('right-divider').hidden = !isB;
       if (isCurrent) {
         taskRegion.replaceChildren(); tray.replaceChildren(); panel.hidden = true; byId('keyboard-mode').setAttribute('aria-expanded', 'false');
-        status.textContent = 'Current checked desktop code: CPU, RAM, GPU, Codex, Claude, and a separate native tray icon. No task strip, clock, or in-bar tray yet.';
+        status.textContent = 'Current visual state, retained by B014: CPU, RAM, GPU, Codex, Claude, and a separate native tray icon. No task strip, clock, or in-bar tray yet.';
         return;
       }
 
