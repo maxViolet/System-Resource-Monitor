@@ -70,6 +70,12 @@ On 2026-10-20, B011 and B012 exchanged assignments: B011 now owns Codex display 
 
 `Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. A rejected B010, B012, B014, or B018 closes that track; B011, B013, or B015 respectively becomes `not applicable`.
 
+## Side tasks
+
+| Owner | Task | Status |
+|---|---|---|
+| B013 | [Accept Claude 2.1.319 context advice](B13-claude-limits/side-task-claude-2.1.319-context-advice.md) | planned |
+
 ## Dependency graph
 
 ```mermaid
