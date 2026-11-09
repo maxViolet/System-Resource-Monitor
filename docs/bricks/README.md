@@ -74,7 +74,7 @@ On 2026-10-20, B011 and B012 exchanged assignments: B011 now owns Codex display 
 
 | Owner | Task | Status |
 |---|---|---|
-| B013 | [Accept Claude 2.1.319 context advice](B13-claude-limits/side-task-claude-2.1.319-context-advice.md) | planned |
+| B013 | [B013.1 - Accept Claude 2.1.319 context advice](B13-claude-limits/B13.1-claude-2.1.319-context-advice.md) | planned |
 
 ## Dependency graph
 
