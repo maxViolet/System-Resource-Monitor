@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Release |
 | **Depends on** | B007 |
-| **Unblocks** | B015; optionally B017 |
+| **Unblocks** | B016; optionally B018 |
 | **Sources** | [Product plan — Installation and autostart](../plan.md#installation-and-autostart), [Implementation plan — Independent later slices](../implementation-plan.md#independent-later-slices), [ADR 0014](../adr/0014-per-user-installation-and-autostart.md) |
 
 ## Why
@@ -35,4 +35,4 @@ Verification covers process state, payload files, registry values, settings, and
 
 ## Out of scope
 
-Machine-wide installation, elevation of the bar, MSIX/MSI, automatic update, and public package provenance. B017 owns public distribution.
+Machine-wide installation, elevation of the bar, MSIX/MSI, automatic update, and public package provenance. B018 owns public distribution.

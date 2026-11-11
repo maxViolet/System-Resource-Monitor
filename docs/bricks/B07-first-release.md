@@ -4,7 +4,7 @@
 |---|---|
 | **Area** | Release |
 | **Depends on** | B006; B010/B012 accepted/rejected; B011/B013 done/not applicable |
-| **Unblocks** | B008, B009, B014, B017, B020 |
+| **Unblocks** | B008, B009, B014, B018, B021 |
 | **Sources** | [Product plan — Release rule](../plan.md#release-rule), [First-release acceptance gates](../implementation-plan.md#first-release-acceptance-gates), [Automated verification and handoff](../implementation-plan.md#automated-verification-and-handoff), [ADR 0011](../adr/0011-exit-when-a-collector-run-faults.md) |
 
 ## Why

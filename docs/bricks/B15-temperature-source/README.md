@@ -1,7 +1,3 @@
-# Qualify temperature sources package
+# Historical package path
 
-- [Brick brief](../B15-temperature-source.md): scope, dependencies, acceptance criteria, and exclusions.
-- [Qualification plan](plan.md): ordered research, evidence, decision, and B016 handoff. Candidate qualification starts after B008 is done or rejected and B009 is done.
-- Evidence: add separate dated automated, Windows integration, and manual desktop reports under `docs/acceptance/` when qualification begins.
-
-The brick brief and its linked product plan, implementation plan, and ADRs remain authoritative. Package files may make the work executable for coding agents, but must not silently change scope or acceptance criteria.
+Former B15 (temperature source) is now [B16/README.md](../B16-temperature-source/README.md). See [ADR 0026](../../adr/0026-post-release-brick-renumbering.md) for the dated ID mappings. This path preserves earlier links and is not an active brick package.

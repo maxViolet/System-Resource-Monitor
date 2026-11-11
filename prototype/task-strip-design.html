@@ -78,9 +78,9 @@
   <main class="page">
     <div class="eyebrow">System Resource Monitor · Visual prototype</div>
     <h1>One bar, three delivery states</h1>
-    <p class="intro">The bar is shown at its 24 DIP height. Current illustrates the shipped appearance. B014 keeps that appearance while introducing three WPF layout regions; B018 and B019 preview later behavior. Sample values, letter-block task icons, and tray icons are illustrative. The prototype is not WPF layout or Windows acceptance evidence.</p>
+    <p class="intro">The bar is shown at its 24 DIP height. Current illustrates the intended shipped appearance; B014 measures the real bar, and B015 preserves its measured appearance while introducing three WPF layout regions. B019 and B020 preview later behavior. Sample values, letter-block task icons, and tray icons are illustrative. The prototype is not WPF layout or Windows acceptance evidence.</p>
     <div class="controls">
-      <div class="control"><span>Delivery state</span><div class="segmented"><button id="phase-now" aria-pressed="true">Current</button><button id="phase-a" aria-pressed="false">B018 · Tasks</button><button id="phase-b" aria-pressed="false">B019 · Tray</button></div></div>
+      <div class="control"><span>Delivery state</span><div class="segmented"><button id="phase-now" aria-pressed="true">Current</button><button id="phase-a" aria-pressed="false">B019 · Tasks</button><button id="phase-b" aria-pressed="false">B020 · Tray</button></div></div>
       <label class="control">Screen width <select id="width"><option value="1440">1440 DIP</option><option value="1920">1920 DIP</option><option value="1280">1280 DIP</option></select></label>
       <label class="control" id="task-control">Open tasks <select id="count"><option value="1">1 task</option><option value="10" selected>10 tasks</option><option value="40">40 tasks</option></select></label>
       <label class="control" id="limit-control">Sample qualified limits <select id="limits"><option value="yes">Shown</option><option value="no">Hidden</option></select></label>
@@ -117,9 +117,9 @@
     </div></div>
     <p id="status" class="status" role="status"></p>
     <div class="notes">
-      <section class="note"><h2>Current bar</h2><p>CPU, RAM, GPU, Codex, and Claude sections illustrate the checked desktop appearance, which B014 preserves. B014's empty centre and right-hand WPF hosts are structural and are not shown here. The separate native tray icon owns position and exit; future task, clock, and in-bar tray features are not active.</p></section>
+      <section class="note"><h2>Current bar</h2><p>CPU, RAM, GPU, Codex, and Claude sections illustrate the appearance B014 measures and B015 preserves. B015's empty centre and right-hand WPF hosts are structural and are not shown here. The separate native tray icon owns position and exit; future task, clock, and in-bar tray features are not active.</p></section>
       <section class="note"><h2>Task behavior</h2><p>Each task is a 32 DIP icon. The real bar will use the window icon, or a neutral fallback. Hover for the full title; overflow lists titles and marks a hidden active task.</p></section>
-      <section class="note"><h2>Phase boundary</h2><p>B018 keeps the Windows taskbar available. B019 hides it only after tray recovery is proven and restores it if the replacement tray fails.</p></section>
+      <section class="note"><h2>Phase boundary</h2><p>B019 keeps the Windows taskbar available. B020 hides it only after tray recovery is proven and restores it if the replacement tray fails.</p></section>
     </div>
   </main>
   <script>
@@ -186,7 +186,7 @@
     function showKeyboardPanel(count, totalTray) {
       panel.replaceChildren();
       const heading = document.createElement('strong'); heading.textContent = 'Separate keyboard surface'; panel.append(heading);
-      const explanation = document.createElement('p'); explanation.textContent = 'Visual preview only. The entry command is chosen and checked in the B018 plan.'; panel.append(explanation);
+      const explanation = document.createElement('p'); explanation.textContent = 'Visual preview only. The entry command is chosen and checked in the B019 plan.'; panel.append(explanation);
       for (let i = 0; i < count; i++) {
         const button = document.createElement('button'); button.type = 'button'; button.textContent = titleAt(i);
         if (state.active === i && !state.minimized) button.setAttribute('aria-current', 'true');
@@ -218,7 +218,7 @@
       tray.hidden = byId('indicators').hidden = byId('right-divider').hidden = !isB;
       if (isCurrent) {
         taskRegion.replaceChildren(); tray.replaceChildren(); panel.hidden = true; byId('keyboard-mode').setAttribute('aria-expanded', 'false');
-        status.textContent = 'Current visual state, retained by B014: CPU, RAM, GPU, Codex, Claude, and a separate native tray icon. No task strip, clock, or in-bar tray yet.';
+        status.textContent = 'Current visual reference for B014, retained by B015: CPU, RAM, GPU, Codex, Claude, and a separate native tray icon. No task strip, clock, or in-bar tray yet.';
         return;
       }
 
@@ -256,7 +256,7 @@
         const menu = addMenu(anchor, items, 'Task overflow'); more.addEventListener('click', () => toggleMenu(menu)); taskRegion.append(anchor);
       }
       if (!panel.hidden) showKeyboardPanel(count, totalTray);
-      status.textContent = (isB ? 'B019' : 'B018') + ' · ' + count + ' tasks · ' + visible + ' icon-only buttons, ' + hidden + ' in ».' + (isB ? ' ' + visibleTray + ' visible tray icons, ' + (totalTray - visibleTray) + ' in ^.' : ' Windows taskbar remains available.');
+      status.textContent = (isB ? 'B020' : 'B019') + ' · ' + count + ' tasks · ' + visible + ' icon-only buttons, ' + hidden + ' in ».' + (isB ? ' ' + visibleTray + ' visible tray icons, ' + (totalTray - visibleTray) + ' in ^.' : ' Windows taskbar remains available.');
     }
     byId('phase-now').addEventListener('click', () => { state.phase = 'now'; render(); });
     byId('phase-a').addEventListener('click', () => { state.phase = 'a'; render(); });
