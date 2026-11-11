@@ -26,7 +26,6 @@ public sealed class LifecycleProcessTests
     [InlineData("--shutdown-during-settings-load")]
     [InlineData("--metric-display")]
     [InlineData("--claude-independence")]
-    [InlineData("--bar-regions")]
     public async Task TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(string mode)
     {
         var cancellation = TestContext.Current.CancellationToken;
@@ -42,10 +41,7 @@ public sealed class LifecycleProcessTests
     [InlineData("--metric-freshness", "ram")]
     [InlineData("--metric-freshness", "gpu")]
     [InlineData("--native-reads", "10")]
-    [InlineData("--provider-omission", "codex")]
-    [InlineData("--provider-omission", "claude")]
-    [InlineData("--provider-omission", "both")]
-    public async Task TestHost_mode_with_argument_passes_its_assertions(string mode, string argument)
+    public async Task TestHost_metric_mode_passes_its_assertions(string mode, string argument)
     {
         var cancellation = TestContext.Current.CancellationToken;
         using var host = ChildProcess.Start(TestHostExe, mode, argument);

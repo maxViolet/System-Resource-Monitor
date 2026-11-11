@@ -53,14 +53,6 @@ public sealed class BarWindow : Window, IShutdownBar
     private readonly TextBlock _gpuSection = CreateSection();
     private readonly TextBlock _codexSection = CreateSection();
     private readonly TextBlock _claudeSection = CreateSection();
-    private readonly StackPanel _leftRegion = new()
-    {
-        Orientation = Orientation.Horizontal,
-        HorizontalAlignment = HorizontalAlignment.Left,
-        Focusable = false,
-    };
-    private readonly Grid _centerRegion = new() { Focusable = false, IsHitTestVisible = false };
-    private readonly Grid _rightRegion = new() { Focusable = false, IsHitTestVisible = false };
     private readonly TimeProvider _time;
     private readonly DispatcherTimer _codexCountdown;
     private readonly DispatcherTimer _claudeCountdown;
@@ -73,9 +65,7 @@ public sealed class BarWindow : Window, IShutdownBar
         Action closeRequested,
         Action shellIntegrationFailed,
         Action<string>? record = null,
-        TimeProvider? time = null,
-        bool includeCodex = true,
-        bool includeClaude = true)
+        TimeProvider? time = null)
     {
         _initialEdge = initialEdge;
         _edgeApplied = edgeApplied;
@@ -83,11 +73,6 @@ public sealed class BarWindow : Window, IShutdownBar
         _shellIntegrationFailed = shellIntegrationFailed;
         _record = record;
         _time = time ?? TimeProvider.System;
-        _leftRegion.Children.Add(_cpuSection);
-        _leftRegion.Children.Add(_ramSection);
-        _leftRegion.Children.Add(_gpuSection);
-        if (includeCodex) _leftRegion.Children.Add(_codexSection);
-        if (includeClaude) _leftRegion.Children.Add(_claudeSection);
         _codexCountdown = new DispatcherTimer(DispatcherPriority.Background, Dispatcher);
         _codexCountdown.Tick += (_, _) => RenderCodex();
         _claudeCountdown = new DispatcherTimer(DispatcherPriority.Background, Dispatcher);
@@ -101,17 +86,12 @@ public sealed class BarWindow : Window, IShutdownBar
         Focusable = false;
         Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E));
         UseLayoutRounding = true;
-        var regions = new Grid { Focusable = false };
-        regions.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        regions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        regions.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(_leftRegion, 0);
-        Grid.SetColumn(_centerRegion, 1);
-        Grid.SetColumn(_rightRegion, 2);
-        regions.Children.Add(_leftRegion);
-        regions.Children.Add(_centerRegion);
-        regions.Children.Add(_rightRegion);
-        Content = regions;
+        Content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Children = { _cpuSection, _ramSection, _gpuSection, _codexSection, _claudeSection },
+        };
         ShowMetrics(DashboardState.Initial);
         ShowCodex(CodexLimitsUnavailable.Initial);
         ShowClaude(ClaudeLimitsUnavailable.Initial);
@@ -129,21 +109,6 @@ public sealed class BarWindow : Window, IShutdownBar
     public BarEdge AppliedEdge => _appBar?.AppliedEdge ?? _initialEdge;
 
     public nint Handle => _hwnd;
-    internal StackPanel LeftRegion => _leftRegion;
-
-    internal Grid CenterRegion => _centerRegion;
-
-    internal Grid RightRegion => _rightRegion;
-
-    internal TextBlock CpuSection => _cpuSection;
-
-    internal TextBlock RamSection => _ramSection;
-
-    internal TextBlock GpuSection => _gpuSection;
-
-    internal TextBlock CodexSection => _codexSection;
-
-    internal TextBlock ClaudeSection => _claudeSection;
 
     /// <summary>Registers and positions the AppBar, then adds and versions the tray icon.</summary>
     public void Start()

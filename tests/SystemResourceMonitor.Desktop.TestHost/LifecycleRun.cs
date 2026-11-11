@@ -119,16 +119,17 @@ internal sealed class LifecycleRun
 
     public int MarkerCount(string marker) => _markers.Count(recorded => recorded.Marker == marker);
 
-    /// <summary>Returns the stable production section accessors, ahead of provider sections.</summary>
+    /// <summary>Finds the metric sections at the start of the bar, ahead of provider sections.</summary>
     public static (TextBlock Cpu, TextBlock Ram, TextBlock Gpu) Sections(BarWindow bar) =>
-        (bar.CpuSection, bar.RamSection, bar.GpuSection);
+        bar.Content is StackPanel { Children: [TextBlock cpu, TextBlock ram, TextBlock gpu, ..] }
+            ? (cpu, ram, gpu)
+            : throw new InvalidOperationException("The bar content does not start with three metric sections.");
 
-    /// <summary>Returns each provider section only when the bar's left region actually holds it.</summary>
-    public static (TextBlock? Codex, TextBlock? Claude) ProviderSections(BarWindow bar) =>
-        (Shown(bar, bar.CodexSection), Shown(bar, bar.ClaudeSection));
-
-    private static TextBlock? Shown(BarWindow bar, TextBlock section) =>
-        bar.LeftRegion.Children.Contains(section) && section.IsVisible ? section : null;
+    /// <summary>Finds the provider sections that follow the metric sections.</summary>
+    public static (TextBlock Codex, TextBlock Claude) ProviderSections(BarWindow bar) =>
+        bar.Content is StackPanel { Children: [TextBlock, TextBlock, TextBlock, TextBlock codex, TextBlock claude, ..] }
+            ? (codex, claude)
+            : throw new InvalidOperationException("The bar content does not hold the Codex and Claude sections.");
 
     private static string SectionTexts(BarWindow bar)
     {
