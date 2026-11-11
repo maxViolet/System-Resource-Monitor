@@ -74,7 +74,9 @@ public sealed class DesktopStartup(
             edge => persistence!.Enqueue(edge),
             () => shutdown.ShutdownAsync(ExitCodes.Success),
             () => shutdown.ShutdownAsync(ExitCodes.Failure),
-            record);
+            record,
+            includeCodex: codex is not null,
+            includeClaude: claude is not null);
         persistence = new SettingsPersistenceQueue(
             settingsStore,
             bar.ReportStatus,

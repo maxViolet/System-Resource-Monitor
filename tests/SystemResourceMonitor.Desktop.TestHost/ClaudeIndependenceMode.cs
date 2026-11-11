@@ -40,7 +40,9 @@ public static partial class Program
         {
             run.CheckPositionedBar(bar);
             var (cpu, ram, gpu) = LifecycleRun.Sections(bar);
-            var (codex, claude) = LifecycleRun.ProviderSections(bar);
+            var providers = LifecycleRun.ProviderSections(bar);
+            var codex = providers.Codex ?? throw new InvalidOperationException("Codex section was omitted.");
+            var claude = providers.Claude ?? throw new InvalidOperationException("Claude section was omitted.");
             var metricSections = new Dictionary<MetricKind, System.Windows.Controls.TextBlock>
             {
                 [MetricKind.Cpu] = cpu,
