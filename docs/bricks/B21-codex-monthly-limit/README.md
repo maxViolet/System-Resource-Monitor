@@ -1,7 +1,3 @@
-# Codex monthly limit package
+# Historical package path
 
-- [Brick brief](../B21-codex-monthly-limit.md): scope, dependencies, acceptance criteria, and exclusions.
-- [Implementation plan](plan.md): ADR, implementation, migration, and acceptance order after B020 succeeds.
-- Evidence: add separate dated automated, Windows integration, and manual/resource reports under `docs/acceptance/` when the brick runs.
-
-The brick brief and its linked product plan, implementation plan, qualification report, and ADRs remain authoritative. Package files may make the work executable for coding agents, but must not silently change scope or acceptance criteria.
+Former B21 (codex monthly limit) is now [B22/README.md](../B22-codex-monthly-limit/README.md). See [ADR 0026](../../adr/0026-post-release-brick-renumbering.md) for the dated ID mappings. This path preserves earlier links and is not an active brick package.

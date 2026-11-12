@@ -16,7 +16,7 @@ A brick can complete with a documented rejection only when its acceptance criter
 
 ## Stages
 
-Every stage ends in an observable result. Stages 3–5 and 10 are independent tracks after the first personal release and may proceed in any order. Stage 6 starts only after B008 and B009 finish. Stage 8 starts after B014; stage 9 starts only after B018 finishes. Stage 10 preserves the accepted 5-hour and weekly Codex contract.
+Every stage ends in an observable result. Stages 3–5 and 10 are independent tracks after the first personal release and may proceed in any order. Stage 6 starts only after B008 and B009 finish. Stage 8 starts after B015; stage 9 starts only after B019 finishes. Stage 10 preserves the accepted 5-hour and weekly Codex contract.
 
 | Stage | Observable result |
 |---|---|
@@ -25,20 +25,22 @@ Every stage ends in an observable result. Stages 3–5 and 10 are independent tr
 | 2. First personal release (v1) | A self-contained Windows 11 x64 folder shows trustworthy CPU load, RAM usage, and used limits and reset times for each qualified Codex or Claude source, and passes every first-release gate. |
 | 3. GPU track | The selected adapter's GPU load is shown only when adapter/counter correlation is proven. |
 | 4. Installation track | Per-user install, optional autostart, upgrade, and uninstall work without elevating the bar. |
-| 5. Shared bar redesign | The current WPF bar implements the approved shared layout and passes its desktop and resource gates. |
+| 5. Current bar baseline and shared redesign | The current WPF bar is measured on Windows 11, then receives the approved shared layout and passes its desktop and resource gates. |
 | 6. Temperature track | A safe source is either accepted and exposed as temperature readings, or rejected with evidence; the bar remains unelevated. |
 | 7. Public distribution | A clean-profile package passes the public-release checks and has authenticated payload provenance. |
 | 8. Task strip | The bar shows an icon-only task button for each task on every monitor and a clock, while the Windows taskbar stays reachable. |
 | 9. Taskbar replacement | The bar shows every tray icon and its own volume, network, and battery indicators; the Windows taskbar is hidden while the replacement works, or the feasibility gate rejects the phase. |
 | 10. Codex monthly track | An allowed source is accepted or rejected with evidence; when accepted, the bar adds the qualified monthly used limit and reset information. |
 
-B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, and B014–B021 never retroactively block an accepted B007 release.
+B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, and B014–B022 never retroactively block an accepted B007 release.
 
 Bundling an official Codex client is an [unscheduled post-release candidate](../plan.md#bundled-codex-candidate), not a first-release brick. Create a bounded brick only after the feasibility work and ADR establish its scope and acceptance gates.
 
 On 2026-10-20, B011 and B012 exchanged assignments: B011 now owns Codex display and B012 qualifies Claude. [DOC-020's dated Codex report](../research/providers/codex-2026-10-19.md) and earlier acceptance reports retain their original brick numbers as historical evidence; use this roadmap for current dependencies.
 
-B020/B021 are the post-release [Codex monthly track](../plan.md#codex-monthly-limit). B020 qualifies or rejects an allowed source without changing production code. Only acceptance unblocks B021; rejection leaves B011 without a monthly field.
+The post-release IDs changed twice. [PR #54](https://github.com/maxViolet/System-Resource-Monitor/pull/54) moved the then-B014 temperature-source brick to B015 and added the shared redesign as B014. On 2026-11-11, [ADR 0026](../adr/0026-post-release-brick-renumbering.md) reserved B014 for the current-bar baseline and moved the then-current B014–B021 assignments to B015–B022. Historical PR titles, reports, and accepted ADRs retain their original IDs; use ADR 0026's two dated mappings to find the live brick.
+
+B021/B022 are the post-release [Codex monthly track](../plan.md#codex-monthly-limit). B021 qualifies or rejects an allowed source without changing production code. Only acceptance unblocks B022; rejection leaves B011 without a monthly field.
 
 ## Brick table
 
@@ -62,22 +64,23 @@ B020/B021 are the post-release [Codex monthly track](../plan.md#codex-monthly-li
 | B008 | [GPU adapter selection, correlation, and display](B08-gpu/README.md) | Core + Desktop | B007 |
 | **Stage 4 — Installation track** ||||
 | B009 | [Per-user installation and autostart](B09-install-autostart/README.md) | Release | B007 |
-| **Stage 5 — Shared bar redesign** ||||
-| B014 | [Implement the shared bar redesign](B14-bar-redesign/README.md) | Desktop + acceptance | B007 |
+| **Stage 5 — Current bar baseline and shared redesign** ||||
+| B014 | [Record the current bar baseline](B14-current-bar-baseline/README.md) | Desktop + acceptance evidence | B007 |
+| B015 | [Implement the shared bar redesign](B15-bar-redesign/README.md) | Desktop + acceptance | B014 done |
 | **Stage 6 — Temperature track** ||||
-| B015 | [Qualify temperature sources](B15-temperature-source/README.md) | Research | B008 done/rejected; B009 done |
-| B016 | [Temperature readings](B16-temperatures/README.md) | Core + Desktop | B015 accepted |
+| B016 | [Qualify temperature sources](B16-temperature-source/README.md) | Research | B008 done/rejected; B009 done |
+| B017 | [Temperature readings](B17-temperatures/README.md) | Core + Desktop | B016 accepted |
 | **Stage 7 — Public distribution** ||||
-| B017 | [Authenticated public package](B17-public-distribution/README.md) | Release | B007; every feature included in the package |
+| B018 | [Authenticated public package](B18-public-distribution/README.md) | Release | B007; every feature included in the package |
 | **Stage 8 — Task strip** ||||
-| B018 | [Task strip and clock](B18-task-strip/README.md) | Desktop | B014 |
+| B019 | [Task strip and clock](B19-task-strip/README.md) | Desktop | B015 |
 | **Stage 9 — Taskbar replacement** ||||
-| B019 | [Own tray, shell indicators, and hidden Windows taskbar](B19-taskbar-replacement/README.md) | Desktop + acceptance | B018 |
+| B020 | [Own tray, shell indicators, and hidden Windows taskbar](B20-taskbar-replacement/README.md) | Desktop + acceptance | B019 |
 | **Stage 10 — Codex monthly track** ||||
-| B020 | [Qualify a Codex monthly limit source](B20-codex-monthly-source/README.md) | Research | B007 done; B010 accepted |
-| B021 | [Codex monthly limit](B21-codex-monthly-limit/README.md) | Core + Desktop | B011 done; B020 accepted |
+| B021 | [Qualify a Codex monthly limit source](B21-codex-monthly-source/README.md) | Research | B007 done; B010 accepted |
+| B022 | [Codex monthly limit](B22-codex-monthly-limit/README.md) | Core + Desktop | B011 done; B021 accepted |
 
-`Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. Rejected B010, B012, B015, or B020 makes B011, B013, B016, or B021 respectively `not applicable`; rejected B019 closes the taskbar-replacement track.
+`Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. Rejected B010, B012, B016, or B021 makes B011, B013, B017, or B022 respectively `not applicable`; rejected B020 closes the taskbar-replacement track.
 
 ## Side tasks
 
@@ -108,26 +111,27 @@ graph LR
 
   B007 --> B008[B008 GPU]
   B007 --> B009[B009 install]
-  B007 --> B014[B014 bar redesign]
-  B008 --> B015[B015 temperature source]
-  B009 --> B015
-  B015 -->|accepted| B016[B016 temperatures]
+  B007 --> B014[B014 current bar baseline]
+  B014 --> B015[B015 bar redesign]
+  B008 --> B016[B016 temperature source]
+  B009 --> B016
+  B016 -->|accepted| B017[B017 temperatures]
 
-  B007 --> B017[B017 public package]
-  B008 -. if included .-> B017
-  B009 -. if included .-> B017
-  B014 -. if included .-> B017
-  B016 -. if included .-> B017
+  B007 --> B018[B018 public package]
+  B008 -. if included .-> B018
+  B009 -. if included .-> B018
+  B015 -. if included .-> B018
+  B017 -. if included .-> B018
 
-  B014 --> B018[B018 task strip]
-  B018 --> B019[B019 taskbar replacement]
-  B018 -. if included .-> B017
-  B019 -. if included .-> B017
+  B015 --> B019[B019 task strip]
+  B019 --> B020[B020 taskbar replacement]
+  B019 -. if included .-> B018
+  B020 -. if included .-> B018
 
-  B007 --> B020[B020 Codex monthly source]
-  B010 --> B020
-  B020 -->|accepted| B021[B021 Codex monthly limit]
-  B011 --> B021
+  B007 --> B021[B021 Codex monthly source]
+  B010 --> B021
+  B021 -->|accepted| B022[B022 Codex monthly limit]
+  B011 --> B022
 ```
 
 ## Progress
@@ -147,9 +151,11 @@ Update this table when evidence changes a brick's state. Valid states are `plann
 | B011 | in progress |
 | B012 | accepted |
 | B013 | in progress |
-| B014–B021 | planned |
+| B014–B022 | planned |
 
 B007 is `done` by user decision on 2026-10-16 after [PR #25](https://github.com/maxViolet/System-Resource-Monitor/pull/25) merged. Its separate acceptance reports are not present in `docs/acceptance/`; the [B008 automated report](../acceptance/2026-10-16-B08-automated.md) records this handoff limitation and the affected gate reruns. B008 remains `planned` until its applicable acceptance criteria have evidence.
+
+B014 records a new measured baseline without reclassifying B007's historical status. Before B014 is marked `done`, each failed or unverified first-release gate must have a named open brick or follow-up owner. B011 remains the owner of the known Codex combined-memory failure. B015 still requires its affected rendering, desktop, CPU, and memory gates to pass; baseline completion does not waive them.
 
 ## Brick template
 

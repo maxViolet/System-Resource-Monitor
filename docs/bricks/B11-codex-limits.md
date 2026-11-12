@@ -37,4 +37,4 @@ If the source can genuinely block, run it in a child process. On timeout or shut
 
 ## Out of scope
 
-Claude is independent in B012/B013. Monthly-source qualification and delivery belong to B020/B021; B011 shows no monthly field. Reading browser or credential state and calling undocumented endpoints remain prohibited.
+Claude is independent in B012/B013. Monthly-source qualification and delivery belong to B021/B022; B011 shows no monthly field. Reading browser or credential state and calling undocumented endpoints remain prohibited.

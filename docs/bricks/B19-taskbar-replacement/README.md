@@ -1,7 +1,3 @@
-# Own tray, shell indicators, and hidden Windows taskbar package
+# Historical package path
 
-- [Brick brief](../B19-taskbar-replacement.md): scope, dependencies, acceptance criteria, and exclusions.
-- Implementation plan: pending. Create `plan.md` here when this brick is selected, after reading its brief and linked sources.
-- Evidence: add a dated report under `docs/acceptance/` when implementation begins; distinguish automated, Windows integration, and manual desktop results.
-
-The brick brief and its linked product plan, implementation plan, and ADRs remain authoritative. Package files may make the work executable for coding agents, but must not silently change scope or acceptance criteria.
+Former B19 (taskbar replacement) is now [B20/README.md](../B20-taskbar-replacement/README.md). See [ADR 0026](../../adr/0026-post-release-brick-renumbering.md) for the dated ID mappings. This path preserves earlier links and is not an active brick package.
