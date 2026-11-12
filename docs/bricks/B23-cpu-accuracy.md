@@ -33,4 +33,4 @@ If the bar should follow a different measurement, or the gate should use a diffe
 
 ## Out of scope
 
-RAM collection logic, CPU/RAM text format and section widths, GPU, provider limits, resource budgets, and the bar layout. B023 does not change B014's recorded results or block B015.
+RAM collection logic, CPU/RAM text format and section widths, GPU, provider limits, resource budgets, and the bar layout. B023 does not change B014's recorded results. It is a separate track and is not a B015 dependency, but it does not waive B015's gates: an unresolved CPU-gate failure still prevents B015 acceptance.

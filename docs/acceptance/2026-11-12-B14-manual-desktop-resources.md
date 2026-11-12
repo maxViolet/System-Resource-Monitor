@@ -71,7 +71,7 @@ None of these differences is a WPF requirement.
 | Codex polling peak memory | B011 | existing open brick (in progress); known failure stays with B011 |
 | Provider limits | B011 (Codex) and B013 (Claude) | existing open bricks (in progress) |
 | CPU accuracy and RAM accuracy against Task Manager | [B023](../bricks/B23-cpu-accuracy.md) | open brick (planned), created by user decision on 2026-11-12 |
-| Artifact hygiene: no separate .NET, no provider authorization | B015 (rerun on its published artifact) | existing open brick |
+| Artifact hygiene: no separately installed .NET, no provider authorization | [B018](../bricks/B18-public-distribution.md) (criteria: a clean Windows 11 x64 profile needs no separately installed .NET, client authorization, or UAC; the package contains no test or development material) | existing open brick (planned) |
 
 ## B014 acceptance criteria
 
