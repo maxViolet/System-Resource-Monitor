@@ -16,7 +16,7 @@ A brick can complete with a documented rejection only when its acceptance criter
 
 ## Stages
 
-Every stage ends in an observable result. Stages 3–5 and 10 are independent tracks after the first personal release and may proceed in any order. Stage 6 starts only after B008 and B009 finish. Stage 8 starts after B015; stage 9 starts only after B019 finishes. Stage 10 preserves the accepted 5-hour and weekly Codex contract.
+Every stage ends in an observable result. Stages 3–5, 10, and 11 are independent tracks after the first personal release and may proceed in any order. Stage 6 starts only after B008 and B009 finish. Stage 8 starts after B015; stage 9 starts only after B019 finishes. Stage 10 preserves the accepted 5-hour and weekly Codex contract.
 
 | Stage | Observable result |
 |---|---|
@@ -31,8 +31,9 @@ Every stage ends in an observable result. Stages 3–5 and 10 are independent tr
 | 8. Task strip | The bar shows an icon-only task button for each task on every monitor and a clock, while the Windows taskbar stays reachable. |
 | 9. Taskbar replacement | The bar shows every tray icon and its own volume, network, and battery indicators; the Windows taskbar is hidden while the replacement works, or the feasibility gate rejects the phase. |
 | 10. Codex monthly track | An allowed source is accepted or rejected with evidence; when accepted, the bar adds the qualified monthly used limit and reset information. |
+| 11. CPU accuracy track | The bar's CPU reading is compared with Task Manager on the target PC, and the CPU accuracy gate passes or records its failure with evidence. |
 
-B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, and B014–B022 never retroactively block an accepted B007 release.
+B001–B007 and B010–B013 produce the first personal release ([ADR 0004](../adr/0004-subscription-limits-in-first-release.md)): roadmap stages 0–1 implement product-plan stage 1; roadmap stage 2 implements product-plan stages 2 and 3. Provider qualification (B010, B012) starts after B004 and runs in parallel with B005–B006. B007 waits until both qualifications close and every accepted provider's implementation is done; a rejected provider closes its track without blocking B007. Failure of B004 blocks B005–B007 and B010–B013 pending an explicit placement decision. B008, B009, and B014–B023 never retroactively block an accepted B007 release.
 
 Bundling an official Codex client is an [unscheduled post-release candidate](../plan.md#bundled-codex-candidate), not a first-release brick. Create a bounded brick only after the feasibility work and ADR establish its scope and acceptance gates.
 
@@ -79,6 +80,8 @@ B021/B022 are the post-release [Codex monthly track](../plan.md#codex-monthly-li
 | **Stage 10 — Codex monthly track** ||||
 | B021 | [Qualify a Codex monthly limit source](B21-codex-monthly-source/README.md) | Research | B007 done; B010 accepted |
 | B022 | [Codex monthly limit](B22-codex-monthly-limit/README.md) | Core + Desktop | B011 done; B021 accepted |
+| **Stage 11 — CPU accuracy track** ||||
+| B023 | [Measure and improve CPU accuracy against Task Manager](B23-cpu-accuracy/README.md) | Desktop + Core + acceptance | B007 |
 
 `Accepted` and `rejected` are explicit outcomes defined by a brick's acceptance criteria. Rejected B010, B012, B016, or B021 makes B011, B013, B017, or B022 respectively `not applicable`; rejected B020 closes the taskbar-replacement track.
 
@@ -132,6 +135,8 @@ graph LR
   B010 --> B021
   B021 -->|accepted| B022[B022 Codex monthly limit]
   B011 --> B022
+
+  B007 --> B023[B023 CPU accuracy]
 ```
 
 ## Progress
@@ -151,7 +156,8 @@ Update this table when evidence changes a brick's state. Valid states are `plann
 | B011 | in progress |
 | B012 | accepted |
 | B013 | in progress |
-| B014–B022 | planned |
+| B014 | in progress |
+| B015–B023 | planned |
 
 B007 is `done` by user decision on 2026-10-16 after [PR #25](https://github.com/maxViolet/System-Resource-Monitor/pull/25) merged. Its separate acceptance reports are not present in `docs/acceptance/`; the [B008 automated report](../acceptance/2026-10-16-B08-automated.md) records this handoff limitation and the affected gate reruns. B008 remains `planned` until its applicable acceptance criteria have evidence.
 
