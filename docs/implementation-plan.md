@@ -131,6 +131,10 @@ B014 measures the existing left-aligned WPF bar before B015 changes its structur
 
 B015 implements the [shared bar design](plan.md#shared-bar-design) by replacing the current left-aligned layout with separate fixed left, flexible centre, and right-hand WPF regions after the [B014 baseline](bricks/B14-current-bar-baseline.md) is complete. Use test-host-only placeholder content to verify that the centre and right hosts can be filled without moving or resizing the left sections; the published app keeps both hosts empty. The Desktop layout keeps its current visible state, 24-DIP height, existing metric and qualified-limit display contracts, fixed section widths, non-activating pointer behavior, native tray actions, and AppBar lifecycle. Compare the real WPF bar with B014's measured bounds at 100%, 150%, and 200% scaling and with widest documented values, unavailable states, both edges, and qualified/unqualified provider combinations. Record sanitized Windows 11 observations and measured bounds in dated acceptance reports. The prototype alone is not acceptance evidence. Rerun affected B007 rendering, desktop, and resource gates on the published app. B015 does not enumerate tasks, add a clock or in-bar tray, or hide the Windows taskbar.
 
+### CPU accuracy
+
+B023 compares the bar's CPU reading with Task Manager on the target PC, after B014's supplementary comparison found a busy-time reading that tracks `% Processor Time` but differs from the frequency-scaled `% Processor Utility` counter by more than the 5-point budget under sustained load. Measure the bar, Task Manager, and both counters in the same windows before deciding. The CPU source stays `GetSystemTimes` deltas, and the CPU accuracy gate keeps Task Manager as its reference, unless a new ADR approved under B023 changes either. Any new source keeps the 2-second polling, no-overlap, 6-second expiry, and unavailable-reason rules and keeps native calls in Desktop. B023 does not retroactively block the first release.
+
 ## Provider and installation requirements
 
 ### Provider adapters
