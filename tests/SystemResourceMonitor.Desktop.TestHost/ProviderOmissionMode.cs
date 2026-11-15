@@ -36,7 +36,7 @@ public static partial class Program
                     var expected = new List<TextBlock> { cpu, ram, gpu };
                     if (codex is not null) expected.Add(bar.CodexSection);
                     if (claude is not null) expected.Add(bar.ClaudeSection);
-                    var shown = bar.Content is StackPanel row ? row.Children.Cast<object>().ToList() : [];
+                    var shown = bar.LeftRegion.Children.Cast<object>().ToList();
                     run.Check(shown.SequenceEqual(expected),
                         $"--provider-omission {omitted} shows {shown.Count} sections, not CPU, RAM, GPU, then the composed providers in order");
 
