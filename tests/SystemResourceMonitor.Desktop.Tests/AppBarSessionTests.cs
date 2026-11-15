@@ -49,6 +49,38 @@ public sealed class AppBarSessionTests
     }
 
     [Fact]
+    public void A_foreign_move_off_the_reservation_is_corrected_back_to_it()
+    {
+        var appBar = new AppBarSession(123, 456, new FakeNative());
+        appBar.Register();
+        appBar.Place(BarEdge.Top);
+        var reserved = appBar.ReservedBounds;
+        var pushedIntoWorkArea = reserved with { Top = reserved.Bottom, Bottom = reserved.Bottom + reserved.Height };
+
+        Assert.Equal(reserved, appBar.CorrectForeignMove(pushedIntoWorkArea));
+        Assert.Null(appBar.CorrectForeignMove(reserved));
+    }
+
+    [Fact]
+    public void Moves_are_not_corrected_before_placement_during_placement_or_after_removal()
+    {
+        var native = new FakeNative();
+        var appBar = new AppBarSession(123, 456, native);
+        var elsewhere = new PixelRect(0, 500, 100, 530);
+        appBar.Register();
+        Assert.Null(appBar.CorrectForeignMove(elsewhere));
+
+        PixelRect? duringPlacement = elsewhere;
+        native.WindowPositioning = () => duringPlacement = appBar.CorrectForeignMove(elsewhere);
+        appBar.Place(BarEdge.Top);
+        Assert.Null(duringPlacement);
+        native.WindowPositioning = null;
+
+        appBar.Remove();
+        Assert.Null(appBar.CorrectForeignMove(elsewhere));
+    }
+
+    [Fact]
     public void Failed_window_move_reapplies_the_previous_edge_with_fresh_geometry()
     {
         var native = new FakeNative();
@@ -419,6 +451,9 @@ public sealed class AppBarSessionTests
 
         public bool FailWindowPosition { get; set; }
 
+        /// <summary>Runs inside SetWindowPosition, as the WM_WINDOWPOSCHANGING the real call sends would.</summary>
+        public Action? WindowPositioning { get; set; }
+
         public PixelRect MonitorBounds { get; set; } = new(-1920, -100, 0, 1340);
         public uint Dpi { get; set; } = 144;
 
@@ -461,6 +496,7 @@ public sealed class AppBarSessionTests
         public void SetWindowPosition(nint hwnd, PixelRect bounds)
         {
             _events.Add("setwindowpos");
+            WindowPositioning?.Invoke();
             if (FailWindowPosition)
             {
                 FailWindowPosition = false;

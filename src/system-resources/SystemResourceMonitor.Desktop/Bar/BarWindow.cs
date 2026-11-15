@@ -156,8 +156,8 @@ public sealed class BarWindow : Window, IShutdownBar
     public void Start()
     {
         _hwnd = new WindowInteropHelper(this).EnsureHandle();
-        // No WS_EX_TOOLWINDOW: Windows does not update a tool window's DPI when the display scale changes, which left
-        // the bar at its start scale (ADR 0027). ShowInTaskbar = false gives the window a hidden owner instead.
+        // No WS_EX_TOOLWINDOW: with it, the bar kept its start DPI after a live scale change (observed, ADR 0027).
+        // ShowInTaskbar = false gives the window a hidden owner instead; KeepReservation stops the shell moving it.
         AddExtendedStyle(WS_EX_NOACTIVATE);
         FixSectionWidths(VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
@@ -496,6 +496,11 @@ public sealed class BarWindow : Window, IShutdownBar
             return MA_NOACTIVATE;
         }
 
+        if (msg == WM_WINDOWPOSCHANGING)
+        {
+            KeepReservation(lParam);
+        }
+
         try
         {
             if (_tray?.HandleWindowMessage(msg, wParam, lParam) == true)
@@ -523,6 +528,38 @@ public sealed class BarWindow : Window, IShutdownBar
 
         return 0;
     }
+
+    /// <summary>Rewrites a move or resize that would leave the AppBar reservation back onto it.</summary>
+    private void KeepReservation(nint lParam)
+    {
+        if (_appBar is null || _shuttingDown)
+        {
+            return;
+        }
+
+        var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+        var current = DesktopRect();
+        var requested = new PixelRect(
+            (pos.flags & SWP_NOMOVE) != 0 ? current.Left : pos.x,
+            (pos.flags & SWP_NOMOVE) != 0 ? current.Top : pos.y,
+            ((pos.flags & SWP_NOMOVE) != 0 ? current.Left : pos.x) + ((pos.flags & SWP_NOSIZE) != 0 ? current.Width : pos.cx),
+            ((pos.flags & SWP_NOMOVE) != 0 ? current.Top : pos.y) + ((pos.flags & SWP_NOSIZE) != 0 ? current.Height : pos.cy));
+        if (_appBar.CorrectForeignMove(requested) is not { } reserved)
+        {
+            return;
+        }
+
+        pos.x = reserved.Left;
+        pos.y = reserved.Top;
+        pos.cx = reserved.Width;
+        pos.cy = reserved.Height;
+        pos.flags &= ~(SWP_NOMOVE | SWP_NOSIZE);
+        Marshal.StructureToPtr(pos, lParam, false);
+        _record?.Invoke("foreign-move-corrected");
+    }
+
+    private PixelRect DesktopRect() =>
+        GetWindowRect(_hwnd, out var rect) ? rect : ReservedBounds;
 
     private static uint RegisterRequiredMessage(string name)
     {
