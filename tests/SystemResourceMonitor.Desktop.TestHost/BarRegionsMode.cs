@@ -76,6 +76,7 @@ public static partial class Program
     {
         run.CheckPositionedBar(bar);
         bar.UpdateLayout();
+        CheckNoPointerSurface(run, bar);
         var before = LeftBounds(bar);
         bar.CenterRegion.Children.Add(Placeholder(Brushes.DarkRed));
         bar.RightRegion.Children.Add(Placeholder(Brushes.DarkBlue));
@@ -110,6 +111,24 @@ public static partial class Program
 
         bar.CenterRegion.Children.Clear();
         bar.RightRegion.Children.Clear();
+    }
+
+    /// <summary>The empty published hosts add no pointer surface: a hit inside either host lands on neither it nor its content.</summary>
+    private static void CheckNoPointerSurface(LifecycleRun run, BarWindow bar)
+    {
+        foreach (var (name, host) in new (string, Panel)[] { ("centre", bar.CenterRegion), ("right", bar.RightRegion) })
+        {
+            if (host.ActualWidth <= 0)
+            {
+                LifecycleRun.Info($"{name} host at {bar.AppliedEdge} is 0 DIP wide; nothing to hit");
+                continue;
+            }
+
+            var point = host.TranslatePoint(new Point(host.ActualWidth / 2, host.ActualHeight / 2), bar);
+            var hit = bar.InputHitTest(point) as DependencyObject;
+            run.Check(hit is null || (hit != host && !host.IsAncestorOf(hit)),
+                $"the empty {name} host at {bar.AppliedEdge} is a pointer surface: a hit at {point} lands on {hit?.GetType().Name}");
+        }
     }
 
     private static TextBlock[] AllSections(BarWindow bar) =>

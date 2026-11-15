@@ -82,6 +82,11 @@ public static partial class Program
             $"{state}: WPF renders at {VisualTreeHelper.GetDpi(bar).PixelsPerDip}x, the monitor at {monitorDpi / 96.0}x");
         run.Check(bar.ActualHeight == BarWindow.ThicknessDips, $"{state}: the bar is {bar.ActualHeight} DIP high");
         run.Check(bar.ReservedBounds == DesktopProbe.WindowRect(bar.Handle), $"{state}: the bar window does not match its reservation");
+        var monitor = DesktopProbe.MonitorBounds(bar.Handle);
+        run.Check(bar.ReservedBounds.Height == bar.ThicknessPixels,
+            $"{state}: the reservation {bar.ReservedBounds} is {bar.ReservedBounds.Height} px high, not {bar.ThicknessPixels}");
+        run.Check(bar.ReservedBounds.Left == monitor.Left && bar.ReservedBounds.Right == monitor.Right,
+            $"{state}: the reservation {bar.ReservedBounds} does not span the monitor {monitor}");
         var workArea = DesktopProbe.WorkArea();
         run.Check(bar.AppliedEdge == BarEdge.Top ? workArea.Top == bar.ReservedBounds.Bottom : workArea.Bottom == bar.ReservedBounds.Top,
             $"{state}: work area {workArea} does not border the reservation {bar.ReservedBounds}");
@@ -121,6 +126,14 @@ internal static partial class DpiProbe
 
     public static int Awareness(nint hwnd) => GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(hwnd));
 
+    private const int GwlExStyle = -20;
+
+    public static void AddExtendedStyle(nint hwnd, nint flags) =>
+        SetWindowLongPtr(hwnd, GwlExStyle, DesktopProbe.ExtendedStyle(hwnd) | flags);
+
+    [LibraryImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
+    private static partial nint SetWindowLongPtr(nint hwnd, int index, nint value);
+
     [LibraryImport("user32.dll")]
     private static partial uint GetDpiForWindow(nint hwnd);
 
@@ -135,4 +148,83 @@ internal static partial class DpiProbe
 
     [LibraryImport("user32.dll")]
     private static partial int GetAwarenessFromDpiAwarenessContext(nint context);
+}
+
+public static partial class Program
+{
+    /// <summary>
+    /// Reproduces ADR 0027's evidence: shows an ordinary window, a WS_EX_NOACTIVATE window, and a WS_EX_TOOLWINDOW
+    /// window for <paramref name="seconds"/> while a person changes the display scale, and logs each window's DPI. It
+    /// asserts nothing about Windows; it fails only when no live scale change was observed.
+    /// </summary>
+    private static int DpiCompare(int seconds)
+    {
+        var app = new System.Windows.Application { ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown };
+        var failed = false;
+        app.Startup += (_, _) =>
+        {
+            var windows = new (string Name, nint Handle)[]
+            {
+                ("plain", ComparisonWindow("plain", 0, 100)),
+                ("noactivate", ComparisonWindow("noactivate", DesktopProbe.WS_EX_NOACTIVATE, 220)),
+                ("toolwindow", ComparisonWindow("toolwindow", DesktopProbe.WS_EX_TOOLWINDOW, 340)),
+            };
+            var monitorDpis = new HashSet<uint>();
+            string? last = null;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            timer.Tick += (_, _) =>
+            {
+                var monitorDpi = DpiProbe.MonitorDpi(windows[0].Handle);
+                monitorDpis.Add(monitorDpi);
+                var state = $"monitor-dpi={monitorDpi} " + string.Join(" ", windows.Select(w => $"{w.Name}-dpi={DpiProbe.WindowDpi(w.Handle)}"));
+                if (state != last)
+                {
+                    LifecycleRun.Info($"dpi-compare t={clock.Elapsed.TotalSeconds:F1}s {state}");
+                    last = state;
+                }
+
+                if (clock.Elapsed < TimeSpan.FromSeconds(seconds))
+                {
+                    return;
+                }
+
+                timer.Stop();
+                failed = monitorDpis.Count < 2;
+                if (failed)
+                {
+                    Console.WriteLine($"FAIL: the monitor stayed at DPI [{string.Join(", ", monitorDpis)}]; no live scale change was observed");
+                }
+
+                app.Shutdown();
+            };
+            timer.Start();
+        };
+        app.Run();
+        Console.WriteLine(failed ? "FAILED" : "PASS");
+        return failed ? AssertionFailed : Success;
+    }
+
+    private static nint ComparisonWindow(string title, nint extendedStyle, double top)
+    {
+        var window = new System.Windows.Window
+        {
+            Title = $"SRM DPI comparison ({title})",
+            Width = 260,
+            Height = 80,
+            Left = 300,
+            Top = top,
+            ShowActivated = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = System.Windows.WindowStartupLocation.Manual,
+        };
+        var hwnd = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        if (extendedStyle != 0)
+        {
+            DpiProbe.AddExtendedStyle(hwnd, extendedStyle);
+        }
+
+        window.Show();
+        return hwnd;
+    }
 }
