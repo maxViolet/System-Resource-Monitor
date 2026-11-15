@@ -25,4 +25,6 @@ Evidence from the B015 test host on 2026-11-15, one 2560 × 1600 monitor, scale 
 
 ## Consequences
 
+Without the tool-window style, the shell treats the bar like an application window: after rapid edge changes it sometimes moved the bar one thickness into the work area (`--edge-switches` failed 18 of 50 runs; `main` passed). The bar therefore rewrites any `WM_WINDOWPOSCHANGING` that would leave its AppBar reservation back onto it, except during its own placement, before placement, and after removal. With this correction `--edge-switches` passed 50 of 50 runs.
+
 The test host asserts that the bar has `WS_EX_NOACTIVATE` and lacks `WS_EX_TOOLWINDOW`. A live scale change in both directions remains a Windows 11 acceptance scenario for B015; automated checks do not replace it. Other windows of the app, such as the tray menu owner, may keep `WS_EX_TOOLWINDOW` because they do not render DPI-dependent content.
