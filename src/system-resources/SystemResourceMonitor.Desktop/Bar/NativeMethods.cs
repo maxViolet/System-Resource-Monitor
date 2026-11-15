@@ -19,6 +19,20 @@ internal static partial class NativeMethods
 
     internal const int WM_NULL = 0x0000;
     internal const int WM_MOUSEACTIVATE = 0x0021;
+    internal const int WM_WINDOWPOSCHANGING = 0x0046;
+
+    /// <summary>The <c>WINDOWPOS</c> that <c>WM_WINDOWPOSCHANGING</c> passes by pointer.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct WINDOWPOS
+    {
+        public nint hwnd;
+        public nint hwndInsertAfter;
+        public int x;
+        public int y;
+        public int cx;
+        public int cy;
+        public uint flags;
+    }
     internal const int WM_CONTEXTMENU = 0x007B;
     internal const int WM_DISPLAYCHANGE = 0x007E;
     internal const int WM_DPICHANGED = 0x02E0;

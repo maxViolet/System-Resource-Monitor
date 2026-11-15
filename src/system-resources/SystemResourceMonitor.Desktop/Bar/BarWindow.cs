@@ -16,8 +16,8 @@ using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// The non-activating AppBar with fixed-width CPU, RAM, and GPU sections, followed by a section for each composed
-/// (qualified) provider. All HWND, tray, placement, and reconciliation members run on its WPF thread.
+/// The non-activating AppBar. Its fixed left region holds the CPU, RAM, and GPU sections, followed by a section for
+/// each composed (qualified) provider; the centre and right hosts stay empty until B019 and B020. All HWND, tray, placement, and reconciliation members run on its WPF thread.
 /// </summary>
 public sealed class BarWindow : Window, IShutdownBar
 {
@@ -54,6 +54,14 @@ public sealed class BarWindow : Window, IShutdownBar
     private readonly TextBlock _gpuSection = CreateSection();
     private readonly TextBlock _codexSection = CreateSection();
     private readonly TextBlock _claudeSection = CreateSection();
+    private readonly StackPanel _leftRegion = new()
+    {
+        Orientation = Orientation.Horizontal,
+        HorizontalAlignment = HorizontalAlignment.Left,
+        Focusable = false,
+    };
+    private readonly Grid _centerRegion = new() { Focusable = false, ClipToBounds = true };
+    private readonly Grid _rightRegion = new() { Focusable = false, ClipToBounds = true };
     private readonly TimeProvider _time;
     private readonly DispatcherTimer _codexCountdown;
     private readonly DispatcherTimer _claudeCountdown;
@@ -89,25 +97,22 @@ public sealed class BarWindow : Window, IShutdownBar
         Focusable = false;
         Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E));
         UseLayoutRounding = true;
-        var sections = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { _cpuSection, _ramSection, _gpuSection },
-        };
+        _leftRegion.Children.Add(_cpuSection);
+        _leftRegion.Children.Add(_ramSection);
+        _leftRegion.Children.Add(_gpuSection);
         // An unqualified provider is not composed and has no section; a composed provider keeps its section even
         // when its client is missing or its reads fail.
         if (showCodex)
         {
-            sections.Children.Add(_codexSection);
+            _leftRegion.Children.Add(_codexSection);
         }
 
         if (showClaude)
         {
-            sections.Children.Add(_claudeSection);
+            _leftRegion.Children.Add(_claudeSection);
         }
 
-        Content = sections;
+        Content = CreateRegions();
         ShowMetrics(DashboardState.Initial);
         ShowCodex(CodexLimitsUnavailable.Initial);
         ShowClaude(ClaudeLimitsUnavailable.Initial);
@@ -126,6 +131,21 @@ public sealed class BarWindow : Window, IShutdownBar
 
     public nint Handle => _hwnd;
 
+    /// <summary>The fixed left region holding the metric and provider sections.</summary>
+    internal StackPanel LeftRegion => _leftRegion;
+
+    /// <summary>The flexible centre host; empty in the published app until B019.</summary>
+    internal Grid CenterRegion => _centerRegion;
+
+    /// <summary>The right-hand host; empty in the published app until B020.</summary>
+    internal Grid RightRegion => _rightRegion;
+
+    internal TextBlock CpuSection => _cpuSection;
+
+    internal TextBlock RamSection => _ramSection;
+
+    internal TextBlock GpuSection => _gpuSection;
+
     /// <summary>The Codex section control; it is in the bar only when Codex is composed.</summary>
     internal TextBlock CodexSection => _codexSection;
 
@@ -136,7 +156,9 @@ public sealed class BarWindow : Window, IShutdownBar
     public void Start()
     {
         _hwnd = new WindowInteropHelper(this).EnsureHandle();
-        AddExtendedStyle(WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW);
+        // No WS_EX_TOOLWINDOW: with it, the bar kept its start DPI after a live scale change (observed, ADR 0027).
+        // ShowInTaskbar = false gives the window a hidden owner instead; KeepReservation stops the shell moving it.
+        AddExtendedStyle(WS_EX_NOACTIVATE);
         FixSectionWidths(VisualTreeHelper.GetDpi(this).PixelsPerDip);
 
         _callbackMessage = RegisterRequiredMessage(CallbackMessageName);
@@ -320,7 +342,33 @@ public sealed class BarWindow : Window, IShutdownBar
     protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
     {
         base.OnDpiChanged(oldDpi, newDpi);
+        _record?.Invoke($"dpi-changed:{oldDpi.PixelsPerInchX}->{newDpi.PixelsPerInchX}");
         FixSectionWidths(newDpi.PixelsPerDip);
+    }
+
+    /// <summary>
+    /// Fixed left sections, a flexible centre, and a right-hand host. The Auto left column always gets the sections'
+    /// fixed widths, so content in the centre or right never moves or resizes them; each host clips to its column, and
+    /// the right host never extends past the bar.
+    /// </summary>
+    private Grid CreateRegions()
+    {
+        var regions = new Grid { Focusable = false };
+        regions.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        regions.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        regions.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(_leftRegion, 0);
+        Grid.SetColumn(_centerRegion, 1);
+        Grid.SetColumn(_rightRegion, 2);
+        regions.Children.Add(_leftRegion);
+        regions.Children.Add(_centerRegion);
+        regions.Children.Add(_rightRegion);
+        // An Auto column takes its content's full desired width, so cap the right host at the space the fixed left
+        // region leaves; wider right content is clipped inside the bar instead of extending past it.
+        void CapRightHost() => _rightRegion.MaxWidth = Math.Max(0, regions.ActualWidth - _leftRegion.ActualWidth);
+        regions.SizeChanged += (_, _) => CapRightHost();
+        _leftRegion.SizeChanged += (_, _) => CapRightHost();
+        return regions;
     }
 
     private static TextBlock CreateSection() => new()
@@ -448,6 +496,11 @@ public sealed class BarWindow : Window, IShutdownBar
             return MA_NOACTIVATE;
         }
 
+        if (msg == WM_WINDOWPOSCHANGING)
+        {
+            KeepReservation(lParam);
+        }
+
         try
         {
             if (_tray?.HandleWindowMessage(msg, wParam, lParam) == true)
@@ -475,6 +528,38 @@ public sealed class BarWindow : Window, IShutdownBar
 
         return 0;
     }
+
+    /// <summary>Rewrites a move or resize that would leave the AppBar reservation back onto it.</summary>
+    private void KeepReservation(nint lParam)
+    {
+        if (_appBar is null || _shuttingDown)
+        {
+            return;
+        }
+
+        var pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
+        var current = DesktopRect();
+        var requested = new PixelRect(
+            (pos.flags & SWP_NOMOVE) != 0 ? current.Left : pos.x,
+            (pos.flags & SWP_NOMOVE) != 0 ? current.Top : pos.y,
+            ((pos.flags & SWP_NOMOVE) != 0 ? current.Left : pos.x) + ((pos.flags & SWP_NOSIZE) != 0 ? current.Width : pos.cx),
+            ((pos.flags & SWP_NOMOVE) != 0 ? current.Top : pos.y) + ((pos.flags & SWP_NOSIZE) != 0 ? current.Height : pos.cy));
+        if (_appBar.CorrectForeignMove(requested) is not { } reserved)
+        {
+            return;
+        }
+
+        pos.x = reserved.Left;
+        pos.y = reserved.Top;
+        pos.cx = reserved.Width;
+        pos.cy = reserved.Height;
+        pos.flags &= ~(SWP_NOMOVE | SWP_NOSIZE);
+        Marshal.StructureToPtr(pos, lParam, false);
+        _record?.Invoke("foreign-move-corrected");
+    }
+
+    private PixelRect DesktopRect() =>
+        GetWindowRect(_hwnd, out var rect) ? rect : ReservedBounds;
 
     private static uint RegisterRequiredMessage(string name)
     {

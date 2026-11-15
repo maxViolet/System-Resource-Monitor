@@ -26,6 +26,7 @@ public sealed class LifecycleProcessTests
     [InlineData("--shutdown-during-settings-load")]
     [InlineData("--metric-display")]
     [InlineData("--claude-independence")]
+    [InlineData("--bar-regions")]
     public async Task TestHost_lifecycle_mode_passes_its_work_area_and_marker_assertions(string mode)
     {
         var cancellation = TestContext.Current.CancellationToken;
