@@ -24,6 +24,7 @@ public static partial class Program
         var run = new LifecycleRun(
             codex: new CodexLimitMonitor(new MissingCodexClient(), TimeProvider.System),
             claude: new ClaudeLimitMonitor(new MissingClaudeClient(), TimeProvider.System));
+        var completed = false;
         run.Run((bar, shutdown) =>
         {
             bar.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
@@ -35,6 +36,7 @@ public static partial class Program
                     var other = bar.AppliedEdge == BarEdge.Top ? BarEdge.Bottom : BarEdge.Top;
                     run.Check(bar.SelectEdge(other), $"the bar could not move to {other}");
                     CheckRegionsAtEdge(run, bar);
+                    completed = true;
                 }
                 catch (Exception exception)
                 {
@@ -47,6 +49,8 @@ public static partial class Program
             }));
         });
 
+        run.Check(completed, "the region checks did not run to completion");
+        run.Check(run.ExitCode == SystemResourceMonitor.Desktop.Lifecycle.ExitCodes.Success, $"the bar exited with {run.ExitCode?.ToString() ?? "no exit code"}");
         return run.Finish();
     }
 
@@ -118,16 +122,17 @@ public static partial class Program
     {
         foreach (var (name, host) in new (string, Panel)[] { ("centre", bar.CenterRegion), ("right", bar.RightRegion) })
         {
-            if (host.ActualWidth <= 0)
-            {
-                LifecycleRun.Info($"{name} host at {bar.AppliedEdge} is 0 DIP wide; nothing to hit");
-                continue;
-            }
-
+            // An empty Auto column is 0 DIP wide; give the host room so a background would be hit-testable.
+            var minWidth = host.MinWidth;
+            host.MinWidth = Math.Max(minWidth, 40);
+            bar.UpdateLayout();
             var point = host.TranslatePoint(new Point(host.ActualWidth / 2, host.ActualHeight / 2), bar);
             var hit = bar.InputHitTest(point) as DependencyObject;
+            run.Check(host.ActualWidth > 0, $"the empty {name} host at {bar.AppliedEdge} could not be widened for the hit test");
             run.Check(hit is null || (hit != host && !host.IsAncestorOf(hit)),
                 $"the empty {name} host at {bar.AppliedEdge} is a pointer surface: a hit at {point} lands on {hit?.GetType().Name}");
+            host.MinWidth = minWidth;
+            bar.UpdateLayout();
         }
     }
 

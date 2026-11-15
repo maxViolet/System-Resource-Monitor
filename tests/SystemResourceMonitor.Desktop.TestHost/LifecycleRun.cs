@@ -175,8 +175,8 @@ internal sealed class LifecycleRun
 
         var style = DesktopProbe.ExtendedStyle(bar.Handle);
         Check((style & DesktopProbe.WS_EX_NOACTIVATE) != 0, "the bar lacks WS_EX_NOACTIVATE");
-        // Windows does not update the DPI of a WS_EX_TOOLWINDOW window when the display scale changes.
-        Check((style & DesktopProbe.WS_EX_TOOLWINDOW) == 0, "the bar has WS_EX_TOOLWINDOW, which freezes its DPI");
+        // A WS_EX_TOOLWINDOW bar kept its start DPI after a live scale change in the tests behind ADR 0027.
+        Check((style & DesktopProbe.WS_EX_TOOLWINDOW) == 0, "the bar has WS_EX_TOOLWINDOW (ADR 0027)");
     }
 
     public void Check(bool condition, string failure)

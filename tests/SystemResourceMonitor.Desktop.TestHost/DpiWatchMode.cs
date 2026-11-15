@@ -18,6 +18,7 @@ public static partial class Program
     /// </summary>
     private static int DpiWatch(int seconds)
     {
+        var completed = false;
         var run = new LifecycleRun(
             codex: new CodexLimitMonitor(new MissingCodexClient(), TimeProvider.System),
             claude: new ClaudeLimitMonitor(new MissingClaudeClient(), TimeProvider.System));
@@ -59,11 +60,14 @@ public static partial class Program
                 CheckGeometry(run, bar, "final");
                 run.RebaseAfterDisplayChange(bar);
                 run.CheckPositionedBar(bar);
+                completed = true;
                 run.Check(DesktopProbe.RequestClose(bar.Handle), "the DPI watch could not close the bar");
             };
             timer.Start();
         });
 
+        run.Check(completed, "the DPI watch ended before its deadline and final geometry checks");
+        run.Check(run.ExitCode == SystemResourceMonitor.Desktop.Lifecycle.ExitCodes.Success, $"the bar exited with {run.ExitCode?.ToString() ?? "no exit code"}");
         return run.Finish();
     }
 
