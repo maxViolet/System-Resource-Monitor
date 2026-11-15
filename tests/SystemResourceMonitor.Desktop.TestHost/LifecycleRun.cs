@@ -125,11 +125,12 @@ internal sealed class LifecycleRun
             ? (cpu, ram, gpu)
             : throw new InvalidOperationException("The bar content does not start with three metric sections.");
 
-    /// <summary>Finds the provider sections that follow the metric sections.</summary>
-    public static (TextBlock Codex, TextBlock Claude) ProviderSections(BarWindow bar) =>
-        bar.Content is StackPanel { Children: [TextBlock, TextBlock, TextBlock, TextBlock codex, TextBlock claude, ..] }
-            ? (codex, claude)
-            : throw new InvalidOperationException("The bar content does not hold the Codex and Claude sections.");
+    /// <summary>Returns each provider section only when the bar shows it.</summary>
+    public static (TextBlock? Codex, TextBlock? Claude) ProviderSections(BarWindow bar) =>
+        (Shown(bar, bar.CodexSection), Shown(bar, bar.ClaudeSection));
+
+    private static TextBlock? Shown(BarWindow bar, TextBlock section) =>
+        section.IsDescendantOf(bar) && section.IsVisible ? section : null;
 
     private static string SectionTexts(BarWindow bar)
     {

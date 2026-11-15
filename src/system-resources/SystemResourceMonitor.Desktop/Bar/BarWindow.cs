@@ -16,7 +16,8 @@ using static SystemResourceMonitor.Desktop.Bar.NativeMethods;
 namespace SystemResourceMonitor.Desktop.Bar;
 
 /// <summary>
-/// The non-activating AppBar with fixed-width CPU, RAM, GPU, and Codex sections. All HWND, tray, placement, and reconciliation members run on its WPF thread.
+/// The non-activating AppBar with fixed-width CPU, RAM, and GPU sections, followed by a section for each composed
+/// (qualified) provider. All HWND, tray, placement, and reconciliation members run on its WPF thread.
 /// </summary>
 public sealed class BarWindow : Window, IShutdownBar
 {
@@ -64,6 +65,8 @@ public sealed class BarWindow : Window, IShutdownBar
         Action<BarEdge> edgeApplied,
         Action closeRequested,
         Action shellIntegrationFailed,
+        bool showCodex,
+        bool showClaude,
         Action<string>? record = null,
         TimeProvider? time = null)
     {
@@ -86,12 +89,25 @@ public sealed class BarWindow : Window, IShutdownBar
         Focusable = false;
         Background = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E));
         UseLayoutRounding = true;
-        Content = new StackPanel
+        var sections = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Left,
-            Children = { _cpuSection, _ramSection, _gpuSection, _codexSection, _claudeSection },
+            Children = { _cpuSection, _ramSection, _gpuSection },
         };
+        // An unqualified provider is not composed and has no section; a composed provider keeps its section even
+        // when its client is missing or its reads fail.
+        if (showCodex)
+        {
+            sections.Children.Add(_codexSection);
+        }
+
+        if (showClaude)
+        {
+            sections.Children.Add(_claudeSection);
+        }
+
+        Content = sections;
         ShowMetrics(DashboardState.Initial);
         ShowCodex(CodexLimitsUnavailable.Initial);
         ShowClaude(ClaudeLimitsUnavailable.Initial);
@@ -109,6 +125,12 @@ public sealed class BarWindow : Window, IShutdownBar
     public BarEdge AppliedEdge => _appBar?.AppliedEdge ?? _initialEdge;
 
     public nint Handle => _hwnd;
+
+    /// <summary>The Codex section control; it is in the bar only when Codex is composed.</summary>
+    internal TextBlock CodexSection => _codexSection;
+
+    /// <summary>The Claude section control; it is in the bar only when Claude is composed.</summary>
+    internal TextBlock ClaudeSection => _claudeSection;
 
     /// <summary>Registers and positions the AppBar, then adds and versions the tray icon.</summary>
     public void Start()
