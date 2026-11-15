@@ -42,6 +42,8 @@ public partial class App : Application
             var settings = new JsonSettingsStore(settingsDirectory);
             _gpu = new GpuLoadSource(new DxCoreAdapterApi(), new PdhGpuCounterApi());
             var monitor = new MetricMonitor(new SystemTimesCpuSource(), new GlobalMemoryRamSource(), _gpu, TimeProvider.System);
+            // Both providers are qualified, so both monitors are always composed. Passing null means "unqualified" and
+            // removes the section; never pass null because a client is missing or a read fails.
             var codex = new CodexLimitMonitor(
                 new CodexAppServerSource(CodexClientLocator.ForCurrentUser(), TimeProvider.System), TimeProvider.System);
             var claude = new ClaudeLimitMonitor(
