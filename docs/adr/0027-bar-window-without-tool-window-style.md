@@ -8,9 +8,9 @@ Create the bar window with `WS_EX_NOACTIVATE` and WPF `ShowInTaskbar=false`, wit
 
 ## Reason
 
-On Windows 11, a per-monitor-V2 window with `WS_EX_TOOLWINDOW` keeps its start DPI when the display scale changes while it runs: `GetDpiForWindow` does not change and the window receives no `WM_DPICHANGED`. The bar then keeps its old height and text size, and its AppBar thickness, computed from the window DPI, stays wrong until a restart. The [B014 Windows integration report](../acceptance/2026-11-12-B14-windows-integration.md#live-scale-change) recorded this failure for a 200%-to-125% change.
+On the one Windows 11 machine tested (build 26300), a per-monitor-V2 window with `WS_EX_TOOLWINDOW` kept its start DPI when the display scale changed while it ran: `GetDpiForWindow` did not change and the window received no `WM_DPICHANGED`. This is an observation, not documented platform behaviour: the [`WM_DPICHANGED` reference](https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-dpichanged) names only a monitor move and a monitor DPI change as causes and says nothing about tool windows, and no other Microsoft documentation found links the two. The bar then keeps its old height and text size, and its AppBar thickness, computed from the window DPI, stays wrong until a restart. The [B014 Windows integration report](../acceptance/2026-11-12-B14-windows-integration.md#live-scale-change) recorded this failure for a 200%-to-125% change.
 
-Evidence from the B015 test host (`--dpi-watch`) on 2026-11-15, one 2560 × 1600 monitor, scale changed live between 125% and 200%:
+Evidence from the B015 test host on 2026-11-15, one 2560 × 1600 monitor, scale changed live between 125% and 200%. The scale was changed by a scratchpad script that calls the undocumented `SystemParametersInfo(SPI_SETLOGICALDPIOVERRIDE)`, which is not in the repository. The B014 failure, with the same symptom, was produced through Settings. Settings-driven B015 runs are part of its Windows 11 acceptance. `--dpi-compare <seconds>` reproduces the comparison windows below, and `--dpi-watch <seconds>` checks the bar itself:
 
 - An ordinary window and a window with only `WS_EX_NOACTIVATE` followed the monitor DPI (120 → 192 → 120).
 - A window with only `WS_EX_TOOLWINDOW`, and the bar with both styles, stayed at DPI 120.
