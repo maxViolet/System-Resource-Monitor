@@ -61,13 +61,13 @@ public static partial class Program
                     if (providers.Codex is { } codexSection)
                     {
                         run.Check(codexSection.Text == codexText.Text && Equals(codexSection.ToolTip, codexText.ToolTip),
-                            $"the Codex section shows '{codexSection.Text}', not its client-not-found text '{codexText.Text}'");
+                            $"the Codex section shows '{codexSection.Text}' (tooltip '{codexSection.ToolTip}'), not its client-not-found text '{codexText.Text}' (tooltip '{codexText.ToolTip}')");
                     }
 
                     if (providers.Claude is { } claudeSection)
                     {
                         run.Check(claudeSection.Text == claudeText.Text && Equals(claudeSection.ToolTip, claudeText.ToolTip),
-                            $"the Claude section shows '{claudeSection.Text}', not its client-not-found text '{claudeText.Text}'");
+                            $"the Claude section shows '{claudeSection.Text}' (tooltip '{claudeSection.ToolTip}'), not its client-not-found text '{claudeText.Text}' (tooltip '{claudeText.ToolTip}')");
                     }
                 }
                 catch (Exception exception)
