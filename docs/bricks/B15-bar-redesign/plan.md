@@ -1,6 +1,6 @@
 # B015 implementation plan
 
-Status: planned; implementation waits for B014 `done`. This package executes the [B015 brief](../B15-bar-redesign.md), [shared bar design](../../plan.md#shared-bar-design), [implementation-plan redesign section](../../implementation-plan.md#shared-bar-redesign), and [CONTEXT](../../../CONTEXT.md#language). [ADR 0026](../../adr/0026-post-release-brick-renumbering.md) defines the current brick IDs.
+Status: planned; B014 is `done`, so implementation may start. This package executes the [B015 brief](../B15-bar-redesign.md), [shared bar design](../../plan.md#shared-bar-design), [implementation-plan redesign section](../../implementation-plan.md#shared-bar-redesign), and [CONTEXT](../../../CONTEXT.md#language). [ADR 0026](../../adr/0026-post-release-brick-renumbering.md) defines the current brick IDs.
 
 ## Outcome and boundary
 
@@ -8,7 +8,7 @@ Replace the left-aligned WPF row with fixed left, flexible centre, and right-han
 
 ## 1. Establish the baseline and entry gate
 
-Read the B014 [automated](../../acceptance/2026-11-12-B14-automated.md), [Windows integration](../../acceptance/2026-11-12-B14-windows-integration.md), and [manual/resource](../../acceptance/2026-11-12-B14-manual-desktop-resources.md) reports in full. Confirm B014 is `done` in the [roadmap](../README.md#progress) before changing production code. It is currently `in progress`; preparing this plan does not close it.
+Read the B014 [automated](../../acceptance/2026-11-12-B14-automated.md), [Windows integration](../../acceptance/2026-11-12-B14-windows-integration.md), and [manual/resource](../../acceptance/2026-11-12-B14-manual-desktop-resources.md) reports in full. Confirm B014 is `done` in the [roadmap](../README.md#progress) before changing production code. B014 closed with every non-pass gate assigned to a named owner; its closure does not pass any B015 gate.
 
 Use the recorded source commit and exact artifact hashes as the comparison identity. The baseline row ends at 754.5–755.3 DIP; widths below about 756 DIP are derived unsupported widths, not tested limits. Measure the widest supported states again for the implementation configuration, including each section's leading margin. Do not copy CSS widths from the prototype or preserve a known clipping defect as visual parity.
 
@@ -32,7 +32,7 @@ Use a Grid with `Auto / * / Auto` columns, retaining existing controls and spaci
 
 Correct the live-DPI defect assigned to B015 using the existing [AppBar and shell rules](../../implementation-plan.md#appbar-and-shell-behaviour): renegotiate against current primary-monitor geometry and DPI without activation, restore the previous work area, and reconcile fullscreen state. Preserve registration during fullscreen. Do not preselect a native-message workaround without reproducing the cause.
 
-Recheck provider omission in production composition. Qualification and client availability are different: an unqualified provider has no section; a qualified provider with a missing client retains its documented unavailable section. Provider-omission correction belongs to separate FIX work, preserving this brick's display-semantics boundary. Before implementation starts, assign that work a concrete FIX ID and link its tracked task here; land it before the final artifact build. Use a test-host-only configuration seam through the production composition path to exercise Codex unqualified, Claude unqualified, and both unqualified. Do not hide controls only in the test host, or infer qualification from a failed read or missing executable. Both providers are currently qualified, so those synthetic combinations are test-host evidence, not published-app observations. The published app must retain both sections when their clients are missing or reads fail.
+Recheck provider omission in production composition. Qualification and client availability are different: an unqualified provider has no section; a qualified provider with a missing client retains its documented unavailable section. Provider-omission correction belongs to separate FIX work, preserving this brick's display-semantics boundary. This work is `FIX-006-provider-section-omission`; land it before the final artifact build. Use a test-host-only configuration seam through the production composition path to exercise Codex unqualified, Claude unqualified, and both unqualified. Do not hide controls only in the test host, or infer qualification from a failed read or missing executable. Both providers are currently qualified, so those synthetic combinations are test-host evidence, not published-app observations. The published app must retain both sections when their clients are missing or reads fail.
 
 **Gate:** region checks pass; left sections match the supported baseline states; live DPI updates correctly; no unresolved provider-omission criterion is hidden.
 

@@ -1,6 +1,6 @@
 # B014 implementation plan for coding agents
 
-Status: planned. This package executes [B014 — Record the current bar baseline](../B14-current-bar-baseline.md). Read its brief, the [shared bar design](../../plan.md#shared-bar-design), [current bar baseline](../../implementation-plan.md#current-bar-baseline), [first-release gates](../../implementation-plan.md#first-release-acceptance-gates), [handoff commands](../../implementation-plan.md#automated-verification-and-handoff), and [CONTEXT](../../../CONTEXT.md#language) before starting. B007 must be `done`.
+Status: done; evidence in the dated B014 reports under `docs/acceptance/`. This package executes [B014 — Record the current bar baseline](../B14-current-bar-baseline.md). Read its brief, the [shared bar design](../../plan.md#shared-bar-design), [current bar baseline](../../implementation-plan.md#current-bar-baseline), [first-release gates](../../implementation-plan.md#first-release-acceptance-gates), [handoff commands](../../implementation-plan.md#automated-verification-and-handoff), and [CONTEXT](../../../CONTEXT.md#language) before starting. B007 must be `done`.
 
 ## Outcome and boundary
 

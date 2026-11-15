@@ -25,6 +25,7 @@ If the real WPF width cannot contain the current fixed sections on a target disp
 
 - [ ] The published WPF bar retains the current visual state at 100%, 150%, and 200% scaling on Windows 11; a dated report records redacted bar crops, rendered bounds, monitor width, DPI, and source commit/artifact identity
 - [ ] The WPF layout has separate fixed left, flexible centre, and right-hand regions; test-host-only content can fill the centre and right without moving or resizing the fixed left sections, while neither placeholder appears in the published app
+- [ ] A live scale change in either direction (at least 200% to 125% and 125% to 200%) updates the bar height, text size, section widths, and AppBar reservation without a restart; fresh starts at 125% also retain the current visual state
 - [ ] At both top and bottom edges, the bar remains 24 DIP high, reserves the correct work area, and retains the accepted fullscreen and Explorer-recovery behavior
 - [ ] CPU, RAM, optional GPU, and every qualified provider section keep their documented fixed widths, text, tooltips, unavailable states, and order; unqualified providers have no section
 - [ ] Widest documented values and unavailable states fit without clipped fixed sections at the measured supported widths; unsupported narrower widths are recorded rather than silently clipped
