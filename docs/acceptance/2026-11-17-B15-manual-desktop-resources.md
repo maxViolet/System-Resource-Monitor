@@ -2,7 +2,7 @@
 
 Brick: [B015 — Redesign the bar](../bricks/B15-bar-redesign.md). Companion reports: [automated](2026-11-17-B15-automated.md), [Windows integration](2026-11-17-B15-windows-integration.md).
 
-Status: open. B015 stays `in progress`, not `done`. The live-scale defect that B014 handed over now passes, and a fullscreen defect found during this session is fixed (PR #65). The resource gates and several desktop scenarios are unverified; each has a named owner below.
+Status: open. B015 stays `in progress`, not `done`. The live-scale defect that B014 handed over now passes, and a fullscreen defect found during this session is fixed (PR #65). The resource gates, provider limits, several desktop scenarios, and the published-app stale and unavailable states are unverified; each has a named owner below.
 
 ## Identity
 
@@ -49,10 +49,14 @@ The user ran the manual steps in the published app and reported each result; a 0
 | App memory ceiling | Published app | **unverified** | The 30-minute and eight-hour runs were not performed. |
 | Codex polling peak memory | Published app and Codex child | **unverified** | Not measured. The [B011 report](2026-10-20-B11-manual-desktop-resources.md) records a 175.0-MiB combined peak against the 150-MiB limit; that failure stays with B011 and is not waived. |
 | Memory growth | Published app | **unverified** | The eight-hour run was not performed. |
+| Native-read responsiveness | Test host | **unverified** | The suite runs `--native-reads 10` (10 s, passed); the 30-minute run on the final test host was not performed. |
+| Freshness and independence | Test host | pass | `--metric-freshness cpu`, `ram`, and `gpu` in the [automated suite](2026-11-17-B15-automated.md): the blocked reading expires within 500 ms of its six-second deadline while the other sections keep updating (no gap over 2,500 ms). Individual timings were not recorded. Fake-time boundaries are covered by the Core tests. |
+| Provider freshness and independence | Test host | pass | `--claude-independence` in the automated suite: Codex expires within 750 ms of its deadline while a Claude poll is blocked, CPU, RAM, and GPU keep updating, and shutdown stays within its deadline. Fake-time provider cases pass in the Core tests. Individual timings were not recorded. |
+| Provider limits | Published app | **unverified** | The official clients' displays were not compared with the bar in the same window, and the ten-poll non-consumption check was not run. Both provider sections showed values and tooltips. |
 | Normal shutdown | Published app | pass | Sixteen fresh-start runs and four scripted live runs (`WM_CLOSE`) exited with code 0 and restored the work area; tray Exit restored it. |
 | Fault shutdown | Test host | pass | `--fail-after-setpos`, `--bounded-shutdown`, `--faulted-metric-run` in the [automated suite](2026-11-17-B15-automated.md). |
 | Desktop behaviour | Published app | **unverified** | Passed on one monitor: live scale change both ways, pointer focus, tray edge changes and Exit, maximized window, Explorer restart, auto-hide taskbar, video and borderless-game fullscreen with Alt+Tab after PR #65 (8 game cycles log-confirmed on the final artifact). Unverified: exclusive fullscreen; ten log-confirmed cycles per mode; Explorer restart during fullscreen; second-monitor fullscreen; resolution and primary-monitor changes. |
-| DPI and rendering | Published app | pass | Fresh starts at 100 %, 125 %, 150 %, and 200 % at both edges match B014 pixel for pixel with a matching reservation; live changes 125 % → 200 % → 125 % and 200 % → 125 % follow without a restart ([Windows integration](2026-11-17-B15-windows-integration.md)). 0 %, 100 %, and unavailable states fit in the test host. |
+| DPI and rendering | Published app | **unverified** | Passed on the published app: fresh starts at 100 %, 125 %, 150 %, and 200 % at both edges match B014 pixel for pixel with a matching reservation; live changes 125 % → 200 % → 125 % and 200 % → 125 % follow without a restart; active short and weekly countdowns fit; the RAM tooltip shows used/total GiB ([Windows integration](2026-11-17-B15-windows-integration.md)). Unverified on the published app: 0 %, 100 %, stale, and unavailable states, which were shown only in the test host (`--metric-display`) and the width tests. |
 | Artifact hygiene | Published app | **unverified** | No test host, placeholder, fixture, or diagnostic entry point in the folder; a clean profile without the .NET SDK and without provider authorization was not tried. |
 
 ## Observed discrepancies
@@ -69,9 +73,11 @@ The user ran the manual steps in the published app and reported each result; a 0
 
 | Gate | Owner | Status of owner |
 |---|---|---|
-| App CPU cost, app memory ceiling, memory growth | B015 (its criterion to rerun the affected CPU and memory gates) | this brick, open |
+| App CPU cost, app memory ceiling, memory growth, native-read responsiveness | B015 (its criterion to rerun the affected CPU and memory gates) | this brick, open |
+| DPI and rendering: 0 %, 100 %, stale, and unavailable states in the published app | B015 | this brick, open |
 | Desktop behaviour: exclusive fullscreen, log-confirmed cycle counts, Explorer restart during fullscreen, second monitor, resolution and primary-monitor changes | B015 | this brick, open |
 | Codex polling peak memory | [B011](../bricks/B11-codex-limits.md) | open; known failure stays with B011 |
+| Provider limits | [B011](../bricks/B11-codex-limits.md) (Codex) and [B013](../bricks/B13-claude-limits.md) (Claude) | open |
 | CPU accuracy and RAM accuracy against Task Manager | [B023](../bricks/B23-cpu-accuracy.md) | open (planned) |
 | Artifact hygiene on a clean profile | [B018](../bricks/B18-public-distribution.md) | open (planned) |
 
@@ -79,11 +85,11 @@ The user ran the manual steps in the published app and reported each result; a 0
 
 | Criterion | Evidence | State |
 |---|---|---|
-| Published bar keeps the current visual state at 100 %, 150 %, and 200 %; a dated report records redacted crops, rendered bounds, monitor width, DPI, and artifact identity | [Windows integration — geometry](2026-11-17-B15-windows-integration.md#measured-bar-geometry); [crops](2026-11-17-B15-bar-crops/) | met |
-| Fixed left, flexible centre, and right regions; test-host placeholders fill centre and right without moving the left sections; no placeholder in the published app | `--bar-regions` ([automated](2026-11-17-B15-automated.md#what-the-suite-covers-for-b015)); [published regions](2026-11-17-B15-windows-integration.md#regions-in-the-published-app) | met |
-| Live scale change both ways without a restart; fresh starts at 125 % keep the visual state | [Live scale change](2026-11-17-B15-windows-integration.md#live-scale-change) | met |
-| 24 DIP at both edges, correct work area, accepted fullscreen and Explorer-recovery behaviour | Geometry table; manual steps 4, 6, 8a, 8b | met for the observed scenarios; desktop gate rows above unverified |
-| Sections keep fixed widths, text, tooltips, unavailable states, and order; unqualified providers have no section | Section bounds; tooltips; `--provider-omission` and format tests | met; unqualified providers observed in the test host only |
-| Widest values and unavailable states fit at the measured widths; narrower widths recorded | `--metric-display`, width tests; [supported widths](2026-11-17-B15-windows-integration.md#supported-widths) | met; narrower monitors unverified |
-| Pointer interaction does not activate the bar; tray switches edge and exits | Manual steps 3, 4, 10 | met |
-| Targeted tests and affected B007 rendering, desktop, CPU, and memory gates pass; evidence kept distinct | Three separate reports; gate table above | **not met**: CPU and memory gates unverified, desktop gate partly unverified |
+| Published bar keeps the current visual state at 100 %, 150 %, and 200 %; a dated report records redacted crops, rendered bounds, monitor width, DPI, and artifact identity | [Windows integration — geometry](2026-11-17-B15-windows-integration.md#measured-bar-geometry); [crops](2026-11-17-B15-bar-crops/) | pass |
+| Fixed left, flexible centre, and right regions; test-host placeholders fill centre and right without moving the left sections; no placeholder in the published app | `--bar-regions` ([automated](2026-11-17-B15-automated.md#what-the-suite-covers-for-b015)); [published regions](2026-11-17-B15-windows-integration.md#regions-in-the-published-app) | pass |
+| Live scale change both ways without a restart; fresh starts at 125 % keep the visual state | [Live scale change](2026-11-17-B15-windows-integration.md#live-scale-change) | pass |
+| 24 DIP at both edges, correct work area, accepted fullscreen and Explorer-recovery behaviour | Geometry table; manual steps 4, 6, 8a, 8b | **unverified**: height, work area, borderless-game and video fullscreen, and Explorer restart pass; exclusive fullscreen, Explorer restart during fullscreen, and ten log-confirmed cycles per mode are not yet evidenced |
+| Sections keep fixed widths, text, tooltips, unavailable states, and order; unqualified providers have no section | Section bounds; tooltips; `--provider-omission` and format tests | **unverified**: order, widths, text, and tooltips pass in the published app; unavailable states and unqualified-provider omission are evidenced in the test host only |
+| Widest values and unavailable states fit at the measured widths; narrower widths recorded | `--metric-display`, width tests; [supported widths](2026-11-17-B15-windows-integration.md#supported-widths) | pass at the measured widths (test host for widest and unavailable values); narrower monitors are recorded as unsupported, not observed |
+| Pointer interaction does not activate the bar; tray switches edge and exits | Manual steps 3, 4, 10 | pass |
+| Targeted tests and affected B007 rendering, desktop, CPU, and memory gates pass; evidence kept distinct | Three separate reports; gate table above | **unverified**: targeted tests pass; CPU, memory, desktop, and DPI-and-rendering gates are unverified |
