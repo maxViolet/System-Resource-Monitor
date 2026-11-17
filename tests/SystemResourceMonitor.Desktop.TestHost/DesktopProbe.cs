@@ -61,6 +61,23 @@ public static partial class DesktopProbe
 
     public static nint ForegroundWindow() => GetForegroundWindow();
 
+    public static nint Owner(nint hwnd) => GetWindow(hwnd, GW_OWNER);
+
+    /// <summary>The window's handle, class, title, and owner, for failure messages about foreground changes.</summary>
+    public static string Describe(nint hwnd)
+    {
+        if (hwnd == 0)
+        {
+            return "none";
+        }
+
+        Span<char> buffer = stackalloc char[256];
+        var className = new string(buffer[..Math.Max(0, GetClassName(hwnd, buffer, buffer.Length))]);
+        var title = new string(buffer[..Math.Max(0, GetWindowText(hwnd, buffer, buffer.Length))]);
+        GetWindowThreadProcessId(hwnd, out var process);
+        return $"0x{hwnd:X} class '{className}' title '{title}' owner 0x{GetWindow(hwnd, GW_OWNER):X} pid {process}";
+    }
+
     public static bool SetForegroundBounds(nint hwnd, PixelRect bounds)
     {
         var foreground = GetForegroundWindow();
@@ -106,6 +123,48 @@ public static partial class DesktopProbe
     /// <summary>Sends <c>WM_CLOSE</c>, the normal-exit request, and reports whether the window processed it.</summary>
     public static bool RequestClose(nint hwnd) =>
         SendMessageTimeout(hwnd, WM_CLOSE, 0, 0, SMTO_ABORTIFHUNG, 5_000, out _) != 0;
+
+    private const uint GW_OWNER = 4;
+    private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    private const uint WINEVENT_OUTOFCONTEXT = 0;
+
+    private delegate void WinEventProc(nint hook, uint eventType, nint hwnd, int idObject, int idChild, uint thread, uint time);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint SetWinEventHook(uint eventMin, uint eventMax, nint module, WinEventProc callback, uint process, uint thread, uint flags);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnhookWinEvent(nint hook);
+
+    /// <summary>Reports every foreground change on the calling thread's message loop until disposed.</summary>
+    public static IDisposable WatchForeground(Action<nint> changed)
+    {
+        WinEventProc callback = (_, _, hwnd, _, _, _, _) => changed(hwnd);
+        var hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, 0, callback, 0, 0, WINEVENT_OUTOFCONTEXT);
+        return new ForegroundWatch(hook, callback);
+    }
+
+    private sealed class ForegroundWatch(nint hook, WinEventProc callback) : IDisposable
+    {
+        public void Dispose()
+        {
+            GC.KeepAlive(callback);
+            if (hook != 0)
+            {
+                _ = UnhookWinEvent(hook);
+            }
+        }
+    }
+
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW")]
+    private static partial int GetClassName(nint hwnd, Span<char> name, int length);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW")]
+    private static partial int GetWindowText(nint hwnd, Span<char> text, int length);
+
+    [LibraryImport("user32.dll")]
+    private static partial nint GetWindow(nint hwnd, uint command);
 
     [LibraryImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

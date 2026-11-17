@@ -28,12 +28,21 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
     private bool _registered;
     private bool _registrationLost;
     private BarEdge? _appliedEdge;
+    private bool _placing;
 
     public BarEdge? AppliedEdge => _appliedEdge;
 
     public int ThicknessPixels { get; private set; }
 
     public PixelRect ReservedBounds { get; private set; }
+
+    /// <summary>
+    /// The reservation a move to <paramref name="requested"/> must keep instead, or null to allow it. Once placed, the
+    /// bar stays on its reservation: the shell pushes a non-tool window out of reserved space after rapid placement
+    /// changes (ADR 0027). Moves during this session's own placement and before placement or after removal pass.
+    /// </summary>
+    public PixelRect? CorrectForeignMove(PixelRect requested) =>
+        _registered && !_placing && _appliedEdge is not null && requested != ReservedBounds ? ReservedBounds : null;
 
     public void Register()
     {
@@ -93,6 +102,7 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
         }
 
         var previous = _appliedEdge;
+        _placing = true;
         try
         {
             var placement = PlaceCore(edge);
@@ -117,6 +127,10 @@ internal sealed class AppBarSession(nint hwnd, uint callbackMessage, IAppBarNati
             }
 
             throw;
+        }
+        finally
+        {
+            _placing = false;
         }
     }
 

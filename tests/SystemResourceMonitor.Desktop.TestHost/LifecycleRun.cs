@@ -47,7 +47,7 @@ internal sealed class LifecycleRun
     /// <summary>Monotonic time of this run, on the same <see cref="Stopwatch"/> clock as <see cref="TimeProvider.System"/>.</summary>
     public TimeSpan Now => _clock.Elapsed;
 
-    public PixelRect Baseline { get; }
+    public PixelRect Baseline { get; private set; }
 
     public string SettingsDirectory { get; }
 
@@ -119,17 +119,16 @@ internal sealed class LifecycleRun
 
     public int MarkerCount(string marker) => _markers.Count(recorded => recorded.Marker == marker);
 
-    /// <summary>Finds the metric sections at the start of the bar, ahead of provider sections.</summary>
+    /// <summary>Returns the metric sections, which always lead the bar's left region.</summary>
     public static (TextBlock Cpu, TextBlock Ram, TextBlock Gpu) Sections(BarWindow bar) =>
-        bar.Content is StackPanel { Children: [TextBlock cpu, TextBlock ram, TextBlock gpu, ..] }
-            ? (cpu, ram, gpu)
-            : throw new InvalidOperationException("The bar content does not start with three metric sections.");
+        (bar.CpuSection, bar.RamSection, bar.GpuSection);
 
-    /// <summary>Finds the provider sections that follow the metric sections.</summary>
-    public static (TextBlock Codex, TextBlock Claude) ProviderSections(BarWindow bar) =>
-        bar.Content is StackPanel { Children: [TextBlock, TextBlock, TextBlock, TextBlock codex, TextBlock claude, ..] }
-            ? (codex, claude)
-            : throw new InvalidOperationException("The bar content does not hold the Codex and Claude sections.");
+    /// <summary>Returns each provider section only when the bar shows it.</summary>
+    public static (TextBlock? Codex, TextBlock? Claude) ProviderSections(BarWindow bar) =>
+        (Shown(bar, bar.CodexSection), Shown(bar, bar.ClaudeSection));
+
+    private static TextBlock? Shown(BarWindow bar, TextBlock section) =>
+        section.IsDescendantOf(bar) && section.IsVisible ? section : null;
 
     private static string SectionTexts(BarWindow bar)
     {
@@ -138,6 +137,22 @@ internal sealed class LifecycleRun
     }
 
     public static void Info(string line) => Console.WriteLine($"info: {line}");
+
+    /// <summary>
+    /// Re-derives the work area without the bar after a display-scale change resized the shell's own reservations, so
+    /// later work-area checks compare against the current desktop instead of the start-of-run one.
+    /// </summary>
+    public void RebaseAfterDisplayChange(BarWindow bar)
+    {
+        var workArea = DesktopProbe.WorkArea();
+        Baseline = bar.AppliedEdge switch
+        {
+            BarEdge.Top => workArea with { Top = workArea.Top - bar.ThicknessPixels },
+            BarEdge.Bottom => workArea with { Bottom = workArea.Bottom + bar.ThicknessPixels },
+            _ => throw new ArgumentOutOfRangeException(),
+        };
+        Info($"rebased-work-area {Baseline}");
+    }
 
     public void CheckPositionedBar(BarWindow bar)
     {
@@ -158,8 +173,10 @@ internal sealed class LifecycleRun
         Check(workArea == expected, $"work area {workArea} differs from expected {expected} for {bar.AppliedEdge}");
         Check(windowRect == bar.ReservedBounds, $"window rectangle {windowRect} differs from ABM_SETPOS {bar.ReservedBounds}");
 
-        const nint required = DesktopProbe.WS_EX_NOACTIVATE | DesktopProbe.WS_EX_TOOLWINDOW;
-        Check((DesktopProbe.ExtendedStyle(bar.Handle) & required) == required, "the bar lacks WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW");
+        var style = DesktopProbe.ExtendedStyle(bar.Handle);
+        Check((style & DesktopProbe.WS_EX_NOACTIVATE) != 0, "the bar lacks WS_EX_NOACTIVATE");
+        // A WS_EX_TOOLWINDOW bar kept its start DPI after a live scale change in the tests behind ADR 0027.
+        Check((style & DesktopProbe.WS_EX_TOOLWINDOW) == 0, "the bar has WS_EX_TOOLWINDOW (ADR 0027)");
     }
 
     public void Check(bool condition, string failure)

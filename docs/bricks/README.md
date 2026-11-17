@@ -156,12 +156,12 @@ Update this table when evidence changes a brick's state. Valid states are `plann
 | B011 | in progress |
 | B012 | accepted |
 | B013 | in progress |
-| B014 | in progress |
+| B014 | done |
 | B015–B023 | planned |
 
 B007 is `done` by user decision on 2026-10-16 after [PR #25](https://github.com/maxViolet/System-Resource-Monitor/pull/25) merged. Its separate acceptance reports are not present in `docs/acceptance/`; the [B008 automated report](../acceptance/2026-10-16-B08-automated.md) records this handoff limitation and the affected gate reruns. B008 remains `planned` until its applicable acceptance criteria have evidence.
 
-B014 records a new measured baseline without reclassifying B007's historical status. Before B014 is marked `done`, each failed or unverified first-release gate must have a named open brick or follow-up owner. B011 remains the owner of the known Codex combined-memory failure. B015 still requires its affected rendering, desktop, CPU, and memory gates to pass; baseline completion does not waive them.
+B014 is `done` by user decision on 2026-11-15: every closing criterion is met and every failed or unverified gate has a named open owner in the [B014 manual/resource report](../acceptance/2026-11-12-B14-manual-desktop-resources.md#owners-of-non-pass-gates). B014 records a new measured baseline without reclassifying B007's historical status. Before B014 is marked `done`, each failed or unverified first-release gate must have a named open brick or follow-up owner. B011 remains the owner of the known Codex combined-memory failure. B015 still requires its affected rendering, desktop, CPU, and memory gates to pass; baseline completion does not waive them.
 
 ## Brick template
 

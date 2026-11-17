@@ -21,7 +21,7 @@ public static partial class Program
     public const int InvalidInvocation = 2;
     public const int AssertionFailed = 3;
 
-    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram|gpu] | --metric-display [seconds] | --native-reads <seconds> | --gpu-probe | --gpu-correlation <seconds> | --codex-probe <polls> <interval-seconds> | --claude-independence";
+    private const string Usage = "Usage: SystemResourceMonitor.Desktop.TestHost --smoke | --fail-after-setpos | --bounded-shutdown | --faulted-metric-run | --hold-bar | --edge-switches | --fullscreen-reconciliation | --settings-read-failure | --settings-backup-failure | --settings-write-failure | --shutdown-during-settings-load | --metric-freshness [cpu|ram|gpu] | --metric-display [seconds] | --native-reads <seconds> | --gpu-probe | --gpu-correlation <seconds> | --codex-probe <polls> <interval-seconds> | --claude-independence | --provider-omission <codex|claude|both|none> | --bar-regions | --dpi-watch <seconds> | --dpi-compare <seconds>";
 
     [STAThread]
     public static int Main(string[] args)
@@ -83,6 +83,14 @@ public static partial class Program
                 return CodexProbe(polls, interval);
             case ["--claude-independence"]:
                 return ClaudeIndependence();
+            case ["--dpi-watch", var seconds] when TryParseSeconds(seconds, out var duration):
+                return DpiWatch((int)duration.TotalSeconds);
+            case ["--dpi-compare", var seconds] when TryParseSeconds(seconds, out var duration):
+                return DpiCompare((int)duration.TotalSeconds);
+            case ["--bar-regions"]:
+                return BarRegions();
+            case ["--provider-omission", var omitted] when omitted is "codex" or "claude" or "both" or "none":
+                return ProviderOmission(omitted);
             case ["--claude-probe"]:
                 return ClaudeProbe(2, TimeSpan.Zero);
             case ["--claude-image-probe", var imagePath]:
@@ -203,6 +211,13 @@ public static partial class Program
         return run.Finish();
     }
 
+    /// <summary>Records a foreground request in the marker timeline, next to the foreground and z-order markers.</summary>
+    private static bool Request(LifecycleRun run, string target)
+    {
+        run.Record($"request:{target}");
+        return true;
+    }
+
     private static int FullscreenReconciliation()
     {
         var run = new LifecycleRun();
@@ -233,7 +248,7 @@ public static partial class Program
 
                     var lowering = Stopwatch.StartNew();
                     run.Check(
-                        DesktopProbe.SetForegroundBounds(controlledHandle, monitorBounds),
+                        Request(run, "fullscreen") && DesktopProbe.SetForegroundBounds(controlledHandle, monitorBounds),
                         "the controlled fullscreen window could not become foreground");
                     run.Check(
                         await WaitForMarkerAsync(run, "zorder:Lowered", expectedCount: 1, TimeSpan.FromSeconds(1)),
@@ -259,10 +274,23 @@ public static partial class Program
                         ShowActivated = true,
                     };
                     var normalHandle = new WindowInteropHelper(normal).EnsureHandle();
+                    using var foregroundLog = DesktopProbe.WatchForeground(hwnd => run.Record(
+                        "foreground:" + (hwnd == bar.Handle ? "bar" : hwnd == controlledHandle ? "fullscreen" : hwnd == normalHandle ? "normal" : $"other {DesktopProbe.Describe(hwnd)}")));
+                    // Names the current foreground window by its role in this scenario, for failure messages.
+                    string Roles()
+                    {
+                        var foreground = DesktopProbe.ForegroundWindow();
+                        var role = foreground == bar.Handle ? "bar"
+                            : foreground == controlledHandle ? "fullscreen"
+                            : foreground == normalHandle ? "normal"
+                            : "other";
+                        return $"{role} {DesktopProbe.Describe(foreground)}; bar owner 0x{DesktopProbe.Owner(bar.Handle):X}";
+                    }
+
                     normal.Show();
                     var restoring = Stopwatch.StartNew();
                     run.Check(
-                        DesktopProbe.SetForegroundBounds(normalHandle, normalBounds),
+                        Request(run, "normal") && DesktopProbe.SetForegroundBounds(normalHandle, normalBounds),
                         "the separate normal window could not become foreground");
                     run.Check(
                         await WaitForMarkerAsync(run, "zorder:Normal", expectedCount: 1, TimeSpan.FromSeconds(1)),
@@ -275,19 +303,19 @@ public static partial class Program
                         "the restored bar did not regain topmost z-order");
 
                     run.Check(
-                        DesktopProbe.SetForegroundBounds(controlledHandle, monitorBounds),
+                        Request(run, "fullscreen") && DesktopProbe.SetForegroundBounds(controlledHandle, monitorBounds),
                         "the still-alive fullscreen window could not become foreground again");
                     run.Check(
                         await WaitForMarkerAsync(run, "zorder:Lowered", expectedCount: 2, TimeSpan.FromSeconds(1)),
-                        "the bar did not lower again when returning to fullscreen");
-                    run.Check(DesktopProbe.ForegroundWindow() == controlledHandle, "returning to fullscreen lost foreground focus");
+                        $"the bar did not lower again when returning to fullscreen; foreground {Roles()}");
+                    run.Check(DesktopProbe.ForegroundWindow() == controlledHandle, $"returning to fullscreen lost foreground focus to {Roles()}");
 
                     run.Check(
-                        DesktopProbe.SetForegroundBounds(normalHandle, normalBounds),
+                        Request(run, "normal") && DesktopProbe.SetForegroundBounds(normalHandle, normalBounds),
                         "the normal window could not become foreground after returning from fullscreen");
                     run.Check(
                         await WaitForMarkerAsync(run, "zorder:Normal", expectedCount: 2, TimeSpan.FromSeconds(1)),
-                        "the bar did not restore after the second fullscreen departure");
+                        $"the bar did not restore after the second fullscreen departure; foreground {Roles()}");
                     run.Check(DesktopProbe.WorkArea() == reservedWorkArea, "fullscreen cycles changed the reserved work area");
                     run.Check(DesktopProbe.WindowRect(bar.Handle) == reservedBounds, "fullscreen cycles moved or resized the bar");
 
