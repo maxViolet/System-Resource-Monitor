@@ -4,13 +4,15 @@ Status: in progress. [PR #41](https://github.com/maxViolet/System-Resource-Monit
 
 ## Ordered work and gates
 
+The observed 2.1.325 compatibility and failure explanations are owned by [B013.2](B13.2-claude-2.1.325-insights-and-failure-reasons.md) under [ADR 0028](../../adr/0028-claude-usage-compatibility-and-failure-explanations.md). Its sanitized observation is [dated separately](../../research/providers/claude-2.1.325-2026-11-15.md).
+
 ### 1. Freeze the contract
 
-- Accept signed file versions `2.1.304.0` and later ([ADR 0022](../../adr/0022-claude-code-minimum-version.md)), the fixed ADR 0018 arguments, and the ADR 0019 child image-loading policy. Monthly and other new subscription rows remain unknown format; the ADR 0025 local insights block is the sole non-limit exception; exercise the qualified-monthly display only with constructed snapshots.
+- Accept signed file versions `2.1.304.0` and later ([ADR 0022](../../adr/0022-claude-code-minimum-version.md)), the fixed ADR 0018 arguments, and the ADR 0019 child image-loading policy. Monthly and other new subscription rows remain unknown format; the ADR 0025 local insights block, extended only by [ADR 0028](../../adr/0028-claude-usage-compatibility-and-failure-explanations.md), is the sole non-limit exception; exercise the qualified-monthly display only with constructed snapshots.
 - `ClaudeUsageSource` does not produce `NetworkFailed` until a pinned client gives an explicit, verified network response; enabling it requires separate qualification. Prove the stale path at monitor level with a fake source.
 - A reset that has already passed renders `in 00:00`, matching `CodexSectionFormat` ([ADR 0021](../../adr/0021-used-limit-display.md)).
 
-**Gate:** no change to the row grammar or failure classification.
+**Gate:** changes to the row grammar and failure classification require an observed, bounded follow-up such as [B013.2](B13.2-claude-2.1.325-insights-and-failure-reasons.md).
 
 ### 2. Close the code and test gaps
 

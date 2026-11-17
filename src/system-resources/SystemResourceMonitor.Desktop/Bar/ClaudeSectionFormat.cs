@@ -101,12 +101,14 @@ public static class ClaudeSectionFormat
         ClaudeUnavailableReason.SignedOut => "Claude is signed out. Sign in with Claude Code.",
         ClaudeUnavailableReason.NetworkFailed => "Claude could not be reached.",
         ClaudeUnavailableReason.UnknownFormat => "Claude answered in an unsupported format.",
+        ClaudeUnavailableReason.AuthCheckFailed => "Claude Code sign-in check failed.",
+        ClaudeUnavailableReason.UsageCommandFailed => "Claude Code usage command failed.",
         ClaudeUnavailableReason.UnsupportedVersion =>
             $"The installed Claude Code version is not supported. Requires {ClaudeContract.MinimumVersion.ToString(3)} or later.",
         ClaudeUnavailableReason.ClientNotFound => "The native Claude Code client is not installed.",
         ClaudeUnavailableReason.ClientUntrusted => "The Claude Code executable failed verification.",
         ClaudeUnavailableReason.TimedOut => "Claude Code did not answer in time.",
-        ClaudeUnavailableReason.ReadFailed => "Claude Code could not be read.",
+        ClaudeUnavailableReason.ReadFailed => "Claude Code could not be started or read.",
         ClaudeUnavailableReason.Expired => "No Claude update for three minutes.",
         _ => throw new ArgumentOutOfRangeException(nameof(reason)),
     };

@@ -32,11 +32,14 @@ public static partial class ClaudeUsageReader
     [GeneratedRegex(@"^Last \d{1,3}[hd] · \d{1,3}(?:,\d{3})* requests? · \d{1,3}(?:,\d{3})* sessions?$", RegexOptions.CultureInvariant)]
     private static partial Regex InsightPeriodLine();
 
-    [GeneratedRegex(@"^\d{1,3}%  (?:Start fresh when you switch tasks · run /clear|Turn off skills you don't use · \d+k tokens per request|Compact before you step away · run /[A-Za-z0-9_.:-]{1,128}|Run /[A-Za-z0-9_.:-]{1,128} on a cheaper model|See what fills your context · run /context)$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^\d{1,3}%  (?:Start fresh when you switch tasks · run /clear|Turn off skills you don't use · \d+k tokens per request|Compact before you step away · run /[A-Za-z0-9_.:-]{1,128}|Run /[A-Za-z0-9_.:-]{1,128} on a cheaper model|See what fills your context · run /context|Review sessions active over many hours · whole sessions with requests in \d{1,3} or more separate hours)$", RegexOptions.CultureInvariant)]
     private static partial Regex InsightAdviceLine();
 
     [GeneratedRegex(@"^Top skills: /[A-Za-z0-9_.:-]{1,128} \d{1,3}%(?:, /[A-Za-z0-9_.:-]{1,128} \d{1,3}%)*$", RegexOptions.CultureInvariant)]
     private static partial Regex InsightSkillsLine();
+
+    [GeneratedRegex(@"^Top plugins: [A-Za-z0-9_.:-]{1,128} \d{1,3}%$", RegexOptions.CultureInvariant)]
+    private static partial Regex InsightPluginsLine();
 
     [GeneratedRegex(@"^Top subagents: [A-Za-z0-9_.:-]{1,128} \d{1,3}%(?:, [A-Za-z0-9_.:-]{1,128} \d{1,3}%)*$", RegexOptions.CultureInvariant)]
     private static partial Regex InsightSubagentsLine();
@@ -163,7 +166,8 @@ public static partial class ClaudeUsageReader
     private static bool IsLocalInsightLine(string line)
     {
         if (!InsightPeriodLine().IsMatch(line) && !InsightAdviceLine().IsMatch(line)
-            && !InsightSkillsLine().IsMatch(line) && !InsightSubagentsLine().IsMatch(line)) return false;
+            && !InsightSkillsLine().IsMatch(line) && !InsightPluginsLine().IsMatch(line)
+            && !InsightSubagentsLine().IsMatch(line)) return false;
         foreach (Match percent in OtherUsageLine().Matches(line))
         {
             if (!int.TryParse(percent.Value.AsSpan()[..^1], NumberStyles.None,

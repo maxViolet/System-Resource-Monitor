@@ -53,12 +53,14 @@ public sealed class ClaudeSectionFormatTests
     [InlineData(ClaudeUnavailableReason.SignedOut, "Claude is signed out. Sign in with Claude Code.")]
     [InlineData(ClaudeUnavailableReason.NetworkFailed, "Claude could not be reached.")]
     [InlineData(ClaudeUnavailableReason.UnknownFormat, "Claude answered in an unsupported format.")]
+    [InlineData(ClaudeUnavailableReason.AuthCheckFailed, "Claude Code sign-in check failed.")]
+    [InlineData(ClaudeUnavailableReason.UsageCommandFailed, "Claude Code usage command failed.")]
     [InlineData(ClaudeUnavailableReason.UnsupportedVersion,
         "The installed Claude Code version is not supported. Requires 2.1.304 or later.")]
     [InlineData(ClaudeUnavailableReason.ClientNotFound, "The native Claude Code client is not installed.")]
     [InlineData(ClaudeUnavailableReason.ClientUntrusted, "The Claude Code executable failed verification.")]
     [InlineData(ClaudeUnavailableReason.TimedOut, "Claude Code did not answer in time.")]
-    [InlineData(ClaudeUnavailableReason.ReadFailed, "Claude Code could not be read.")]
+    [InlineData(ClaudeUnavailableReason.ReadFailed, "Claude Code could not be started or read.")]
     [InlineData(ClaudeUnavailableReason.Expired, "No Claude update for three minutes.")]
     public void Every_unavailable_reason_has_a_safe_explanation(ClaudeUnavailableReason reason, string explanation)
     {

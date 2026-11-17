@@ -17,6 +17,8 @@ public sealed class ClaudeUsageSourceTests
     [InlineData("signed-out", typeof(ClaudeReadFailed))]
     [InlineData("unknown", typeof(ClaudeReadFailed))]
     [InlineData("auth-nonzero", typeof(ClaudeReadFailed))]
+    [InlineData("auth-invalid", typeof(ClaudeReadFailed))]
+    [InlineData("auth-large", typeof(ClaudeReadFailed))]
     [InlineData("usage-nonzero", typeof(ClaudeReadFailed))]
     [InlineData("large-utf8", typeof(ClaudeReadFailed))]
     public async Task Client_output_is_classified_without_reading_credentials(string mode, Type expected)
@@ -28,18 +30,34 @@ public sealed class ClaudeUsageSourceTests
         Assert.IsType(expected, result);
         if (mode == "signed-out")
             Assert.Equal(ClaudeUnavailableReason.SignedOut, ((ClaudeReadFailed)result).Reason);
-        if (mode is "unknown" or "auth-nonzero" or "usage-nonzero" or "large-utf8")
+        if (mode is "unknown" or "auth-invalid")
             Assert.Equal(ClaudeUnavailableReason.UnknownFormat, ((ClaudeReadFailed)result).Reason);
+        if (mode is "auth-nonzero" or "auth-large")
+            Assert.Equal(ClaudeUnavailableReason.AuthCheckFailed, ((ClaudeReadFailed)result).Reason);
+        if (mode is "usage-nonzero" or "large-utf8")
+            Assert.Equal(ClaudeUnavailableReason.UsageCommandFailed, ((ClaudeReadFailed)result).Reason);
         if (mode == "normal")
             Assert.Equal(100, ((ClaudeReadSucceeded)result).Snapshot.ShortWindow.RemainingPercent);
     }
 
+    [Theory]
+    [InlineData("auth-array", ClaudeUnavailableReason.UnknownFormat)]
+    [InlineData("auth-scalar", ClaudeUnavailableReason.UnknownFormat)]
+    [InlineData("auth-array-nonzero", ClaudeUnavailableReason.AuthCheckFailed)]
+    public async Task Auth_output_whose_JSON_root_is_not_an_object_is_classified_by_exit_code(
+        string mode, ClaudeUnavailableReason expected)
+    {
+        var result = await Source(mode).ReadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, Assert.IsType<ClaudeReadFailed>(result).Reason);
+    }
+
     [Fact]
-    public async Task Stderr_over_its_own_bound_is_unknown_format_although_stdout_is_valid()
+    public async Task Stderr_over_its_own_bound_is_usage_command_failure_although_stdout_is_valid()
     {
         var result = await Source("large-stderr").ReadAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(ClaudeUnavailableReason.UnknownFormat, Assert.IsType<ClaudeReadFailed>(result).Reason);
+        Assert.Equal(ClaudeUnavailableReason.UsageCommandFailed, Assert.IsType<ClaudeReadFailed>(result).Reason);
     }
 
     [Fact(Timeout = 30000)]

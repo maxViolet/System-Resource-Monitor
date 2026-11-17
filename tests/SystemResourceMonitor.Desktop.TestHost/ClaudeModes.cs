@@ -17,6 +17,22 @@ public static partial class Program
         RecordClaudeLaunch("auth");
         var mode = Environment.GetEnvironmentVariable("SRM_FAKE_CLAUDE_MODE");
         var signedOut = mode == "signed-out";
+        if (mode == "auth-invalid")
+        {
+            Console.WriteLine("{\"loggedIn\":\"unexpected\"}");
+            return Success;
+        }
+        // Valid JSON whose root is not an object, with a successful or a failed exit.
+        if (mode is "auth-array" or "auth-scalar" or "auth-array-nonzero")
+        {
+            Console.WriteLine(mode == "auth-scalar" ? "true" : "[{\"loggedIn\":true}]");
+            return mode == "auth-array-nonzero" ? AssertionFailed : Success;
+        }
+        if (mode == "auth-large")
+        {
+            Console.WriteLine(new string('x', ClaudeUsageReader.MaxOutputBytes + 1));
+            return Success;
+        }
         Console.WriteLine(JsonSerializer.Serialize(new { loggedIn = !signedOut }));
         return signedOut || mode == "auth-nonzero" ? AssertionFailed : Success;
     }
