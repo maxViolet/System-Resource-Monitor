@@ -49,7 +49,8 @@ public static class MetricSectionFormat
         yield return $"{label} {Unavailable}";
     }
 
-    private static string Label(MetricKind kind) => kind switch
+    /// <summary>The label every section of <paramref name="kind"/> starts with, followed by a space.</summary>
+    public static string Label(MetricKind kind) => kind switch
     {
         MetricKind.Cpu => "CPU",
         MetricKind.Ram => "RAM",

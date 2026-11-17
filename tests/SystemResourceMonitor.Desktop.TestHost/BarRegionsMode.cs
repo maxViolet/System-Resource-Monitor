@@ -109,7 +109,9 @@ public static partial class Program
             run.Check(right <= bar.ActualWidth && section.ActualWidth == section.Width,
                 $"a left section at {bar.AppliedEdge} is clipped: right edge {right} DIP, bar width {bar.ActualWidth} DIP");
             var center = section.TranslatePoint(new Point(section.ActualWidth / 2, section.ActualHeight / 2), bar);
-            run.Check(bar.InputHitTest(center) == section,
+            // A labelled metric section is hit on one of its runs; the run's parent is the section, which owns the tooltip.
+            var hit = bar.InputHitTest(center);
+            run.Check(hit == section || (hit as FrameworkContentElement)?.Parent == section,
                 $"a left section at {bar.AppliedEdge} does not receive the pointer at its centre, so its tooltip is unreachable");
         }
 

@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Globalization;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using System.Windows.Media;
@@ -30,6 +31,8 @@ public sealed class BarWindow : Window, IShutdownBar
     private static readonly FontFamily SectionFont = new("Segoe UI");
     private static readonly Typeface SectionTypeface = new(SectionFont, FontStyles.Normal, FontWeights.Normal, FontStretches.Normal);
     private static readonly Brush SectionForeground = Frozen(new SolidColorBrush(Color.FromRgb(0xE6, 0xE6, 0xE6)));
+    // ADR 0029: system-metric labels use the mockup's secondary colour; values keep the primary colour.
+    private static readonly Brush MetricLabelForeground = Frozen(new SolidColorBrush(Color.FromRgb(0x9F, 0xAC, 0xBC)));
 
     private readonly BarEdge _initialEdge;
     private readonly Action<BarEdge> _edgeApplied;
@@ -259,13 +262,16 @@ public sealed class BarWindow : Window, IShutdownBar
     {
         ArgumentNullException.ThrowIfNull(state);
         Dispatcher.VerifyAccess();
-        Show(_cpuSection, MetricSectionFormat.Format(state.Cpu));
-        Show(_ramSection, MetricSectionFormat.Format(state.Ram));
-        Show(_gpuSection, MetricSectionFormat.Format(state.Gpu, state.GpuAdapter));
+        Show(_cpuSection, MetricKind.Cpu, MetricSectionFormat.Format(state.Cpu));
+        Show(_ramSection, MetricKind.Ram, MetricSectionFormat.Format(state.Ram));
+        Show(_gpuSection, MetricKind.Gpu, MetricSectionFormat.Format(state.Gpu, state.GpuAdapter));
 
-        static void Show(TextBlock section, MetricSection content)
+        static void Show(TextBlock section, MetricKind kind, MetricSection content)
         {
-            section.Text = content.Text;
+            var label = MetricSectionFormat.Label(kind);
+            section.Inlines.Clear();
+            section.Inlines.Add(new Run(label) { Foreground = MetricLabelForeground });
+            section.Inlines.Add(new Run(content.Text[label.Length..]));
             section.ToolTip = content.ToolTip;
         }
     }
