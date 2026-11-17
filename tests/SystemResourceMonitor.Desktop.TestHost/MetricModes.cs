@@ -166,6 +166,9 @@ public static partial class Program
                         CheckSection(run, bar, Section(bar, MetricKind.Cpu), cpuWidth, name);
                         CheckSection(run, bar, Section(bar, MetricKind.Ram), ramWidth, name);
                         CheckSection(run, bar, Section(bar, MetricKind.Gpu), gpuWidth, name);
+                        CheckLabelColors(run, Section(bar, MetricKind.Cpu), "CPU", name);
+                        CheckLabelColors(run, Section(bar, MetricKind.Ram), "RAM", name);
+                        CheckLabelColors(run, Section(bar, MetricKind.Gpu), "GPU", name);
                         run.CheckPositionedBar(bar);
                         await Task.Delay(hold);
                     }
@@ -287,6 +290,25 @@ public static partial class Program
 
         static MetricReading Available(MetricKind kind, double percentage) => AvailableMetric.Create(kind,
             ScriptedSource.Measured(kind, percentage), DateTimeOffset.UtcNow, TimeProvider.System.GetTimestamp());
+    }
+
+    /// <summary>
+    /// ADR 0029: the metric label is drawn in the secondary colour and the rest of the section in the primary colour,
+    /// while the section text stays the full text.
+    /// </summary>
+    private static void CheckLabelColors(LifecycleRun run, TextBlock section, string label, string state)
+    {
+        var runs = section.Inlines.OfType<System.Windows.Documents.Run>().ToList();
+        var shown = string.Concat(runs.Select(inline => inline.Text));
+        run.Check(section.Text == shown && shown.StartsWith(label + " ", StringComparison.Ordinal),
+            $"{state}: section text '{section.Text}' does not match its runs '{shown}'");
+        run.Check(runs.Count == 2 && runs[0].Text == label && IsColor(runs[0].Foreground, 0x9F, 0xAC, 0xBC),
+            $"{state}: the {label} label is not a separate run in #9FACBC");
+        run.Check(runs.Count == 2 && IsColor(runs[1].Foreground, 0xE6, 0xE6, 0xE6),
+            $"{state}: the {label} value is not drawn in #E6E6E6");
+
+        static bool IsColor(Brush? brush, byte red, byte green, byte blue) =>
+            brush is SolidColorBrush { Color: var color } && color == Color.FromRgb(red, green, blue);
     }
 
     private static void CheckSection(LifecycleRun run, BarWindow bar, TextBlock section, double fixedWidth, string state)
