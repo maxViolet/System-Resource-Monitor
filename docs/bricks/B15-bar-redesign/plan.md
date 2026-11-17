@@ -1,5 +1,7 @@
 # B015 implementation plan
 
+This plan covers [B015.1](B15.1-three-region-layout.md). [B015.2](B15.2-visual-redesign.md) lists its own work.
+
 Status: planned; B014 is `done`, so implementation may start. This package executes the [B015 brief](../B15-bar-redesign.md), [shared bar design](../../plan.md#shared-bar-design), [implementation-plan redesign section](../../implementation-plan.md#shared-bar-redesign), and [CONTEXT](../../../CONTEXT.md#language). [ADR 0026](../../adr/0026-post-release-brick-renumbering.md) defines the current brick IDs.
 
 ## Outcome and boundary

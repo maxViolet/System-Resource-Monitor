@@ -90,6 +90,8 @@ B021/B022 are the post-release [Codex monthly track](../plan.md#codex-monthly-li
 | Owner | Task | Status |
 |---|---|---|
 | B013 | [B013.1 - Accept Claude 2.1.319 context advice](B13-claude-limits/B13.1-claude-2.1.319-context-advice.md) | planned |
+| B015 | [B015.1 - Three-region layout with the current appearance](B15-bar-redesign/B15.1-three-region-layout.md) | in progress |
+| B015 | [B015.2 - Visual redesign from the approved mockup](B15-bar-redesign/B15.2-visual-redesign.md) | in progress |
 
 ## Dependency graph
 
