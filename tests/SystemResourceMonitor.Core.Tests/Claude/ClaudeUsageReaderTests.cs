@@ -156,10 +156,11 @@ public sealed class ClaudeUsageReaderTests
     [InlineData("Current month: 40% used")]
     [InlineData("20%  New advice text")]
     [InlineData("Top skills: /example 101%")]
-    [InlineData("Top skills: example-skill 101%")]
+    [InlineData("Top skills: example-skill 12%")]
     [InlineData("Top skills: example/skill 12%")]
     [InlineData("Top plugins: example-plugin 101%")]
     [InlineData("Top plugins: example/plugin 12%")]
+    [InlineData("Top plugins: example-plugin 12%, other-plugin 8%")]
     [InlineData("20%  Review sessions active over many hours · whole sessions with requests in 9999 or more separate hours")]
     [InlineData("20%  Review sessions active over many hours · whole sessions with requests in 3 or more separate days")]
     public void Unknown_percentage_in_local_insights_is_unavailable(string line)

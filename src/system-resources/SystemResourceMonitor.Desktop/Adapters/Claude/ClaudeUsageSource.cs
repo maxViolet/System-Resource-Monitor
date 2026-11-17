@@ -27,6 +27,7 @@ internal sealed class ClaudeUsageSource(
     {
         using var shutdown = new ShutdownWindow(time, cancellationToken);
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var outputFailureReason = ClaudeUnavailableReason.ReadFailed;
         try
         {
             if (_unconfirmedJob is { } oldJob)
@@ -41,14 +42,18 @@ internal sealed class ClaudeUsageSource(
             cancellationToken.ThrowIfCancellationRequested();
             if (client is null) return new ClaudeReadFailed(reason);
 
+            outputFailureReason = ClaudeUnavailableReason.AuthCheckFailed;
             var auth = await RunAsync(client, ClaudeContract.AuthArguments, shutdown).ConfigureAwait(false);
             if (auth is null) return new ClaudeReadFailed(ClaudeUnavailableReason.TimedOut);
             if (auth.Value.IsLaunchFailure) return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed);
             if (AuthState(auth.Value.Output, false)) return new ClaudeReadFailed(ClaudeUnavailableReason.SignedOut);
-            if (auth.Value.ExitCode != 0 || !AuthState(auth.Value.Output, true))
+            if (auth.Value.ExitCode != 0)
                 return new ClaudeReadFailed(ClaudeUnavailableReason.AuthCheckFailed);
+            if (!AuthState(auth.Value.Output, true))
+                return new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat);
 
             cancellationToken.ThrowIfCancellationRequested();
+            outputFailureReason = ClaudeUnavailableReason.UsageCommandFailed;
             var usage = await RunAsync(client, ClaudeContract.UsageArguments, shutdown).ConfigureAwait(false);
             if (usage is null) return new ClaudeReadFailed(ClaudeUnavailableReason.TimedOut);
             if (usage.Value.IsLaunchFailure) return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed);
@@ -60,7 +65,7 @@ internal sealed class ClaudeUsageSource(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is InvalidDataException or DecoderFallbackException)
-        { return new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat); }
+        { return new ClaudeReadFailed(outputFailureReason); }
         catch (Exception exception) when (exception is IOException or InvalidOperationException
             or System.ComponentModel.Win32Exception)
         { return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed); }
