@@ -17,6 +17,59 @@ public sealed class FullscreenReconciliationTests
         Assert.Equal(FullscreenObservation.Fullscreen, FullscreenClassifier.Classify(snapshot, BarWindow));
     }
 
+    [Theory]
+    [InlineData(0, 0, 1922, 1200)]
+    [InlineData(-8, -8, 1928, 1208)]
+    [InlineData(-19, -12, 1939, 1212)]
+    public void Foreground_bounds_overhanging_the_whole_primary_monitor_are_fullscreen(int left, int top, int right, int bottom)
+    {
+        // Slay the Spire 2 in fullscreen reported (0, 0, 2562, 1600) on a 2560 x 1600 monitor.
+        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom));
+
+        Assert.Equal(FullscreenObservation.Fullscreen, FullscreenClassifier.Classify(snapshot, BarWindow));
+    }
+
+    [Theory]
+    [InlineData(-8, 16, 1928, 1208)]
+    [InlineData(-8, -8, 1928, 1184)]
+    [InlineData(2, 0, 1922, 1200)]
+    public void Bounds_that_leave_part_of_the_primary_monitor_uncovered_are_not_fullscreen(int left, int top, int right, int bottom)
+    {
+        // The first two are maximized windows, whose borders overhang the work area but never the bar's strip.
+        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom));
+
+        Assert.Equal(FullscreenObservation.Normal, FullscreenClassifier.Classify(snapshot, BarWindow));
+    }
+
+    [Theory]
+    [InlineData(0, 0, 2500, 1200)]
+    [InlineData(0, 0, 1941, 1200)]
+    [InlineData(0, -13, 1920, 1200)]
+    public void Ordinary_windows_reaching_past_the_primary_monitor_are_not_fullscreen(int left, int top, int right, int bottom)
+    {
+        // An oversized window spanning onto a second monitor still has the primary monitor as its MonitorFromWindow result.
+        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom));
+
+        Assert.Equal(FullscreenObservation.Normal, FullscreenClassifier.Classify(snapshot, BarWindow));
+    }
+
+    [Fact]
+    public void A_framed_window_overhanging_within_the_limit_is_not_fullscreen()
+    {
+        // An ordinary captioned window dragged slightly onto a second monitor.
+        var snapshot = Snapshot(windowBounds: new PixelRect(0, 0, 1939, 1200), framed: true);
+
+        Assert.Equal(FullscreenObservation.Normal, FullscreenClassifier.Classify(snapshot, BarWindow));
+    }
+
+    [Fact]
+    public void A_framed_window_matching_the_monitor_exactly_stays_fullscreen()
+    {
+        var snapshot = Snapshot(windowBounds: MonitorBounds, framed: true);
+
+        Assert.Equal(FullscreenObservation.Fullscreen, FullscreenClassifier.Classify(snapshot, BarWindow));
+    }
+
     [Fact]
     public void Fullscreen_bounds_on_another_monitor_do_not_lower_the_primary_bar()
     {
@@ -222,7 +275,8 @@ public sealed class FullscreenReconciliationTests
         nint monitor = PrimaryMonitor,
         nint primaryMonitor = PrimaryMonitor,
         PixelRect? windowBounds = null,
-        PixelRect? monitorBounds = null) =>
+        PixelRect? monitorBounds = null,
+        bool framed = false) =>
         new(
             isValid,
             window,
@@ -231,7 +285,8 @@ public sealed class FullscreenReconciliationTests
             monitor,
             primaryMonitor,
             windowBounds ?? new PixelRect(100, 100, 800, 600),
-            monitorBounds ?? MonitorBounds);
+            monitorBounds ?? MonitorBounds,
+            framed);
 
     private sealed class FakeReader(params FullscreenObservation[] observations) : IFullscreenStateReader
     {

@@ -25,7 +25,8 @@ internal readonly record struct ForegroundWindowSnapshot(
     nint Monitor,
     nint PrimaryMonitor,
     PixelRect WindowBounds,
-    PixelRect MonitorBounds);
+    PixelRect MonitorBounds,
+    bool IsFramed);
 
 internal static class FullscreenClassifier
 {
@@ -52,8 +53,24 @@ internal static class FullscreenClassifier
         }
 
         return snapshot.WindowBounds == snapshot.MonitorBounds
+            || (!snapshot.IsFramed && FillsMonitor(snapshot.WindowBounds, snapshot.MonitorBounds))
             ? FullscreenObservation.Fullscreen
             : FullscreenObservation.Normal;
+    }
+
+    /// <summary>
+    /// The window covers the whole monitor and overhangs each side by at most 1% of the monitor's size. Some
+    /// frameless games overhang by a few pixels (Slay the Spire 2: 2 px), so the caller accepts an overhang only for a
+    /// window without a caption or sizing frame. A maximized window never covers the bar's reserved strip.
+    /// </summary>
+    private static bool FillsMonitor(PixelRect window, PixelRect monitor)
+    {
+        var horizontal = Math.Max(2, monitor.Width / 100);
+        var vertical = Math.Max(2, monitor.Height / 100);
+        return Overhang(monitor.Left - window.Left, horizontal) && Overhang(monitor.Top - window.Top, vertical) &&
+            Overhang(window.Right - monitor.Right, horizontal) && Overhang(window.Bottom - monitor.Bottom, vertical);
+
+        static bool Overhang(int pixels, int limit) => pixels >= 0 && pixels <= limit;
     }
 
     public static bool IsShellDesktopWindow(
@@ -214,8 +231,20 @@ internal sealed class Win32FullscreenStateReader : IFullscreenStateReader
             Monitor: monitor,
             PrimaryMonitor: primaryMonitor,
             WindowBounds: windowBounds,
-            MonitorBounds: monitorInfo.rcMonitor);
+            MonitorBounds: monitorInfo.rcMonitor,
+            IsFramed: IsFramed(root));
         return FullscreenClassifier.Classify(snapshot, barWindow);
+    }
+
+    /// <summary>
+    /// A border, dialog frame, caption, or sizing frame marks an ordinary window, never a frameless fullscreen surface. A visible window always
+    /// has <c>WS_VISIBLE</c>, so a zero style means the read failed; treat it as framed so only an exact match lowers.
+    /// </summary>
+    private static bool IsFramed(nint window)
+    {
+        var style = (long)GetWindowLongPtr(window, GWL_STYLE);
+        // WS_CAPTION is WS_BORDER | WS_DLGFRAME; either bit alone is a frame. The observed game style 0x96000000 has none.
+        return style == 0 || (style & (WS_CAPTION | WS_THICKFRAME)) != 0;
     }
 
     private static bool ForegroundIdentityIsStable(

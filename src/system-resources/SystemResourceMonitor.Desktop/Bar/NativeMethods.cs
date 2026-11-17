@@ -42,6 +42,9 @@ internal static partial class NativeMethods
     internal const uint GA_ROOT = 2;
 
     internal const int GWL_EXSTYLE = -20;
+    internal const int GWL_STYLE = -16;
+    internal const long WS_CAPTION = 0x00C00000;
+    internal const long WS_THICKFRAME = 0x00040000;
     internal const nint WS_EX_TOOLWINDOW = 0x00000080;
     internal const nint WS_EX_NOACTIVATE = 0x08000000;
     internal const uint WS_POPUP = 0x80000000;
