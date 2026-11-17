@@ -57,6 +57,8 @@ public enum ClaudeUnavailableReason
     SignedOut,
     NetworkFailed,
     UnknownFormat,
+    AuthCheckFailed,
+    UsageCommandFailed,
     UnsupportedVersion,
     ClientNotFound,
     ClientUntrusted,

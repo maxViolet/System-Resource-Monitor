@@ -9,3 +9,4 @@ The brick brief and its linked product plan, implementation plan, and ADRs remai
 ## Follow-up tasks
 
 - [B013.1 - Accept Claude 2.1.319 context advice](B13.1-claude-2.1.319-context-advice.md): planned compatibility fix and validation criteria.
+- [B013.2 - Accept Claude 2.1.325 insights and explain failures](B13.2-claude-2.1.325-insights-and-failure-reasons.md): bounded compatibility and safe failure-stage tooltip, with remaining Windows acceptance.

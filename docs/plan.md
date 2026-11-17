@@ -28,6 +28,8 @@ Implement CPU and physical RAM measurements and independent freshness handling. 
 
 ## 3. Deliver subscription limits
 
+For Claude Code 2.1.325, [ADR 0028](adr/0028-claude-usage-compatibility-and-failure-explanations.md) adds only the observed long-session advice and `Top plugins` attribution inside the qualified local-insights block. These shares never select subscription limits. A failed sign-in check, failed `/usage` command, or unsupported response format makes the snapshot unavailable at once; the existing Claude tooltip identifies the safe failure stage without retaining client output. The bar remains `Claude: 5h -- | W --` on these failures.
+
 Start after stage 1 passes; this work runs in parallel with stage 2.
 
 Research Codex and Claude independently. Record dated results: client version, invocation/local file, response format, window names, reset times, used/remaining rounding, constraints, and sign-out behaviour. A provider is rejected only after every allowed candidate source fails; a rejected provider gets no section and does not block the release.

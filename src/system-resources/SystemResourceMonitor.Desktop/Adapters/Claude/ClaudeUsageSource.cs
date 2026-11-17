@@ -46,14 +46,14 @@ internal sealed class ClaudeUsageSource(
             if (auth.Value.IsLaunchFailure) return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed);
             if (AuthState(auth.Value.Output, false)) return new ClaudeReadFailed(ClaudeUnavailableReason.SignedOut);
             if (auth.Value.ExitCode != 0 || !AuthState(auth.Value.Output, true))
-                return new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat);
+                return new ClaudeReadFailed(ClaudeUnavailableReason.AuthCheckFailed);
 
             cancellationToken.ThrowIfCancellationRequested();
             var usage = await RunAsync(client, ClaudeContract.UsageArguments, shutdown).ConfigureAwait(false);
             if (usage is null) return new ClaudeReadFailed(ClaudeUnavailableReason.TimedOut);
             if (usage.Value.IsLaunchFailure) return new ClaudeReadFailed(ClaudeUnavailableReason.ReadFailed);
             if (usage.Value.ExitCode != 0 || usage.Value.Error.Length != 0)
-                return new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat);
+                return new ClaudeReadFailed(ClaudeUnavailableReason.UsageCommandFailed);
             var snapshot = ClaudeUsageReader.Read(Encoding.UTF8.GetBytes(usage.Value.Output), time.GetUtcNow());
             return snapshot is null ? new ClaudeReadFailed(ClaudeUnavailableReason.UnknownFormat)
                 : new ClaudeReadSucceeded(snapshot);

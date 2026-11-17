@@ -79,6 +79,7 @@ _Avoid_: weekly usage duration
 
 **Local usage insights**:
 Claude Code's approximate, overlapping attribution of sessions on this machine. Its percentages are not subscription limit windows and are never shown in the bar ([ADR 0025](docs/adr/0025-claude-local-usage-insights.md)).
+The bounded 2.1.325 advice and plugin attribution are qualified by [ADR 0028](docs/adr/0028-claude-usage-compatibility-and-failure-explanations.md); their percentages also remain outside the limit snapshot.
 _Avoid_: subscription limits
 
 **Limit snapshot**:
@@ -96,4 +97,5 @@ _Avoid_: cached limits, last known limits
 
 **Unavailable**:
 The state of a metric or limit snapshot when there is no trustworthy current value; distinct from a valid zero reading. Freshness deadlines and failure handling are specified in the product plan.
+For Claude, the existing tooltip gives a safe failure stage for sign-in checks, `/usage` commands, unsupported response formats, and client start/read failures without retaining the client response.
 _Avoid_: zero

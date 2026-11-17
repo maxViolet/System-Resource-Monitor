@@ -118,6 +118,21 @@ public sealed class ClaudeUsageReaderTests
     }
 
     [Fact]
+    public void Long_session_advice_and_top_plugins_are_ignored_only_inside_qualified_insights()
+    {
+        var snapshot = ClaudeUsageReader.Read(InsightsEnvelope("What's contributing to your usage?\n"
+            + "Approximate · sessions on this machine only · shares overlap\n"
+            + "Last 24h · 1 request · 1 session\n"
+            + "20%  Review sessions active over many hours · whole sessions with requests in 3 or more separate hours\n"
+            + "Top plugins: example-plugin 12%"), Observed);
+
+        Assert.NotNull(snapshot);
+        Assert.Equal(25, snapshot.ShortWindow.UsedPercent);
+        Assert.Equal(5, snapshot.BindingWeeklyWindow.UsedPercent);
+        Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("Top plugins: example-plugin 12%"), Observed));
+    }
+
+    [Fact]
     public void Context_advice_outside_local_insights_is_unavailable()
     {
         Assert.Null(ClaudeUsageReader.Read(InsightsEnvelope("""
@@ -141,6 +156,12 @@ public sealed class ClaudeUsageReaderTests
     [InlineData("Current month: 40% used")]
     [InlineData("20%  New advice text")]
     [InlineData("Top skills: /example 101%")]
+    [InlineData("Top skills: example-skill 101%")]
+    [InlineData("Top skills: example/skill 12%")]
+    [InlineData("Top plugins: example-plugin 101%")]
+    [InlineData("Top plugins: example/plugin 12%")]
+    [InlineData("20%  Review sessions active over many hours · whole sessions with requests in 9999 or more separate hours")]
+    [InlineData("20%  Review sessions active over many hours · whole sessions with requests in 3 or more separate days")]
     public void Unknown_percentage_in_local_insights_is_unavailable(string line)
     {
         var result = """

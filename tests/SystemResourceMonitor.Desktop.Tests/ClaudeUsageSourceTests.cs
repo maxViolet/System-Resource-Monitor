@@ -28,8 +28,12 @@ public sealed class ClaudeUsageSourceTests
         Assert.IsType(expected, result);
         if (mode == "signed-out")
             Assert.Equal(ClaudeUnavailableReason.SignedOut, ((ClaudeReadFailed)result).Reason);
-        if (mode is "unknown" or "auth-nonzero" or "usage-nonzero" or "large-utf8")
+        if (mode is "unknown" or "large-utf8")
             Assert.Equal(ClaudeUnavailableReason.UnknownFormat, ((ClaudeReadFailed)result).Reason);
+        if (mode == "auth-nonzero")
+            Assert.Equal(ClaudeUnavailableReason.AuthCheckFailed, ((ClaudeReadFailed)result).Reason);
+        if (mode == "usage-nonzero")
+            Assert.Equal(ClaudeUnavailableReason.UsageCommandFailed, ((ClaudeReadFailed)result).Reason);
         if (mode == "normal")
             Assert.Equal(100, ((ClaudeReadSucceeded)result).Snapshot.ShortWindow.RemainingPercent);
     }
