@@ -149,7 +149,9 @@ internal sealed class ClaudeUsageSource(
         try
         {
             using var document = JsonDocument.Parse(output, new JsonDocumentOptions { MaxDepth = 8 });
-            return document.RootElement.TryGetProperty("loggedIn", out var loggedIn)
+            // TryGetProperty throws for an array or scalar root; such output is an unknown format, not a read failure.
+            return document.RootElement.ValueKind == JsonValueKind.Object
+                && document.RootElement.TryGetProperty("loggedIn", out var loggedIn)
                 && loggedIn.ValueKind is JsonValueKind.True or JsonValueKind.False
                 && loggedIn.GetBoolean() == expected;
         }

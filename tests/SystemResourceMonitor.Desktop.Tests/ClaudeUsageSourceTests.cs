@@ -40,6 +40,18 @@ public sealed class ClaudeUsageSourceTests
             Assert.Equal(100, ((ClaudeReadSucceeded)result).Snapshot.ShortWindow.RemainingPercent);
     }
 
+    [Theory]
+    [InlineData("auth-array", ClaudeUnavailableReason.UnknownFormat)]
+    [InlineData("auth-scalar", ClaudeUnavailableReason.UnknownFormat)]
+    [InlineData("auth-array-nonzero", ClaudeUnavailableReason.AuthCheckFailed)]
+    public async Task Auth_output_whose_JSON_root_is_not_an_object_is_classified_by_exit_code(
+        string mode, ClaudeUnavailableReason expected)
+    {
+        var result = await Source(mode).ReadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, Assert.IsType<ClaudeReadFailed>(result).Reason);
+    }
+
     [Fact]
     public async Task Stderr_over_its_own_bound_is_usage_command_failure_although_stdout_is_valid()
     {

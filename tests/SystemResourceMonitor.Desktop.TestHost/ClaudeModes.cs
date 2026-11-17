@@ -22,6 +22,12 @@ public static partial class Program
             Console.WriteLine("{\"loggedIn\":\"unexpected\"}");
             return Success;
         }
+        // Valid JSON whose root is not an object, with a successful or a failed exit.
+        if (mode is "auth-array" or "auth-scalar" or "auth-array-nonzero")
+        {
+            Console.WriteLine(mode == "auth-scalar" ? "true" : "[{\"loggedIn\":true}]");
+            return mode == "auth-array-nonzero" ? AssertionFailed : Success;
+        }
         if (mode == "auth-large")
         {
             Console.WriteLine(new string('x', ClaudeUsageReader.MaxOutputBytes + 1));
