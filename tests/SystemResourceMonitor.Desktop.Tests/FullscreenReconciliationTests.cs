@@ -24,7 +24,7 @@ public sealed class FullscreenReconciliationTests
     public void Foreground_bounds_overhanging_the_whole_primary_monitor_are_fullscreen(int left, int top, int right, int bottom)
     {
         // Slay the Spire 2 in fullscreen reported (0, 0, 2562, 1600) on a 2560 x 1600 monitor.
-        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom));
+        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom), framed: false);
 
         Assert.Equal(FullscreenObservation.Fullscreen, FullscreenClassifier.Classify(snapshot, BarWindow));
     }
@@ -33,10 +33,15 @@ public sealed class FullscreenReconciliationTests
     [InlineData(-8, 16, 1928, 1208)]
     [InlineData(-8, -8, 1928, 1184)]
     [InlineData(2, 0, 1922, 1200)]
-    public void Bounds_that_leave_part_of_the_primary_monitor_uncovered_are_not_fullscreen(int left, int top, int right, int bottom)
+    [InlineData(-8, 1, 1928, 1208)]
+    [InlineData(-8, -8, 1928, 1199)]
+    [InlineData(1, -8, 1928, 1208)]
+    [InlineData(-8, -8, 1919, 1208)]
+    public void Frameless_bounds_that_leave_any_monitor_pixel_uncovered_are_not_fullscreen(int left, int top, int right, int bottom)
     {
-        // The first two are maximized windows, whose borders overhang the work area but never the bar's strip.
-        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom));
+        // Geometry only: the first two match the rectangles of maximized windows next to a top or bottom bar strip;
+        // the last four leave one pixel uncovered on one side.
+        var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom), framed: false);
 
         Assert.Equal(FullscreenObservation.Normal, FullscreenClassifier.Classify(snapshot, BarWindow));
     }
@@ -51,6 +56,21 @@ public sealed class FullscreenReconciliationTests
         var snapshot = Snapshot(windowBounds: new PixelRect(left, top, right, bottom));
 
         Assert.Equal(FullscreenObservation.Normal, FullscreenClassifier.Classify(snapshot, BarWindow));
+    }
+
+    [Theory]
+    [InlineData(0x96000000L, false)]
+    [InlineData(0x94000000L, false)]
+    [InlineData(0L, true)]
+    [InlineData(0x14CF0000L, true)]
+    [InlineData(0x90800000L, true)]
+    [InlineData(0x90400000L, true)]
+    [InlineData(0x90040000L, true)]
+    public void Window_styles_with_any_border_or_frame_bit_or_a_failed_read_are_framed(long style, bool framed)
+    {
+        // 0x96000000 is the observed Slay the Spire 2 popup; 0x14CF0000 an ordinary overlapped window; 0x00800000
+        // WS_BORDER, 0x00400000 WS_DLGFRAME, 0x00040000 WS_THICKFRAME; zero is a failed GetWindowLongPtr.
+        Assert.Equal(framed, FullscreenClassifier.IsFramedStyle(style));
     }
 
     [Fact]
