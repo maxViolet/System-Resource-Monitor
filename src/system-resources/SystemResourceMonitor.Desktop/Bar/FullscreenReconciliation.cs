@@ -25,7 +25,8 @@ internal readonly record struct ForegroundWindowSnapshot(
     nint Monitor,
     nint PrimaryMonitor,
     PixelRect WindowBounds,
-    PixelRect MonitorBounds);
+    PixelRect MonitorBounds,
+    bool IsFramed);
 
 internal static class FullscreenClassifier
 {
@@ -52,8 +53,31 @@ internal static class FullscreenClassifier
         }
 
         return snapshot.WindowBounds == snapshot.MonitorBounds
+            || (!snapshot.IsFramed && FillsMonitor(snapshot.WindowBounds, snapshot.MonitorBounds))
             ? FullscreenObservation.Fullscreen
             : FullscreenObservation.Normal;
+    }
+
+    /// <summary>
+    /// A border, dialog frame, caption, or sizing frame marks an ordinary window, never a frameless fullscreen surface.
+    /// <c>WS_CAPTION</c> is <c>WS_BORDER | WS_DLGFRAME</c>, so either bit alone counts. A visible window always has
+    /// <c>WS_VISIBLE</c>, so a zero style means the read failed; it counts as framed, so only an exact match lowers.
+    /// </summary>
+    public static bool IsFramedStyle(long style) => style == 0 || (style & (WS_CAPTION | WS_THICKFRAME)) != 0;
+
+    /// <summary>
+    /// The window covers the whole monitor and overhangs each side by at most 1% of the monitor's size. Some
+    /// frameless games overhang by a few pixels (Slay the Spire 2: 2 px), so the caller accepts an overhang only for a
+    /// window without a caption or sizing frame. A maximized window never covers the bar's reserved strip.
+    /// </summary>
+    private static bool FillsMonitor(PixelRect window, PixelRect monitor)
+    {
+        var horizontal = Math.Max(2, monitor.Width / 100);
+        var vertical = Math.Max(2, monitor.Height / 100);
+        return Overhang(monitor.Left - window.Left, horizontal) && Overhang(monitor.Top - window.Top, vertical) &&
+            Overhang(window.Right - monitor.Right, horizontal) && Overhang(window.Bottom - monitor.Bottom, vertical);
+
+        static bool Overhang(int pixels, int limit) => pixels >= 0 && pixels <= limit;
     }
 
     public static bool IsShellDesktopWindow(
@@ -199,6 +223,7 @@ internal sealed class Win32FullscreenStateReader : IFullscreenStateReader
             return FullscreenObservation.Indeterminate;
         }
 
+        var style = WindowStyle(root);
         var snapshot = new ForegroundWindowSnapshot(
             IsValid: ForegroundSnapshotIsStable(
                 foreground,
@@ -207,16 +232,20 @@ internal sealed class Win32FullscreenStateReader : IFullscreenStateReader
                 monitor,
                 primaryMonitor,
                 windowBounds,
-                monitorInfo.rcMonitor),
+                monitorInfo.rcMonitor,
+                style),
             Window: root,
             IsVisible: isVisible,
             IsShellWindow: isShellWindow,
             Monitor: monitor,
             PrimaryMonitor: primaryMonitor,
             WindowBounds: windowBounds,
-            MonitorBounds: monitorInfo.rcMonitor);
+            MonitorBounds: monitorInfo.rcMonitor,
+            IsFramed: FullscreenClassifier.IsFramedStyle(style));
         return FullscreenClassifier.Classify(snapshot, barWindow);
     }
+
+    private static long WindowStyle(nint window) => (long)GetWindowLongPtr(window, GWL_STYLE);
 
     private static bool ForegroundIdentityIsStable(
         nint foreground,
@@ -236,10 +265,13 @@ internal sealed class Win32FullscreenStateReader : IFullscreenStateReader
         nint monitor,
         nint primaryMonitor,
         PixelRect windowBounds,
-        PixelRect monitorBounds)
+        PixelRect monitorBounds,
+        long style)
     {
+        // The style is read after the geometry, so a recheck here keeps a style change from mixing two window states.
         if (!ForegroundIdentityIsStable(foreground, root, monitor, primaryMonitor) ||
             IsWindowVisible(root) != isVisible ||
+            WindowStyle(root) != style ||
             !GetWindowRect(root, out var currentWindowBounds) ||
             currentWindowBounds != windowBounds)
         {
